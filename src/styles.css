@@ -1,8 +1,9 @@
-:root { color: #f8fafc; background: #111827; font-family: system-ui, sans-serif; }
+:root { color: #f8e7bd; background: #050a11; font-family: Georgia, serif; }
 * { box-sizing: border-box; }
 body { min-width: 320px; min-height: 100vh; margin: 0; display: grid; place-items: center; overflow: hidden; }
-main { width: min(100vw, 960px); padding: 1rem; text-align: center; }
-h1 { margin: 0 0 .35rem; font-size: clamp(1.3rem, 3vw, 2rem); }
-p { margin: 0 0 1rem; color: #cbd5e1; }
+body { background: radial-gradient(circle at 50% 15%, #152a43 0, #070d16 55%, #030609 100%); }
+main { width: min(100vw, 1100px); padding: 1rem; text-align: center; }
+h1 { margin: 0 0 .25rem; font-size: clamp(1.3rem, 3vw, 2rem); letter-spacing: .06em; color: #f4c875; text-shadow: 0 2px 12px #000; }
+p { margin: 0 0 .75rem; color: #9fb4c9; }
 #game { width: 100%; aspect-ratio: 8 / 5; }
-canvas { display: block; margin: auto; }
+canvas { display: block; margin: auto; border: 1px solid #8f5b22; box-shadow: 0 18px 60px #000b, 0 0 24px #d47c1822; }

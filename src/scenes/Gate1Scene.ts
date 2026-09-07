@@ -13,6 +13,8 @@ export class Gate1Scene extends Phaser.Scene {
   private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
   private hud!: Phaser.GameObjects.Graphics;
+  private displayedHealth = 3;
+  private healthChangedAt = -1000;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
   preload(): void {
     this.load.image('castle-background', 'assets/gate3/castle-background.png');
@@ -73,6 +75,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.updateAbilityHud();
   }
   private updateHealthHud(): void {
+    if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.time.now; }
     this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`);
     const g = this.hud.clear();
     g.fillStyle(0x03070d, 0.7).fillRoundedRect(7, 4, 360, 72, 18);
@@ -84,13 +87,46 @@ export class Gate1Scene extends Phaser.Scene {
     g.lineStyle(2, 0xb17c29).strokeRoundedRect(81, 32, 250, 21, 9);
     const w=242*this.player.health/TUNING.player.maxHealth;
     if(w>0) { g.fillStyle(0xe96416).fillRoundedRect(85,36,w,13,5); g.fillStyle(0xffcb52).fillRoundedRect(85,36,w,6,3); g.fillStyle(0xfff2b0).fillRect(89,36,Math.max(0,w-8),2); }
+    // Sword tip, shaded crossguard, leather grip and brass pommel.
+    g.fillStyle(0x684018).fillTriangle(77,32,67,42,77,53);
+    g.fillStyle(0xffd27b).fillTriangle(77,33,69,42,77,41);
+    g.fillStyle(0x754918).fillRoundedRect(328,27,7,31,3);
+    g.fillStyle(0xeaba5d).fillRoundedRect(329,27,3,30,1);
+    g.fillStyle(0x38211b).fillRoundedRect(335,38,20,9,2);
+    for(let x=337;x<355;x+=4) { g.lineStyle(1,0xc18539).lineBetween(x,38,x-2,47); }
+    g.fillStyle(0x9c6221).fillCircle(358,42,7);
+    g.lineStyle(1,0xffd881).strokeCircle(358,42,5);
+    g.fillStyle(0xffe5a0).fillCircle(357,40,2);
+    if(w>8) {
+      const shine=89+(this.time.now*0.045)%Math.max(1,w-8);
+      g.fillStyle(0xffffff,0.18+Math.sin(this.time.now*0.003)*0.08).fillTriangle(shine,37,Math.min(shine+7,85+w),37,shine-3,48);
+    }
     for(let i=0;i<3;i++) {
-      const x=221+i*32, y=17;
-      g.fillStyle(this.player.health>i ? 0xf42327 : 0x47242c);
-      g.fillCircle(x-4,y-2,5).fillCircle(x+4,y-2,5).fillTriangle(x-9,y-1,x+9,y-1,x,y+10);
+      const pulse=Math.max(0,1-(this.time.now-this.healthChangedAt)/420);
+      const x=221+i*32, y=17-Math.sin(pulse*Math.PI)*2;
+      const amount=Phaser.Math.Clamp(this.player.health-i,0,1);
+      g.fillStyle(0x190c17).fillCircle(x-4,y-2,6).fillCircle(x+4,y-2,6).fillTriangle(x-10,y-1,x+10,y-1,x,y+11);
+      // Each lobe and half-triangle is independent so 0.5 health is a true half heart.
+      for(let side=0;side<2;side++) {
+        const lit=amount>side*0.5;
+        const dir=side===0?-1:1;
+        g.fillStyle(lit?0xa90824:0x39232d).fillCircle(x+dir*4,y-2,5).fillTriangle(x,y-1,x+dir*9,y-1,x,y+9);
+        if(lit) {
+          g.fillStyle(0xf82c42).fillCircle(x+dir*4,y-3,4).fillTriangle(x,y-2,x+dir*7,y-2,x,y+6);
+          g.fillStyle(0xff8c92).fillEllipse(x+dir*4-1,y-5,4,2);
+          g.fillStyle(0xffded8,0.8).fillCircle(x+dir*4-2,y-5,0.9);
+        }
+      }
       const fill=Phaser.Math.Clamp(this.player.stamina-i,0,1);
       g.fillStyle(0x072838).fillRoundedRect(220+i*34,58,29,13,5);
-      if(fill>0) { g.fillStyle(0x08bde9).fillRoundedRect(220+i*34,58,29*fill,13,5); g.fillStyle(0x78e8ff).fillRoundedRect(223+i*34,59,23*fill,4,2); }
+      if(fill>0) {
+        const sx=220+i*34, sw=29*fill;
+        g.fillStyle(0x075a9b).fillRoundedRect(sx,58,sw,13,5);
+        g.fillStyle(0x12c8ee).fillRoundedRect(sx+1,59,Math.max(0,sw-2),9,4);
+        g.fillStyle(0xa5f5ff).fillRoundedRect(sx+2,59,Math.max(0,sw-4),3,2);
+        g.fillStyle(0x03517c).fillTriangle(sx+2,68,sx+sw-2,68,sx+sw/2,71);
+        g.fillStyle(0xffffff,0.55).fillTriangle(sx+3,60,sx+Math.min(9,sw),60,sx+3,65);
+      }
     }
   }
   private updateAbilityHud(): void {

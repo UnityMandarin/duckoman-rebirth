@@ -130,7 +130,11 @@ export class Player {
 
   private syncVisual(): void {
     const height = this.crouching ? 42 : 60;
-    this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 13 : 6));
-    this.visual.setDisplaySize(66, height).setFlipX(this.facing < 0);
+    const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
+    const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);
+    const bounce = moving ? Math.abs(Math.sin(phase)) * 2 : 0;
+    this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 13 : 6) - bounce);
+    this.visual.setDisplaySize(66 + bounce * 0.5, height - bounce * 0.6).setFlipX(this.facing < 0);
+    this.visual.setRotation(moving ? Math.sin(phase) * 0.045 : 0);
   }
 }

@@ -6,7 +6,9 @@ const createAbilities = () => new PlayerAbilities({
   maxStamina: 3,
   dashStaminaCost: 1,
   staminaRegenAmount: 0.5,
-  staminaRegenInterval: 2000
+  staminaRegenInterval: 2000,
+  sprintStaminaCost: 0.75,
+  sprintStaminaInterval: 2000
 });
 
 describe('PlayerAbilities', () => {
@@ -36,5 +38,15 @@ describe('PlayerAbilities', () => {
     expect(abilities.landSlam(2000, 750)).toBe(true);
     expect(abilities.consumeBoost(2750)).toBe(true);
     expect(abilities.consumeBoost(2750)).toBe(false);
+  });
+
+  it('drains sprint stamina and disables sprint at zero', () => {
+    const abilities = createAbilities();
+    abilities.toggleSprint(1000);
+    abilities.update(3000);
+    expect(abilities.stamina).toBe(2.25);
+    abilities.update(9000);
+    expect(abilities.stamina).toBe(0);
+    expect(abilities.sprinting).toBe(false);
   });
 });

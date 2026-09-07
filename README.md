@@ -7,11 +7,12 @@ The archived Unity project and WebGL runtime have been intentionally removed fro
 ## Gate 1 controls and scope
 
 - Move: A/D or Left/Right arrows
+- Toggle sprint: R (uses 0.75 stamina every two seconds)
 - Jump / throw: Space or L
 - Dash: K (costs one of three stamina; 0.5 stamina regenerates every two seconds)
 - Crouch / air slam: S or Down; jump shortly after a slam landing for a boosted jump
 
-The single scrolling test room includes movement, dash, crouch, air slam and boosted jump, coyote time, jump buffering, variable jump height, one patrol enemy, stomp/damage/health/reset, and one pickup/carry/throw object. Gameplay tuning is centralized in `src/config/tuning.ts`.
+The single scrolling test room includes movement, sprint, attacking dash, crouch, air slam and boosted jump, coyote time, jump buffering, variable jump height, one patrol enemy, stomp/damage/health/reset, and one pickup/carry/throw object. Gameplay tuning is centralized in `src/config/tuning.ts`.
 
 This is not final art or a full game. The graybox does not load preserved original sprites.
 

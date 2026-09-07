@@ -33,7 +33,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
     this.healthText = this.add.text(12, 12, '', { fontFamily: 'system-ui', fontSize: '18px', color: '#f8fafc' }).setScrollFactor(0);
     this.updateHealthHud();
-    this.add.text(12, 38, 'Move: A/D · Jump/throw: Space/L · Dash: K · Crouch/slam: S', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
+    this.add.text(12, 38, 'Move: A/D · Sprint: R · Jump/throw: Space/L · Dash: K · Crouch/slam: S', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
     this.abilityText = this.add.text(12, 59, '', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
     this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
@@ -54,6 +54,6 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private updateHealthHud(): void { this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`); }
   private updateAbilityHud(): void {
-    this.abilityText.setText(`Stamina: ${this.player.stamina.toFixed(1)} / ${TUNING.player.maxStamina}${this.player.boostReady ? ' · BOOST READY' : ''}`);
+    this.abilityText.setText(`Stamina: ${this.player.stamina.toFixed(2)} / ${TUNING.player.maxStamina}${this.player.sprinting ? ' · SPRINT' : ''}${this.player.boostReady ? ' · BOOST READY' : ''}`);
   }
 }

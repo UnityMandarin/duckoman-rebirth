@@ -4,6 +4,8 @@ export interface PlayerAbilityConfig {
   dashStaminaCost: number;
   staminaRegenAmount: number;
   staminaRegenInterval: number;
+  sprintStaminaCost: number;
+  sprintStaminaInterval: number;
 }
 
 export class PlayerAbilities {
@@ -13,6 +15,7 @@ export class PlayerAbilities {
   private lastStaminaChangeAt = 0;
   stamina: number;
   slamming = false;
+  sprinting = false;
 
   constructor(private readonly config: PlayerAbilityConfig) {
     this.stamina = config.maxStamina;
@@ -21,8 +24,20 @@ export class PlayerAbilities {
   update(now: number): void {
     const ticks = Math.floor((now - this.lastStaminaChangeAt) / this.config.staminaRegenInterval);
     if (ticks <= 0) return;
-    this.stamina = Math.min(this.config.maxStamina, this.stamina + ticks * this.config.staminaRegenAmount);
-    this.lastStaminaChangeAt += ticks * this.config.staminaRegenInterval;
+    if (this.sprinting) {
+      this.stamina = Math.max(0, this.stamina - ticks * this.config.sprintStaminaCost);
+      if (this.stamina === 0) this.sprinting = false;
+      this.lastStaminaChangeAt += ticks * this.config.sprintStaminaInterval;
+    } else {
+      this.stamina = Math.min(this.config.maxStamina, this.stamina + ticks * this.config.staminaRegenAmount);
+      this.lastStaminaChangeAt += ticks * this.config.staminaRegenInterval;
+    }
+  }
+
+  toggleSprint(now: number): void {
+    this.update(now);
+    this.sprinting = !this.sprinting && this.stamina > 0;
+    this.lastStaminaChangeAt = now;
   }
 
   tryStartDash(now: number, duration: number): boolean {

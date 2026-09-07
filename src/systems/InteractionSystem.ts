@@ -8,6 +8,7 @@ export class InteractionSystem {
   constructor(private readonly player: Player, private readonly enemy: BasicEnemy, private readonly throwable: ThrowableObject) {}
   resolvePlayerEnemy(): void {
     if (!this.player.active || this.enemy.defeated) return;
+    if (this.player.isDashing) { this.enemy.defeat(); return; }
     const p = this.player.body; const e = this.enemy.body;
     if (isStomp({ left: p.left, right: p.right, top: p.top, bottom: p.bottom, previousBottom: p.prev.y + p.height, velocityY: p.velocity.y }, { left: e.left, right: e.right, top: e.top }, TUNING.contacts.stompTopTolerance)) {
       this.enemy.defeat(); this.player.bounceFromStomp(); return;

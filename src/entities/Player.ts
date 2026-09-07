@@ -16,7 +16,9 @@ export class Player {
     maxStamina: TUNING.player.maxStamina,
     dashStaminaCost: TUNING.player.dashStaminaCost,
     staminaRegenAmount: TUNING.player.staminaRegenAmount,
-    staminaRegenInterval: TUNING.player.staminaRegenInterval
+    staminaRegenInterval: TUNING.player.staminaRegenInterval,
+    sprintStaminaCost: TUNING.player.sprintStaminaCost,
+    sprintStaminaInterval: TUNING.player.sprintStaminaInterval
   });
   lifeState: PlayerLifeState = 'ACTIVE';
   facing: -1 | 1 = 1;
@@ -42,6 +44,8 @@ export class Player {
   get invulnerable(): boolean { return this.sprite.scene.time.now < this.invulnerableUntil; }
   get stamina(): number { return this.abilities.stamina; }
   get boostReady(): boolean { return this.abilities.boostReady(this.sprite.scene.time.now); }
+  get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
+  get sprinting(): boolean { return this.abilities.sprinting; }
 
   update(input: InputSnapshot, deltaMs: number): void {
     const now = this.sprite.scene.time.now;
@@ -60,6 +64,8 @@ export class Player {
     const deltaSeconds = deltaMs / 1000;
     const velocityX = this.body.velocity.x;
     this.setCrouching(this.grounded && input.down);
+
+    if (input.sprintPressed) this.abilities.toggleSprint(now);
 
     if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration)) {
       this.setCrouching(false);
@@ -82,7 +88,8 @@ export class Player {
       const acceleration = this.grounded
         ? turning ? TUNING.player.turnAcceleration : TUNING.player.groundAcceleration
         : TUNING.player.airAcceleration;
-      this.body.setVelocityX(approach(velocityX, input.horizontal * TUNING.player.maxRunSpeed, acceleration * deltaSeconds));
+      const moveSpeed = this.abilities.sprinting ? TUNING.player.sprintSpeed : TUNING.player.maxRunSpeed;
+      this.body.setVelocityX(approach(velocityX, input.horizontal * moveSpeed, acceleration * deltaSeconds));
     }
 
     if (!this.abilities.slamming && this.jumpAssist.canJump(now, TUNING.player.coyoteTime) && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {

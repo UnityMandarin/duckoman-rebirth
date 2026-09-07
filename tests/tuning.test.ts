@@ -10,6 +10,7 @@ describe('Gate 1 tuning', () => {
     expect(TUNING.player.maxStamina).toBe(3);
     expect(TUNING.player.crouchHeight).toBeLessThan(TUNING.player.bodyHeight);
     expect(TUNING.player.dashSpeed).toBeGreaterThan(TUNING.player.maxRunSpeed);
+    expect(TUNING.player.sprintSpeed).toBeGreaterThan(TUNING.player.maxRunSpeed);
     expect(TUNING.player.slamVelocity).toBeLessThanOrEqual(TUNING.player.maxFallVelocity);
     expect(TUNING.player.stompBounceVelocity).toBe(-450);
     expect(TUNING.throwable.launchSpeed).toBe(500);

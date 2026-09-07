@@ -3,7 +3,6 @@ import { TUNING } from '../config/tuning';
 import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities } from '../systems/PlayerAbilities';
-import { approach } from '../utils/approach';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -47,7 +46,7 @@ export class Player {
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
   get sprinting(): boolean { return this.abilities.sprinting; }
 
-  update(input: InputSnapshot, deltaMs: number): void {
+  update(input: InputSnapshot, _deltaMs: number): void {
     const now = this.sprite.scene.time.now;
     this.abilities.update(now);
     if (this.grounded) {
@@ -61,8 +60,6 @@ export class Player {
     if (!this.canAct) return;
 
     if (input.horizontal !== 0) this.facing = input.horizontal;
-    const deltaSeconds = deltaMs / 1000;
-    const velocityX = this.body.velocity.x;
     this.setCrouching(this.grounded && input.down);
 
     if (input.sprintPressed) this.abilities.toggleSprint(now);
@@ -79,17 +76,10 @@ export class Player {
     if (this.abilities.isDashing(now)) {
       this.body.setVelocityX(this.facing * TUNING.player.dashSpeed);
     } else if (this.crouching) {
-      this.body.setVelocityX(approach(velocityX, 0, TUNING.player.groundDeceleration * deltaSeconds));
-    } else if (input.horizontal === 0) {
-      const deceleration = this.grounded ? TUNING.player.groundDeceleration : 0;
-      this.body.setVelocityX(approach(velocityX, 0, deceleration * deltaSeconds));
+      this.body.setVelocityX(0);
     } else {
-      const turning = Math.sign(velocityX) !== 0 && Math.sign(velocityX) !== input.horizontal;
-      const acceleration = this.grounded
-        ? turning ? TUNING.player.turnAcceleration : TUNING.player.groundAcceleration
-        : TUNING.player.airAcceleration;
       const moveSpeed = this.abilities.sprinting ? TUNING.player.sprintSpeed : TUNING.player.maxRunSpeed;
-      this.body.setVelocityX(approach(velocityX, input.horizontal * moveSpeed, acceleration * deltaSeconds));
+      this.body.setVelocityX(input.horizontal * moveSpeed);
     }
 
     if (!this.abilities.slamming && this.jumpAssist.canJump(now, TUNING.player.coyoteTime) && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {

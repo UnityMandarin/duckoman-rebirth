@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Unity cleanup and placeholder assets
+      - name: Verify Unity cleanup
         shell: bash
         run: |
           set -euo pipefail
@@ -35,12 +35,18 @@ jobs:
             exit 1
           fi
           test -f index.html
-          test -f assets/original/duckoman/idle.png
           test -f LICENSE
           test -f NOTICE.md
           test "$(find assets/original -type f -name '*.png' | wc -l | tr -d ' ')" = 23
-          grep -q 'assets/original/duckoman/idle.png' index.html
           grep -q 'Original hosted game' NOTICE.md
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: test -f dist/index.html
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
@@ -53,6 +59,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4

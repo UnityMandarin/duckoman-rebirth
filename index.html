@@ -1,30 +1,17 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#182129">
-    <meta name="description" content="Duckoman Rebirth is being rebuilt as a modern browser-native platformer.">
-    <title>Duckoman Rebirth</title>
-    <style>
-      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #10181d; color: #f7f1dc; }
-      * { box-sizing: border-box; }
-      body { margin: 0; min-block-size: 100vh; display: grid; place-items: center; padding: 2rem; background: radial-gradient(circle at 50% 0%, #334850, #10181d 62%); }
-      main { width: min(42rem, 100%); border: 3px solid #d56a43; background: #182129; box-shadow: 10px 10px 0 #080d10; padding: clamp(1.5rem, 5vw, 3.5rem); text-align: center; }
-      img { image-rendering: pixelated; width: min(10rem, 42vw); height: auto; margin-block-end: 1.25rem; }
-      p { color: #c5d1c7; line-height: 1.6; }
-      .eyebrow { color: #e8b65c; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-      h1 { margin: .4rem 0 1rem; font-size: clamp(2.4rem, 9vw, 4.8rem); line-height: .9; }
-      a { color: #f2bd75; }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Duckoman Rebirth Gate 1 graybox." />
+    <title>Duckoman Rebirth — Gate 1</title>
   </head>
   <body>
     <main>
-      <img src="assets/original/duckoman/idle.png" alt="Original Duckoman sprite">
-      <p class="eyebrow">Duckoman Rebirth</p>
-      <h1>Browser-native rebuild in progress</h1>
-      <p>The original Unity build has been retired. Duckoman is being rebuilt as a responsive modern browser platformer.</p>
-      <p>Original game by Jonathan Fox / FishWash. <a href="NOTICE.md">Attribution and license</a></p>
+      <h1>Duckoman Rebirth — Gate 1</h1>
+      <p>Browser-native graybox: movement, combat, and throwable systems.</p>
+      <div id="game" aria-label="Duckoman Rebirth Gate 1 playable graybox"></div>
     </main>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

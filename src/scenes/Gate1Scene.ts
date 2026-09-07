@@ -45,7 +45,7 @@ export class Gate1Scene extends Phaser.Scene {
     }
     this.player.update(input, delta);
     if (input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
-    this.throwable.follow(this.player); this.throwable.update(); this.enemy.update();
+    this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`);
   }
 }

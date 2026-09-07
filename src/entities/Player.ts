@@ -55,6 +55,7 @@ export class Player {
     }
 
     if (this.jumpAssist.canJump(now, TUNING.player.coyoteTime) && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {
+      this.jumpAssist.consumeGrounded();
       this.body.setVelocityY(TUNING.player.jumpVelocity);
       this.jumpCutAvailable = true;
     }

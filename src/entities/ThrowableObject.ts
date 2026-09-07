@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type { Player } from './Player';
+import { approach } from '../utils/approach';
 
 export type ThrowableState = 'IDLE' | 'CARRIED' | 'THROWN';
 
@@ -54,10 +55,10 @@ export class ThrowableObject {
     return true;
   }
 
-  update(): void {
+  update(deltaMs: number): void {
     if (!this.isThrown) return;
     if (this.body.blocked.down) {
-      this.body.setVelocityX(Phaser.Math.Linear(this.body.velocity.x, 0, Math.min(1, TUNING.throwable.groundDeceleration / 1000)));
+      this.body.setVelocityX(approach(this.body.velocity.x, 0, TUNING.throwable.groundDeceleration * (deltaMs / 1000)));
       if (this.body.velocity.length() < TUNING.throwable.settleSpeed) {
         this.settledSince ??= this.sprite.scene.time.now;
         if (this.sprite.scene.time.now - this.settledSince >= TUNING.throwable.settleDuration) this.toIdle();
@@ -71,7 +72,7 @@ export class ThrowableObject {
 
   private toIdle(): void {
     this.state = 'IDLE';
-    this.body.setVelocity(0, 0);
+    this.body.setEnable(true).setVelocity(0, 0);
     this.settledSince = undefined;
   }
 

@@ -4,6 +4,7 @@ export class JumpAssist {
 
   recordGrounded(now: number): void { this.lastGroundedAt = now; }
   recordPress(now: number): void { this.lastPressedAt = now; }
+  consumeGrounded(): void { this.lastGroundedAt = Number.NEGATIVE_INFINITY; }
 
   canJump(now: number, coyoteTime: number): boolean {
     return now - this.lastGroundedAt <= coyoteTime;

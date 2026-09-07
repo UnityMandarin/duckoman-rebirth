@@ -42,7 +42,7 @@ jobs:
           grep -q 'assets/original/duckoman/idle.png' index.html
           grep -q 'Original hosted game' NOTICE.md
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
     environment:

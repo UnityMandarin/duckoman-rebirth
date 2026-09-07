@@ -7,7 +7,7 @@ const createAbilities = () => new PlayerAbilities({
   dashStaminaCost: 1,
   staminaRegenAmount: 0.5,
   staminaRegenInterval: 2000,
-  sprintStaminaCost: 0.75,
+  sprintStaminaCost: 0.25,
   sprintStaminaInterval: 2000
 });
 
@@ -44,9 +44,18 @@ describe('PlayerAbilities', () => {
     const abilities = createAbilities();
     abilities.toggleSprint(1000);
     abilities.update(3000);
-    expect(abilities.stamina).toBe(2.25);
-    abilities.update(9000);
+    expect(abilities.stamina).toBe(2.75);
+    abilities.update(25000);
     expect(abilities.stamina).toBe(0);
     expect(abilities.sprinting).toBe(false);
+  });
+
+  it('resumes stamina regeneration after sprint is turned off', () => {
+    const abilities = createAbilities();
+    abilities.toggleSprint(1000);
+    abilities.update(3000);
+    abilities.toggleSprint(3000);
+    abilities.update(5000);
+    expect(abilities.stamina).toBe(3);
   });
 });

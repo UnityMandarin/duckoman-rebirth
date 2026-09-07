@@ -7,7 +7,7 @@ The archived Unity project and WebGL runtime have been intentionally removed fro
 ## Gate 1 controls and scope
 
 - Move: A/D or Left/Right arrows
-- Toggle sprint: R (uses 0.75 stamina every two seconds)
+- Toggle sprint: R (uses 0.25 stamina every two seconds)
 - Jump / throw: Space or L
 - Dash: K (costs one of three stamina; 0.5 stamina regenerates every two seconds)
 - Crouch / air slam: S or Down; jump shortly after a slam landing for a boosted jump

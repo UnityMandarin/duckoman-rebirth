@@ -32,7 +32,7 @@ export const TUNING = {
     dashStaminaCost: 1,
     staminaRegenAmount: 0.5,
     staminaRegenInterval: 2000,
-    sprintStaminaCost: 0.75,
+    sprintStaminaCost: 0.25,
     sprintStaminaInterval: 2000,
     stompBounceVelocity: -450,
     maxHealth: 3,

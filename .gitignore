@@ -1,10 +1,5 @@
 .DS_Store
-Library/
-Temp/
-Obj/
-Build/
-Builds/
-Logs/
-UserSettings/
-MemoryCaptures/
-Recordings/
+node_modules/
+dist/
+.vite/
+coverage/

@@ -1,6 +1,7 @@
-name: Deploy Duckoman Rebirth to GitHub Pages
+name: Validate and deploy Duckoman Rebirth
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
@@ -15,25 +16,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Verify exact gameplay baseline
-        run: ./scripts/verify-baseline.sh
-      - name: Verify browser build
-        run: python3 scripts/verify_web_build.py
+      - name: Verify Unity cleanup and placeholder assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in Assets ProjectSettings Release DuckomanHTML5 TemplateData scripts BASELINE.md VALIDATION.md ASSET_PROVENANCE.md; do
+            if [ -e "$path" ]; then
+              echo "Forbidden legacy path remains: $path" >&2
+              exit 1
+            fi
+          done
+          if find . -path './.git' -prune -o -type f \( -name '*.meta' -o -name '*.cs' -o -name '*.unity' -o -name '*.prefab' -o -name '*.anim' -o -name '*.controller' -o -name '*.asset' -o -name '*.physicsMaterial2D' -o -name '*.jsgz' -o -name '*.datagz' -o -name '*.memgz' \) -print -quit | grep -q .; then
+            echo "Forbidden Unity artifact remains" >&2
+            exit 1
+          fi
+          test -f index.html
+          test -f assets/original/duckoman/idle.png
+          test -f LICENSE
+          test -f NOTICE.md
+          test "$(find assets/original -type f -name '*.png' | wc -l | tr -d ' ')" = 23
+          grep -q 'assets/original/duckoman/idle.png' index.html
+          grep -q 'Original hosted game' NOTICE.md
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

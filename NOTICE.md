@@ -4,6 +4,6 @@ Duckoman Rebirth is based on **Duckoman**, created by Jonathan Fox / FishWash in
 
 - Original hosted game: <https://github.com/jfox16/Duckoman>
 - Original editable Unity source: <https://github.com/jfox16/DuckomanCode>
-- Original license: MIT — see [`LICENSE`](LICENSE)
+- Original license: MIT — see [LICENSE](LICENSE)
 
-The original gameplay code, Unity project, level data, sprites, animation data, prefabs, project settings, and shipped WebGL runtime are retained under the MIT License. The Rebirth presentation layer and its new browser-shell artwork are additions made for this faithful remaster.
+The preserved original sprite PNGs in `assets/original/` remain available under the original MIT license. The original Unity project, Unity metadata, and shipped WebGL runtime are no longer part of this repository.

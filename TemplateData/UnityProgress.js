@@ -78,6 +78,7 @@ function UnityProgress (dom) {
 		this.logoImage.style.display = "none";
 		this.progressFrame.style.display = "none";
 		this.progressBar.style.display = "none";
+		window.DuckomanRebirth && window.DuckomanRebirth.markReady();
 	}
 
 	this.Update = function() {

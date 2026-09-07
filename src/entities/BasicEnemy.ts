@@ -38,5 +38,11 @@ export class BasicEnemy {
     this.sprite.scene.time.delayedCall(0, () => { this.sprite.destroy(); this.visual.destroy(); });
   }
 
-  private syncVisual(): void { this.visual.setPosition(this.sprite.x, this.sprite.y).setFlipX(this.direction > 0); }
+  private syncVisual(): void {
+    if (this.defeated) return;
+    const phase = this.sprite.scene.time.now * 0.012;
+    this.visual.setDisplaySize(88, 88 + Math.sin(phase) * 2);
+    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.direction > 0);
+    this.visual.setRotation(Math.sin(phase) * 0.035);
+  }
 }

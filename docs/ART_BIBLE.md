@@ -25,4 +25,10 @@ Duckoman is a tiny, absurdly round yellow hero crossing a grand gothic castle. T
 
 ## Forbidden
 
+## Approved review refinements
+
+The castle reveals more architecture with horizontal camera movement at 0.6 parallax. Terrain uses the supplied chunky blue masonry reference with chipped amber edges and shadowed undersides. Contact shadows anchor actors to the nearest supporting surface. The robot has Duckoman-sized visible artwork with a time-based patrol sway. HUD follows the reference portrait ring, three hearts, amber health bar and three cyan stamina segments; each segment displays fractional stamina. Physics bodies and room geometry remain the Gate 2 baseline.
+
+Masonry asset: `public/assets/gate3/masonry.png`, generated with the built-in image tool. Prompt: isolated side-view gothic stone platform matching the supplied reference, chunky dark blue masonry, thin chipped amber top edge, deep crevice shadows, smaller stones beneath, tapered broken underside, transparent background, no scenery or HUD. Runtime texture framing removes transparent padding without modifying the source image.
+
 Neon purple gradients, glassmorphism, random bloom, constant particles, generic mobile UI, photoreal textures, sterile perfect geometry, decorative noise, inconsistent rendering styles, baked gameplay objects in backgrounds, unreadable foreground occlusion, or visual changes that alter approved collision geometry.

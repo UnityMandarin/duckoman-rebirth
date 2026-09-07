@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { DigitalAction } from './DigitalAction';
 
 export interface InputSnapshot {
   horizontal: -1 | 0 | 1;
@@ -12,6 +13,7 @@ export class InputController {
   private readonly right: Phaser.Input.Keyboard.Key[];
   private readonly jump: Phaser.Input.Keyboard.Key[];
   private readonly reset: Phaser.Input.Keyboard.Key[];
+  private readonly jumpAction = new DigitalAction();
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard;
@@ -27,11 +29,12 @@ export class InputController {
   read(): InputSnapshot {
     const leftDown = this.left.some((key) => key.isDown);
     const rightDown = this.right.some((key) => key.isDown);
+    const jump = this.jumpAction.read(this.jump.some((key) => key.isDown));
     const horizontal = leftDown === rightDown ? 0 : leftDown ? -1 : 1;
     return {
       horizontal,
-      jumpPressed: this.jump.some((key) => Phaser.Input.Keyboard.JustDown(key)),
-      jumpReleased: this.jump.some((key) => Phaser.Input.Keyboard.JustUp(key)),
+      jumpPressed: jump.pressed,
+      jumpReleased: jump.released,
       anyResetInput: this.reset.some((key) => Phaser.Input.Keyboard.JustDown(key))
     };
   }

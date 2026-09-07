@@ -32,11 +32,13 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
     this.healthText = this.add.text(12, 12, '', { fontFamily: 'system-ui', fontSize: '18px', color: '#f8fafc' }).setScrollFactor(0);
+    this.updateHealthHud();
     this.add.text(12, 38, 'A/D or arrows: move · Space/L: jump / throw', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
   }
   update(_time: number, delta: number): void {
     const input = this.inputController.read();
+    this.updateHealthHud();
     if (this.player.lifeState === 'DEAD') {
       this.interactions.dropOnDeath(); this.deathAt ??= this.time.now;
       this.resetText.setText('Duckoman down\nPress a movement key or jump to reset');
@@ -44,8 +46,8 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     this.player.update(input, delta);
-    if (input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
+    if (this.player.canAct && input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
-    this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`);
   }
+  private updateHealthHud(): void { this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`); }
 }

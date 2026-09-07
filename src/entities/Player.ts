@@ -28,6 +28,7 @@ export class Player {
   }
 
   get active(): boolean { return this.lifeState !== 'DEAD'; }
+  get canAct(): boolean { return this.lifeState === 'ACTIVE'; }
   get grounded(): boolean { return this.body.blocked.down || this.body.touching.down; }
   get invulnerable(): boolean { return this.sprite.scene.time.now < this.invulnerableUntil; }
 
@@ -38,7 +39,7 @@ export class Player {
     if (this.lifeState === 'HURT' && now >= this.hurtUntil) this.lifeState = 'ACTIVE';
     this.sprite.setAlpha(this.invulnerable ? 0.5 : 1);
     if (input.jumpPressed) this.jumpAssist.recordPress(now);
-    if (this.lifeState === 'HURT') return;
+    if (!this.canAct) return;
 
     if (input.horizontal !== 0) this.facing = input.horizontal;
     const deltaSeconds = deltaMs / 1000;

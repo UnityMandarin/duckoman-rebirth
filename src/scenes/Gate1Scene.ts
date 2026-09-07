@@ -10,7 +10,7 @@ import { InteractionSystem } from '../systems/InteractionSystem';
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
   private inputController!: InputController; private interactions!: InteractionSystem;
-  private healthText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
+  private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
   create(): void {
     this.cameras.main.setBackgroundColor(0x20242b);
@@ -33,7 +33,9 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
     this.healthText = this.add.text(12, 12, '', { fontFamily: 'system-ui', fontSize: '18px', color: '#f8fafc' }).setScrollFactor(0);
     this.updateHealthHud();
-    this.add.text(12, 38, 'A/D or arrows: move · Space/L: jump / throw', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
+    this.add.text(12, 38, 'Move: A/D · Jump/throw: Space/L · Dash: K · Crouch/slam: S', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
+    this.abilityText = this.add.text(12, 59, '', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
+    this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
   }
   update(_time: number, delta: number): void {
@@ -48,6 +50,11 @@ export class Gate1Scene extends Phaser.Scene {
     this.player.update(input, delta);
     if (this.player.canAct && input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
+    this.updateAbilityHud();
   }
   private updateHealthHud(): void { this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`); }
+  private updateAbilityHud(): void {
+    const dash = this.player.dashCooldownRemaining === 0 ? 'READY' : `${(this.player.dashCooldownRemaining / 1000).toFixed(1)}s`;
+    this.abilityText.setText(`Dash: ${dash}${this.player.boostReady ? ' · BOOST READY' : ''}`);
+  }
 }

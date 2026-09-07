@@ -8,6 +8,7 @@ export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
 export class Player {
   readonly sprite: Phaser.GameObjects.Rectangle;
+  readonly visual: Phaser.GameObjects.Image;
   readonly body: Phaser.Physics.Arcade.Body;
   readonly jumpAssist = new JumpAssist();
   readonly abilities = new PlayerAbilities({
@@ -29,12 +30,16 @@ export class Player {
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
+    this.sprite.setVisible(false);
+    this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(5);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.player.bodyWidth, TUNING.player.bodyHeight);
     this.body.setGravityY(TUNING.player.gravity);
     this.body.setMaxVelocity(TUNING.player.dashSpeed, TUNING.player.maxFallVelocity);
     this.body.setCollideWorldBounds(true);
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
   }
 
   get active(): boolean { return this.lifeState !== 'DEAD'; }
@@ -55,7 +60,7 @@ export class Player {
     }
     if (!this.active) return;
     if (this.lifeState === 'HURT' && now >= this.hurtUntil) this.lifeState = 'ACTIVE';
-    this.sprite.setAlpha(this.invulnerable ? 0.5 : 1);
+    this.visual.setAlpha(this.invulnerable ? 0.55 : 1);
     if (input.jumpPressed) this.jumpAssist.recordPress(now);
     if (!this.canAct) return;
 
@@ -113,7 +118,7 @@ export class Player {
     this.body.setAcceleration(0, 0).setVelocity(direction * TUNING.player.damageKnockback.x, TUNING.player.damageKnockback.y);
     if (this.lifeState === 'DEAD') {
       this.body.setVelocity(0, 0).setEnable(false);
-      this.sprite.setAlpha(0.35);
+      this.visual.setAlpha(0.35);
     }
     return true;
   }
@@ -121,9 +126,11 @@ export class Player {
   private setCrouching(value: boolean): void {
     if (this.crouching === value) return;
     this.crouching = value;
-    const height = value ? TUNING.player.crouchHeight : TUNING.player.bodyHeight;
-    this.sprite.geom.setTo(0, TUNING.player.bodyHeight - height, TUNING.player.bodyWidth, height);
-    (this.sprite as Phaser.GameObjects.Rectangle & { updateData(): void }).updateData();
-    this.sprite.setFillStyle(value ? 0x81d4fa : 0x4fc3f7);
+  }
+
+  private syncVisual(): void {
+    const height = this.crouching ? 42 : 60;
+    this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 7 : 0));
+    this.visual.setDisplaySize(66, height).setFlipX(this.facing < 0);
   }
 }

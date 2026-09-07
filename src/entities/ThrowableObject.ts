@@ -7,6 +7,7 @@ export type ThrowableState = 'IDLE' | 'CARRIED' | 'THROWN';
 
 export class ThrowableObject {
   readonly sprite: Phaser.GameObjects.Arc;
+  readonly visual: Phaser.GameObjects.Image;
   readonly body: Phaser.Physics.Arcade.Body;
   state: ThrowableState = 'IDLE';
   private readonly spawn: Phaser.Math.Vector2;
@@ -16,12 +17,16 @@ export class ThrowableObject {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.spawn = new Phaser.Math.Vector2(x, y);
     this.sprite = scene.add.circle(x, y, TUNING.throwable.radius, 0xffca28);
+    this.sprite.setVisible(false);
+    this.visual = scene.add.image(x, y, 'cake').setDisplaySize(50, 50).setDepth(6);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCircle(TUNING.throwable.radius);
     this.body.setGravityY(TUNING.throwable.gravity);
     this.body.setBounce(TUNING.throwable.bounce);
     this.body.setCollideWorldBounds(true);
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
   }
 
   get isIdle(): boolean { return this.state === 'IDLE'; }
@@ -79,5 +84,11 @@ export class ThrowableObject {
   private resetToSpawn(): void {
     this.sprite.setPosition(this.spawn.x, this.spawn.y);
     this.toIdle();
+  }
+
+  private syncVisual(): void {
+    this.visual.setPosition(this.sprite.x, this.sprite.y);
+    if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.00008;
+    else this.visual.rotation = 0;
   }
 }

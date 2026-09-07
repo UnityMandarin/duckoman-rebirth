@@ -12,12 +12,23 @@ export class Gate1Scene extends Phaser.Scene {
   private inputController!: InputController; private interactions!: InteractionSystem;
   private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
+  preload(): void {
+    this.load.image('castle-background', 'assets/gate3/castle-background.png');
+    this.load.image('duckoman', 'assets/gate3/duckoman.png');
+    this.load.image('robot', 'assets/gate3/robot.png');
+    this.load.image('cake', 'assets/gate3/cake.png');
+  }
   create(): void {
-    this.cameras.main.setBackgroundColor(0x20242b);
+    this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
+    this.add.image(TUNING.simulation.width / 2, TUNING.simulation.height / 2, 'castle-background')
+      .setDisplaySize(711, TUNING.simulation.height).setScrollFactor(0).setDepth(-20);
+    this.add.rectangle(TUNING.simulation.width / 2, TUNING.simulation.height / 2, TUNING.simulation.width, TUNING.simulation.height, 0x06101c, 0.18)
+      .setScrollFactor(0).setDepth(-19);
     const terrain = this.physics.add.staticGroup();
     for (const platform of GATE_1_ROOM.platforms) {
-      const rectangle = this.add.rectangle(platform.x, platform.y, platform.width, platform.height, 0x6b7280);
+      this.createPlatformVisual(platform.x, platform.y, platform.width, platform.height);
+      const rectangle = this.add.rectangle(platform.x, platform.y, platform.width, platform.height, 0x000000, 0);
       this.physics.add.existing(rectangle, true); terrain.add(rectangle);
     }
     this.player = new Player(this, GATE_1_ROOM.playerSpawn.x, GATE_1_ROOM.playerSpawn.y);
@@ -31,10 +42,11 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
     this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
-    this.healthText = this.add.text(12, 12, '', { fontFamily: 'system-ui', fontSize: '18px', color: '#f8fafc' }).setScrollFactor(0);
+    this.add.rectangle(10, 9, 426, 76, 0x050b13, 0.78).setOrigin(0).setStrokeStyle(1, 0xc9872d, 0.8).setScrollFactor(0).setDepth(19);
+    this.healthText = this.add.text(22, 16, '', { fontFamily: 'Georgia, serif', fontSize: '17px', color: '#ffe9b0', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
-    this.add.text(12, 38, 'Move: A/D · Sprint: R · Jump/throw: Space/L · Dash: K · Crouch/slam: S', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
-    this.abilityText = this.add.text(12, 59, '', { fontFamily: 'system-ui', fontSize: '13px', color: '#cbd5e1' }).setScrollFactor(0);
+    this.add.text(22, 42, 'A/D move  ·  R sprint  ·  Space/L jump/throw  ·  K dash  ·  S crouch/slam', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#c9d6e4' }).setScrollFactor(0).setDepth(20);
+    this.abilityText = this.add.text(22, 61, '', { fontFamily: 'Georgia, serif', fontSize: '11px', color: '#69d8ff' }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
   }
@@ -55,5 +67,12 @@ export class Gate1Scene extends Phaser.Scene {
   private updateHealthHud(): void { this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`); }
   private updateAbilityHud(): void {
     this.abilityText.setText(`Stamina: ${this.player.stamina.toFixed(2)} / ${TUNING.player.maxStamina}${this.player.sprinting ? ' · SPRINT' : ''}${this.player.boostReady ? ' · BOOST READY' : ''}`);
+  }
+  private createPlatformVisual(x: number, y: number, width: number, height: number): void {
+    this.add.rectangle(x, y, width, height, 0x101827, 0.98).setStrokeStyle(2, 0x03070c, 1).setDepth(1);
+    this.add.rectangle(x, y - height / 2 + 2, width, 4, 0xf0a23a, 0.9).setDepth(2);
+    const graphics = this.add.graphics().setDepth(2);
+    graphics.lineStyle(1, 0x334257, 0.8);
+    for (let seam = x - width / 2 + 32; seam < x + width / 2; seam += 32) graphics.lineBetween(seam, y - height / 2 + 5, seam - 5, y + height / 2 - 2);
   }
 }

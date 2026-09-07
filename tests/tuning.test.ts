@@ -6,7 +6,9 @@ describe('Gate 1 tuning', () => {
     expect(TUNING.player.maxRunSpeed).toBe(200);
     expect(TUNING.player.jumpVelocity).toBe(-600);
     expect(TUNING.player.boostedJumpVelocity).toBeLessThan(TUNING.player.jumpVelocity);
-    expect(TUNING.player.dashCooldown).toBe(2000);
+    expect(TUNING.player.dashCooldown).toBe(500);
+    expect(TUNING.player.maxStamina).toBe(3);
+    expect(TUNING.player.crouchHeight).toBeLessThan(TUNING.player.bodyHeight);
     expect(TUNING.player.dashSpeed).toBeGreaterThan(TUNING.player.maxRunSpeed);
     expect(TUNING.player.slamVelocity).toBeLessThanOrEqual(TUNING.player.maxFallVelocity);
     expect(TUNING.player.stompBounceVelocity).toBe(-450);

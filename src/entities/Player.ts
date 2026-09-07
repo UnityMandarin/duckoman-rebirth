@@ -11,7 +11,13 @@ export class Player {
   readonly sprite: Phaser.GameObjects.Rectangle;
   readonly body: Phaser.Physics.Arcade.Body;
   readonly jumpAssist = new JumpAssist();
-  readonly abilities = new PlayerAbilities();
+  readonly abilities = new PlayerAbilities({
+    dashCooldown: TUNING.player.dashCooldown,
+    maxStamina: TUNING.player.maxStamina,
+    dashStaminaCost: TUNING.player.dashStaminaCost,
+    staminaRegenAmount: TUNING.player.staminaRegenAmount,
+    staminaRegenInterval: TUNING.player.staminaRegenInterval
+  });
   lifeState: PlayerLifeState = 'ACTIVE';
   facing: -1 | 1 = 1;
   health: number = TUNING.player.maxHealth;
@@ -34,11 +40,12 @@ export class Player {
   get canAct(): boolean { return this.lifeState === 'ACTIVE'; }
   get grounded(): boolean { return this.body.blocked.down || this.body.touching.down; }
   get invulnerable(): boolean { return this.sprite.scene.time.now < this.invulnerableUntil; }
-  get dashCooldownRemaining(): number { return this.abilities.dashCooldownRemaining(this.sprite.scene.time.now); }
+  get stamina(): number { return this.abilities.stamina; }
   get boostReady(): boolean { return this.abilities.boostReady(this.sprite.scene.time.now); }
 
   update(input: InputSnapshot, deltaMs: number): void {
     const now = this.sprite.scene.time.now;
+    this.abilities.update(now);
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
       this.abilities.landSlam(now, TUNING.player.slamBoostWindow);
@@ -54,7 +61,7 @@ export class Player {
     const velocityX = this.body.velocity.x;
     this.setCrouching(this.grounded && input.down);
 
-    if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration, TUNING.player.dashCooldown)) {
+    if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration)) {
       this.setCrouching(false);
     }
 
@@ -117,6 +124,9 @@ export class Player {
   private setCrouching(value: boolean): void {
     if (this.crouching === value) return;
     this.crouching = value;
-    this.sprite.setScale(1, value ? TUNING.player.crouchScaleY : 1);
+    const height = value ? TUNING.player.crouchHeight : TUNING.player.bodyHeight;
+    this.sprite.geom.setTo(0, TUNING.player.bodyHeight - height, TUNING.player.bodyWidth, height);
+    (this.sprite as Phaser.GameObjects.Rectangle & { updateData(): void }).updateData();
+    this.sprite.setFillStyle(value ? 0x81d4fa : 0x4fc3f7);
   }
 }

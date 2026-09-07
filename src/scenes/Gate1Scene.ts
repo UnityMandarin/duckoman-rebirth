@@ -54,7 +54,6 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private updateHealthHud(): void { this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`); }
   private updateAbilityHud(): void {
-    const dash = this.player.dashCooldownRemaining === 0 ? 'READY' : `${(this.player.dashCooldownRemaining / 1000).toFixed(1)}s`;
-    this.abilityText.setText(`Dash: ${dash}${this.player.boostReady ? ' · BOOST READY' : ''}`);
+    this.abilityText.setText(`Stamina: ${this.player.stamina.toFixed(1)} / ${TUNING.player.maxStamina}${this.player.boostReady ? ' · BOOST READY' : ''}`);
   }
 }

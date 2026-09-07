@@ -1,20 +1,42 @@
+export interface PlayerAbilityConfig {
+  dashCooldown: number;
+  maxStamina: number;
+  dashStaminaCost: number;
+  staminaRegenAmount: number;
+  staminaRegenInterval: number;
+}
+
 export class PlayerAbilities {
   private dashUntil = 0;
   private nextDashAt = 0;
   private boostUntil = 0;
+  private lastStaminaChangeAt = 0;
+  stamina: number;
   slamming = false;
 
-  tryStartDash(now: number, duration: number, cooldown: number): boolean {
-    if (now < this.nextDashAt) return false;
+  constructor(private readonly config: PlayerAbilityConfig) {
+    this.stamina = config.maxStamina;
+  }
+
+  update(now: number): void {
+    const ticks = Math.floor((now - this.lastStaminaChangeAt) / this.config.staminaRegenInterval);
+    if (ticks <= 0) return;
+    this.stamina = Math.min(this.config.maxStamina, this.stamina + ticks * this.config.staminaRegenAmount);
+    this.lastStaminaChangeAt += ticks * this.config.staminaRegenInterval;
+  }
+
+  tryStartDash(now: number, duration: number): boolean {
+    this.update(now);
+    if (now < this.nextDashAt || this.stamina < this.config.dashStaminaCost) return false;
     this.dashUntil = now + duration;
-    this.nextDashAt = now + cooldown;
+    this.nextDashAt = now + this.config.dashCooldown;
+    this.stamina -= this.config.dashStaminaCost;
+    this.lastStaminaChangeAt = now;
     this.slamming = false;
     return true;
   }
 
   isDashing(now: number): boolean { return now < this.dashUntil; }
-  dashCooldownRemaining(now: number): number { return Math.max(0, this.nextDashAt - now); }
-
   startSlam(): void {
     this.slamming = true;
     this.dashUntil = 0;

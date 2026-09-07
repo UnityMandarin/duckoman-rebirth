@@ -8,7 +8,7 @@ The archived Unity project and WebGL runtime have been intentionally removed fro
 
 - Move: A/D or Left/Right arrows
 - Jump / throw: Space or L
-- Dash: K (two-second cooldown)
+- Dash: K (costs one of three stamina; 0.5 stamina regenerates every two seconds)
 - Crouch / air slam: S or Down; jump shortly after a slam landing for a boosted jump
 
 The single scrolling test room includes movement, dash, crouch, air slam and boosted jump, coyote time, jump buffering, variable jump height, one patrol enemy, stomp/damage/health/reset, and one pickup/carry/throw object. Gameplay tuning is centralized in `src/config/tuning.ts`.

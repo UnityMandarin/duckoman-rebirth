@@ -29,6 +29,8 @@ jobs:
       - name: Verify browser build
         run: python3 scripts/verify_web_build.py
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

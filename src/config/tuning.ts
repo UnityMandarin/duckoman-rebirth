@@ -20,7 +20,7 @@ export const TUNING = {
     maxFallVelocity: 900,
     coyoteTime: 100,
     jumpBufferTime: 120,
-    jumpCutMultiplier: 0.45,
+    jumpCutMultiplier: 0.58,
     boostedJumpVelocity: -760,
     slamVelocity: 850,
     slamBoostWindow: 750,

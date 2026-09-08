@@ -2,8 +2,8 @@ import type { RoomRectangle } from './gate1Room';
 
 // One readable route. The only optional layer sits behind breakable walls.
 export const CASTLE = { width: 11520, top: -800, bottom: 400, bossStart: 8960 } as const;
-export const CASTLE_PLATFORMS: RoomRectangle[] = [
-  {x:2640,y:380,width:160,height:40},
+const PLATFORM_LAYOUT: RoomRectangle[] = [
+  {x:5760,y:380,width:6400,height:40},
   // Royal gallery: single rising route.
   {x:2730,y:300,width:150,height:24},{x:2930,y:235,width:130,height:24},
   {x:3120,y:155,width:130,height:24},{x:3315,y:65,width:135,height:24},
@@ -38,6 +38,11 @@ export const CASTLE_PLATFORMS: RoomRectangle[] = [
   {x:10780,y:45,width:165,height:24},{x:11040,y:170,width:170,height:24},
   {x:11300,y:280,width:180,height:24},{x:10360,y:285,width:220,height:24}
 ];
+
+// Keep one low corridor before the arena, with occasional overhead landings.
+export const CASTLE_PLATFORMS = PLATFORM_LAYOUT.filter(p =>
+  p.height===40 || p.x>=8960 || (p.y>=195 && p.width>=130)
+);
 
 export type CastleEnemySpawn={x:number;y:number;left:number;right:number;pointed:boolean;jumper:boolean};
 export const CASTLE_ENEMIES:CastleEnemySpawn[]=[

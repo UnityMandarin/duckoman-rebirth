@@ -22,6 +22,12 @@ describe('castle and warden contracts',()=>{
     expect([bombs,waves,flights]).toEqual([30,10,6]);
     expect([BOSS_RULES.normals,BOSS_RULES.pointed,BOSS_RULES.bombDamage]).toEqual([3,1,1]);
   });
+  it('has continuous solid ground through the entire expansion',()=>{
+    const floors=CASTLE_PLATFORMS.filter(p=>p.y-p.height/2===360).sort((a,b)=>a.x-a.width/2-(b.x-b.width/2));
+    let end=2560;
+    for(const floor of floors){expect(floor.x-floor.width/2).toBeLessThanOrEqual(end);end=Math.max(end,floor.x+floor.width/2);}
+    expect(end).toBe(CASTLE.width);
+  });
   it('requires fifteen separated attacks, never repeated contact or non-attacks',()=>{
     const h=new BossHealth();expect(h.touch(0,true,false)).toBe(false);
     for(let i=0;i<15;i++){

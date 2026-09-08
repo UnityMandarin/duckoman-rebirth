@@ -43,9 +43,13 @@ export class Gate1Scene extends Phaser.Scene {
   create(): void {
     this.deathAt=undefined;
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
+    this.textures.get('lock-kit').add('door',0,10,10,915,990);
+    this.textures.get('lock-kit').add('button',0,1015,790,510,210);
+    this.textures.get('rock-pillar-kit').add('pillar',0,1100,10,435,1000);
+    this.textures.get('spike-platform').add('hazard',0,16,175,1740,505);
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
-    for(let i=0;i<3;i++)this.add.image(i*5000,CASTLE.top,'castle-depth').setOrigin(0).setDisplaySize(5100,1200)
+    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1200,'castle-depth').setOrigin(0).setDisplaySize(5100,2400)
       .setFlipX(i%2===1).setScrollFactor(.72,.3).setDepth(-21);
     const background=this.textures.get('castle-background').getSourceImage();
     // Crop strips fade the old architecture into the continuation, never a hard image edge.
@@ -64,7 +68,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.player = new Player(this, GATE_1_ROOM.playerSpawn.x, GATE_1_ROOM.playerSpawn.y);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, GATE_1_ROOM.throwableSpawn.x, GATE_1_ROOM.throwableSpawn.y);
-    this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn,spawn.pointed,spawn.jumper))];
+    this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,325,spawn,spawn.pointed,spawn.jumper))];
     this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));

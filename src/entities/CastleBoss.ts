@@ -43,7 +43,7 @@ export class CastleBoss {
       this.started=now;this.gate.setAlpha(1);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=true;
       this.scene.cameras.main.zoomTo(.68,700,'Sine.easeOut');
       for(const x of [8965,9015]) {
-        const pillar=this.scene.add.image(x,-720,'rock-pillar-kit').setCrop(820,0,716,1024).setOrigin(.5,1).setDisplaySize(86,520).setDepth(14);
+        const pillar=this.scene.add.image(x,-720,'rock-pillar-kit','pillar').setOrigin(.5,1).setDisplaySize(86,520).setDepth(14);
         this.sealPillars.push(pillar);
         this.scene.tweens.add({targets:pillar,y:380,duration:850,ease:'Cubic.In'});
       }

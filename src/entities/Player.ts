@@ -154,9 +154,9 @@ export class Player {
     if (this.isDashing && this.canAct && now - this.lastGhostAt >= 35) {
       this.lastGhostAt = now;
       const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
-        .setDisplaySize(this.visual.displayWidth, this.visual.displayHeight).setFlipX(this.facing < 0)
-        .setRotation(this.visual.rotation).setTint(0x28435f).setAlpha(0.5).setDepth(4);
-      this.sprite.scene.tweens.add({ targets: ghost, alpha: 0, duration: 180, onComplete: () => ghost.destroy() });
+        .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)
+        .setRotation(this.visual.rotation).setTint(0x4fc3ff).setAlpha(.62).setDepth(9);
+      this.sprite.scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.12,scaleY:ghost.scaleY*1.12,duration:220,onComplete:()=>ghost.destroy()});
     }
   }
 }

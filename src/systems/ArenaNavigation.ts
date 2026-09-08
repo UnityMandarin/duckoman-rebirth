@@ -1,9 +1,11 @@
 export interface Ledge {x:number;top:number;width:number;}
 export const ARENA_LEDGES:Ledge[]=[
-  {x:9620,top:360,width:1190}, {x:9170,top:268,width:180},
-  {x:9430,top:188,width:180}, {x:9690,top:108,width:180},
-  {x:9950,top:188,width:180}, {x:10130,top:268,width:160},
-  {x:9660,top:288,width:180}
+  {x:10240,top:360,width:2560},{x:9220,top:268,width:180},
+  {x:9480,top:158,width:170},{x:9740,top:33,width:165},
+  {x:10000,top:-102,width:165},{x:10260,top:-237,width:165},
+  {x:10520,top:-102,width:165},{x:10780,top:33,width:165},
+  {x:11040,top:158,width:170},{x:11300,top:268,width:180},
+  {x:10360,top:273,width:220}
 ];
 export function support(x:number,bottom:number):number {
   let best=0,distance=Infinity;

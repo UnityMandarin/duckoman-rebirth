@@ -20,11 +20,11 @@ export function installLocalQA(scene:Phaser.Scene,player:Player,probeVictory:()=
   let anchored=false;const probe=document.createElement('button');probe.textContent='High ledge probe';probe.onclick=()=>{anchored=!anchored;soak=anchored;replayAt=undefined;};panel.append(probe);
   const victory=document.createElement('button');victory.textContent='Final-hit probe';victory.onclick=()=>{anchored=false;replayAt=undefined;probeVictory();};panel.append(victory);
   const death=document.createElement('button');death.textContent='Death/reset probe';death.onclick=()=>{anchored=false;replayAt=undefined;soak=false;player.takeDamage(player.sprite.x+1,3);};panel.append(death);
-  for(const [name,x,y] of [['Start',80,332.5],['Gallery',2800,230],['Tower',4200,-220],['Foundry',5600,40],['Approach',8550,110],['Boss',9200,210]] as const) {
+  for(const [name,x,y] of [['Start',80,332.5],['Gallery',2800,230],['Tower',4500,-210],['Foundry',6100,150],['Approach',8550,-100],['Boss',9200,210]] as const) {
     const button=document.createElement('button');button.textContent=name;
     button.onclick=()=>{anchored=false;replayAt=undefined;player.body.reset(x,y);player.body.setVelocity(0,0);};panel.append(button);
   }
   const status=document.createElement('span');panel.append(status);document.body.append(panel);
-  const update=()=>{if(soak&&player.active)player.health=3;if(anchored&&player.active)player.body.reset(9690,80.5);status.textContent=` x=${player.sprite.x.toFixed(0)} y=${player.sprite.y.toFixed(0)} hp=${player.health} bodies=${scene.physics.world.bodies.size} fps=${scene.game.loop.actualFps.toFixed(0)}`;};
+  const update=()=>{if(soak&&player.active)player.health=3;if(anchored&&player.active)player.body.reset(10260,-269.5);status.textContent=` x=${player.sprite.x.toFixed(0)} y=${player.sprite.y.toFixed(0)} hp=${player.health} bodies=${scene.physics.world.bodies.size} fps=${scene.game.loop.actualFps.toFixed(0)}`;};
   scene.events.on('postupdate',update);scene.events.once('shutdown',()=>{panel.remove();scene.events.off('postupdate',update);});
 }

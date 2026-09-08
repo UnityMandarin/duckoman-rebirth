@@ -24,12 +24,14 @@ export class CastleBoss {
   private probeHit=false;
   private contactGrace=0;
   private gate:Phaser.GameObjects.Rectangle;
+  private sealPillars:Phaser.GameObjects.Image[]=[];
+  private bossX=10360;
   constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
-    this.image=scene.add.image(9630,100,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
+    this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
     this.wings=scene.add.graphics().setDepth(6);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(320,108,'',{fontSize:'13px',color:'#fbd19d',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
-    this.gate=scene.add.rectangle(8990,200,18,320,0x655a49).setAlpha(0).setDepth(4);
+    this.gate=scene.add.rectangle(8990,-200,80,1200,0,0).setAlpha(0).setDepth(4);
     scene.physics.add.existing(this.gate,true);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.gate);
   }
@@ -39,14 +41,20 @@ export class CastleBoss {
     if(this.started===undefined) {
       if(this.player.sprite.x<9080)return;
       this.started=now;this.gate.setAlpha(1);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=true;
+      this.scene.cameras.main.zoomTo(.68,700,'Sine.easeOut');
+      for(const x of [8965,9015]) {
+        const pillar=this.scene.add.image(x,-720,'rock-pillar-kit').setCrop(820,0,716,1024).setOrigin(.5,1).setDisplaySize(86,520).setDepth(14);
+        this.sealPillars.push(pillar);
+        this.scene.tweens.add({targets:pillar,y:380,duration:850,ease:'Cubic.In'});
+      }
       this.say('THE WINGED WARDEN — stomp or dash its core.');
     }
     const elapsed=now-this.started,events=this.clock.tick(elapsed);
     if(events.flight)this.flightAt=now;
-    const flying=now-this.flightAt<2400;
-    const desired=9620+Math.sin(elapsed/(flying?440:1800))*(flying?400:220);
-    const nearPlayer=Phaser.Math.Clamp(desired,this.player.sprite.x-230,this.player.sprite.x+230);
-    this.image.setPosition(Phaser.Math.Clamp(nearPlayer,9180,10080),flying?45+Math.sin(elapsed*.003)*50:160+Math.sin(elapsed*.002)*40);
+    const flying=now-this.flightAt<3600;
+    const desired=10320+Math.sin(elapsed/(flying?1400:3000))*(flying?650:320);
+    this.bossX=Phaser.Math.Linear(this.bossX,Phaser.Math.Clamp(desired,9180,11420),.035);
+    this.image.setPosition(this.bossX,flying?-150+Math.sin(elapsed*.0018)*90:80+Math.sin(elapsed*.0012)*55);
     this.drawWings(now,flying);
     if(this.probeHit){this.probeHit=false;this.health.hp=1;this.player.body.reset(this.image.x,this.image.y-98);this.player.body.setVelocityY(400);}
     const p=this.player.body,x=this.image.x,y=this.image.y;
@@ -89,7 +97,7 @@ export class CastleBoss {
   }
   private throwBomb(now:number):void {
     // Target locks at release; the long marked arc can be evaded in either direction.
-    const targetX=Phaser.Math.Clamp(this.player.sprite.x+this.player.body.velocity.x*.25,9040,10190);
+    const targetX=Phaser.Math.Clamp(this.player.sprite.x+this.player.body.velocity.x*.25,9040,11480);
     const targetY=this.player.body.bottom;
     const art=this.scene.add.circle(this.image.x,this.image.y,11,0x202e41).setStrokeStyle(3,0xffb751).setDepth(9);
     const mark=this.scene.add.circle(targetX,targetY-4,BOSS_RULES.bombRadius,0xe99436,.09).setStrokeStyle(2,0xffb354,.75).setDepth(8);
@@ -110,8 +118,8 @@ export class CastleBoss {
   private spawnWave(now:number):void {
     // Exact requested wave: no caps, silent despawns, or altered spawn periods.
     for(let i=0;i<BOSS_RULES.normals+BOSS_RULES.pointed;i++) {
-      const x=this.player.sprite.x<9600?10080-i*60:9140+i*60;
-      const enemy=new BasicEnemy(this.scene,x,330,{left:9030,right:10205},i===3);
+      const x=this.player.sprite.x<10240?11380-i*60:9120+i*60;
+      const enemy=new BasicEnemy(this.scene,x,330,{left:9030,right:11480},i===3,i<3);
       if(!enemy.pointed)enemy.body.setMaxVelocity(220,900);
       const contact=new InteractionSystem(this.player,enemy,this.throwable);
       const colliders=[this.scene.physics.add.collider(enemy.sprite,this.terrain),
@@ -147,7 +155,7 @@ export class CastleBoss {
     });
   }
   private finish():void {
-    this.finished=true;this.gate.destroy();this.hud.clear();this.label.setText('WARDEN DEFEATED');
+    this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('WARDEN DEFEATED');
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];
     this.wings.destroy();this.scene.tweens.add({targets:this.image,alpha:0,angle:45,y:330,duration:900,onComplete:()=>this.image.destroy()});

@@ -33,13 +33,20 @@ export class Gate1Scene extends Phaser.Scene {
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
     this.load.image('masonry', 'assets/gate3/masonry.png');
+    this.load.image('spike-robot','assets/gate3/spike-robot.png');
+    this.load.image('jumper-robot','assets/gate3/jumper-robot.png');
+    this.load.image('spike-platform','assets/gate3/spike-platform.png');
+    this.load.image('royal-banner','assets/gate3/royal-banner.png');
+    this.load.image('lock-kit','assets/gate3/lock-kit.png');
+    this.load.image('rock-pillar-kit','assets/gate3/rock-pillar-kit.png');
   }
   create(): void {
     this.deathAt=undefined;
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
-    this.add.image(1600,-260,'castle-depth').setOrigin(0).setDisplaySize(5200,920).setScrollFactor(.6,.25).setDepth(-21);
+    for(let i=0;i<3;i++)this.add.image(i*5000,CASTLE.top,'castle-depth').setOrigin(0).setDisplaySize(5100,1200)
+      .setFlipX(i%2===1).setScrollFactor(.72,.3).setDepth(-21);
     const background=this.textures.get('castle-background').getSourceImage();
     // Crop strips fade the old architecture into the continuation, never a hard image edge.
     for(let i=0;i<90;i++)this.add.image(i*20,-170,'castle-background').setOrigin(0)
@@ -57,7 +64,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.player = new Player(this, GATE_1_ROOM.playerSpawn.x, GATE_1_ROOM.playerSpawn.y);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, GATE_1_ROOM.throwableSpawn.x, GATE_1_ROOM.throwableSpawn.y);
-    this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn,spawn.pointed))];
+    this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn,spawn.pointed,spawn.jumper))];
     this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));
@@ -76,8 +83,9 @@ export class Gate1Scene extends Phaser.Scene {
     this.mechanisms=new CastleMechanisms(this,this.player,this.throwable,terrain);
     this.boss=new CastleBoss(this,this.player,this.throwable,terrain,text=>this.mechanisms.say(text));
     this.cameras.main.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
-    this.cameras.main.startFollow(this.player.sprite, true, 1, .1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
-    this.cameras.main.setDeadzone(0, TUNING.simulation.height);
+    this.cameras.main.roundPixels=true;
+    this.cameras.main.startFollow(this.player.sprite,true,.18,.12);
+    this.cameras.main.setDeadzone(96,150);
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
@@ -109,9 +117,6 @@ export class Gate1Scene extends Phaser.Scene {
     this.pillar.update();
     this.mechanisms.update();
     this.boss.update();
-    // Preserve the original horizontal feel; vertical following begins only above its old view.
-    this.cameras.main.setFollowOffset(0,this.player.sprite.y>170 ? 200-this.player.sprite.y : 0);
-    this.cameras.main.setDeadzone(0,this.player.sprite.y>170?400:150);
     this.updateAbilityHud();
   }
   private updateHealthHud(): void {

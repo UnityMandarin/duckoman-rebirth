@@ -1,63 +1,61 @@
 import type { RoomRectangle } from './gate1Room';
 
-// Heights remain in the original coordinate system: the old floor is y=360.
-export const CASTLE = { width: 10240, top: -520, bottom: 400, bossStart: 8980 } as const;
+// One readable route. The only optional layer sits behind breakable walls.
+export const CASTLE = { width: 11520, top: -800, bottom: 400, bossStart: 8960 } as const;
 export const CASTLE_PLATFORMS: RoomRectangle[] = [
-  {x:6400,y:380,width:7680,height:40},
-  // Royal gallery: three connected elevations and a low return passage.
-  {x:2730,y:285,width:180,height:24}, {x:2940,y:195,width:170,height:24},
-  {x:3150,y:105,width:190,height:24}, {x:3380,y:15,width:180,height:24},
-  {x:3540,y:230,width:520,height:24}, {x:3210,y:325,width:300,height:24},
-  {x:3680,y:-75,width:300,height:24}, {x:3880,y:105,width:160,height:24},
-  // Bell tower: switchbacks up a shaft, with a lower escape route.
-  {x:4100,y:285,width:160,height:24}, {x:4280,y:195,width:160,height:24},
-  {x:4100,y:105,width:160,height:24}, {x:4280,y:15,width:160,height:24},
-  {x:4100,y:-75,width:160,height:24}, {x:4280,y:-165,width:160,height:24},
-  {x:4500,y:-255,width:300,height:24}, {x:4500,y:210,width:300,height:24},
-  {x:4710,y:115,width:130,height:24}, {x:4890,y:15,width:150,height:24},
-  // Foundry galleries connect over the machinery and below its bridges.
-  {x:5160,y:270,width:220,height:24}, {x:5420,y:180,width:180,height:24},
-  {x:5620,y:90,width:180,height:24}, {x:5810,y:0,width:150,height:24},
-  {x:6040,y:-90,width:260,height:24}, {x:5900,y:270,width:300,height:24},
-  {x:6290,y:200,width:180,height:24}, {x:6500,y:110,width:180,height:24},
-  // Broken audience hall: wide landings, changing directions, optional roof.
-  {x:6750,y:280,width:180,height:24}, {x:6950,y:190,width:160,height:24},
-  {x:6770,y:100,width:160,height:24}, {x:6970,y:10,width:160,height:24},
-  {x:7200,y:-80,width:230,height:24}, {x:7440,y:-170,width:180,height:24},
-  {x:7320,y:270,width:400,height:24}, {x:7670,y:175,width:180,height:24},
-  {x:7900,y:85,width:200,height:24}, {x:8130,y:-5,width:180,height:24},
-  {x:8370,y:270,width:230,height:24}, {x:8580,y:180,width:150,height:24},
-  {x:8790,y:90,width:210,height:24},
-  // Arena has three offset tiers; each rise is within an ordinary robot jump.
-  {x:9170,y:280,width:180,height:24}, {x:9430,y:200,width:180,height:24},
-  {x:9690,y:120,width:180,height:24}, {x:9950,y:200,width:180,height:24},
-  {x:10130,y:280,width:160,height:24}, {x:9660,y:300,width:180,height:24}
-  ,{x:3810,y:275,width:40,height:170}
-  ,{x:3700,y:305,width:130,height:24}
-  ,{x:5030,y:265,width:42,height:190}
-  ,{x:4850,y:295,width:150,height:24}
-  ,{x:6460,y:280,width:36,height:160}
-  ,{x:6350,y:300,width:130,height:24}
-  ,{x:8040,y:275,width:40,height:170}
-  ,{x:7900,y:300,width:160,height:24}
+  {x:2640,y:380,width:160,height:40},
+  // Royal gallery: single rising route.
+  {x:2730,y:300,width:150,height:24},{x:2930,y:235,width:130,height:24},
+  {x:3120,y:155,width:130,height:24},{x:3315,y:65,width:135,height:24},
+  {x:3520,y:-25,width:145,height:24},{x:3735,y:70,width:140,height:24},
+  {x:3935,y:165,width:135,height:24},{x:4130,y:255,width:150,height:24},
+  // Bell tower: one-way switchback, no parallel route.
+  {x:4350,y:285,width:140,height:24},{x:4540,y:195,width:125,height:24},
+  {x:4350,y:105,width:125,height:24},{x:4540,y:15,width:125,height:24},
+  {x:4350,y:-75,width:125,height:24},{x:4540,y:-165,width:125,height:24},
+  {x:4750,y:-255,width:150,height:24},{x:4950,y:-165,width:130,height:24},
+  {x:5145,y:-75,width:130,height:24},{x:5335,y:15,width:130,height:24},
+  {x:5530,y:105,width:130,height:24},{x:5725,y:195,width:135,height:24},
+  // Foundry: low mandatory tunnel; rocks make the route unmistakable.
+  {x:5940,y:285,width:145,height:24},{x:6150,y:220,width:130,height:24},
+  {x:6360,y:145,width:125,height:24},{x:6570,y:70,width:125,height:24},
+  {x:6780,y:145,width:125,height:24},{x:6990,y:220,width:130,height:24},
+  {x:7200,y:285,width:145,height:24},
+  // Audience hall: harder single chain.
+  {x:7420,y:265,width:130,height:24},{x:7615,y:175,width:120,height:24},
+  {x:7810,y:75,width:115,height:24},{x:8015,y:-35,width:115,height:24},
+  {x:8220,y:-145,width:120,height:24},{x:8425,y:-45,width:120,height:24},
+  {x:8630,y:65,width:120,height:24},{x:8825,y:175,width:130,height:24},
+  {x:9010,y:285,width:170,height:24},
+  // Breakable-wall-only optional dead ends.
+  {x:3460,y:-190,width:190,height:24},{x:6470,y:-120,width:180,height:24},
+  {x:8070,y:-300,width:170,height:24},
+  // Double-width, double-height boss arena.
+  {x:10240,y:380,width:2560,height:40},
+  {x:9220,y:280,width:180,height:24},{x:9480,y:170,width:170,height:24},
+  {x:9740,y:45,width:165,height:24},{x:10000,y:-90,width:165,height:24},
+  {x:10260,y:-225,width:165,height:24},{x:10520,y:-90,width:165,height:24},
+  {x:10780,y:45,width:165,height:24},{x:11040,y:170,width:170,height:24},
+  {x:11300,y:280,width:180,height:24},{x:10360,y:285,width:220,height:24}
 ];
-export const CASTLE_ENEMIES = [
-  {x:3000,y:330,left:2860,right:3130,pointed:false},
-  {x:3590,y:185,left:3350,right:3750,pointed:false},
-  {x:4540,y:170,left:4390,right:4610,pointed:true},
-  {x:5400,y:330,left:5320,right:5520,pointed:true},
-  {x:5940,y:225,left:5790,right:6010,pointed:false},
-  {x:6500,y:65,left:6450,right:6550,pointed:true},
-  {x:7230,y:330,left:7080,right:7390,pointed:true},
-  {x:7330,y:225,left:7170,right:7470,pointed:false},
-  {x:7900,y:40,left:7835,right:7965,pointed:true},
-  {x:8490,y:330,left:8280,right:8700,pointed:false}
+
+export type CastleEnemySpawn={x:number;y:number;left:number;right:number;pointed:boolean;jumper:boolean};
+export const CASTLE_ENEMIES:CastleEnemySpawn[]=[
+  {x:3000,y:190,left:2870,right:3180,pointed:false,jumper:true},
+  {x:3680,y:20,left:3520,right:3820,pointed:true,jumper:false},
+  {x:4460,y:50,left:4300,right:4620,pointed:false,jumper:true},
+  {x:5220,y:-120,left:5080,right:5380,pointed:true,jumper:false},
+  {x:6100,y:165,left:5950,right:6250,pointed:false,jumper:true},
+  {x:6820,y:95,left:6690,right:6960,pointed:true,jumper:false},
+  {x:7540,y:125,left:7410,right:7700,pointed:false,jumper:true},
+  {x:8150,y:-195,left:8000,right:8320,pointed:true,jumper:false},
+  {x:8720,y:15,left:8580,right:8860,pointed:false,jumper:true}
 ];
-export const STORY = [
+
+export const STORY=[
   {x:2670,text:'These banners… my crest. This was my kingdom.'},
-  {x:3900,text:'I was gone too long. Who let these machines into my home?'},
-  {x:5100,text:'They have turned the old foundry against us.'},
-  {x:6680,text:'My throne is broken. But someone is still giving orders.'},
-  {x:8140,text:'Royal seals on machine orders… who is using my name?'},
-  {x:8960,text:'That winged sentinel guards the answer.'}
+  {x:4300,text:'The machines left only one road through my own halls.'},
+  {x:5900,text:'They have turned the old foundry against us.'},
+  {x:7380,text:'Dead ends. Traps. Someone expected my return.'},
+  {x:8900,text:'That winged sentinel guards the answer.'}
 ];

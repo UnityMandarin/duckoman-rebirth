@@ -10,8 +10,8 @@ describe('castle and warden contracts',()=>{
     expect(enemyContact(false,false,true)).toBe('stomp');
     expect(enemyContact(false,false,false)).toBe('damage');
   });
-  it('quadruples the present world without moving the old floor',()=>{
-    expect(CASTLE.width).toBe(2560*4);
+  it('extends beyond four rooms for the double-size boss arena',()=>{
+    expect(CASTLE.width).toBeGreaterThan(2560*4);
     expect(Math.min(...CASTLE_PLATFORMS.map(p=>p.y))).toBeLessThan(-200);
     expect(CASTLE_PLATFORMS[0].x-CASTLE_PLATFORMS[0].width/2).toBe(2560);
     for(const p of CASTLE_PLATFORMS){expect(p.x+p.width/2).toBeLessThanOrEqual(CASTLE.width);expect(p.y+p.height/2).toBeLessThanOrEqual(CASTLE.bottom);}

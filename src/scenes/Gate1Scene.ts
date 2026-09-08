@@ -6,6 +6,7 @@ import { Player } from '../entities/Player';
 import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
+import { FallingPillar } from '../entities/FallingPillar';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -16,8 +17,10 @@ export class Gate1Scene extends Phaser.Scene {
   private displayedHealth = 3;
   private healthChangedAt = -1000;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
+  private extraEnemies: BasicEnemy[] = [];
+  private pillar!: FallingPillar;
   preload(): void {
-    this.load.image('castle-background', 'assets/gate3/castle-background.png');
+    this.load.image('castle-background', 'assets/gate3/castle-panorama.png');
     this.load.image('duckoman', 'assets/gate3/duckoman.png');
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
@@ -28,7 +31,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
     this.add.image(0, 0, 'castle-background').setOrigin(0)
-      .setDisplaySize(1050, 591).setY(-155).setScrollFactor(0.6, 0).setDepth(-20);
+      .setDisplaySize(1800, 600).setY(-170).setScrollFactor(0.6, 0).setDepth(-20);
     this.add.rectangle(TUNING.simulation.width / 2, TUNING.simulation.height / 2, TUNING.simulation.width, TUNING.simulation.height, 0x06101c, 0.18)
       .setScrollFactor(0).setDepth(-19);
     const terrain = this.physics.add.staticGroup();
@@ -40,7 +43,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.player = new Player(this, GATE_1_ROOM.playerSpawn.x, GATE_1_ROOM.playerSpawn.y);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, GATE_1_ROOM.throwableSpawn.x, GATE_1_ROOM.throwableSpawn.y);
-    this.shadows = [this.player, this.enemy, this.throwable].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
+    this.extraEnemies=GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn));
+    this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));
     this.inputController = new InputController(this); this.interactions = new InteractionSystem(this.player, this.enemy, this.throwable);
@@ -48,6 +52,13 @@ export class Gate1Scene extends Phaser.Scene {
     this.physics.add.overlap(this.player.sprite, this.enemy.sprite, () => this.interactions.resolvePlayerEnemy());
     this.physics.add.overlap(this.player.sprite, this.throwable.sprite, () => this.interactions.tryPickup());
     this.physics.add.overlap(this.throwable.sprite, this.enemy.sprite, () => this.interactions.resolveThrownEnemy());
+    for(const enemy of this.extraEnemies) {
+      const contact=new InteractionSystem(this.player,enemy,this.throwable);
+      this.physics.add.collider(enemy.sprite,terrain);
+      this.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contact.resolvePlayerEnemy());
+      this.physics.add.overlap(this.throwable.sprite,enemy.sprite,()=>contact.resolveThrownEnemy());
+    }
+    this.pillar=new FallingPillar(this,this.player);
     this.cameras.main.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
     this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
@@ -55,10 +66,15 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
-    this.add.text(16, 80, 'A/D move · R sprint · Space/L jump/throw · K dash · S crouch/slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
+    this.add.text(16, 80, 'A/D move · R sprint · Space/L jump/throw · K dash · S tuck · S again slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
+    this.resetText.setDepth(30);
+    this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
+    this.events.emit('play-ready');
+    if(document.documentElement.dataset.entered!=='true') this.scene.pause();
+    window.dispatchEvent(new Event('duckoman-ready'));
   }
   update(_time: number, delta: number): void {
     const input = this.inputController.read();
@@ -72,6 +88,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.player.update(input, delta);
     if (this.player.canAct && input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
+    this.extraEnemies.forEach(enemy=>enemy.update());
+    this.pillar.update();
     this.updateAbilityHud();
   }
   private updateHealthHud(): void {
@@ -139,10 +157,11 @@ export class Gate1Scene extends Phaser.Scene {
     } else this.add.image(x,top,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(width,Math.max(height, width/4)).setDepth(2);
   }
   private updateShadows(): void {
-    [this.player, this.enemy, this.throwable].forEach((actor,i) => {
-      if(i===1 && this.enemy.defeated) { this.shadows[i].setVisible(false); return; }
+    [this.player, this.enemy, this.throwable, ...this.extraEnemies].forEach((actor,i) => {
+      if(actor instanceof BasicEnemy && actor.defeated) { this.shadows[i].setVisible(false); return; }
       const bottom=actor.sprite.y+actor.body.halfHeight;
-      const surface=GATE_1_ROOM.platforms.filter(p=>actor.sprite.x>=p.x-p.width/2 && actor.sprite.x<=p.x+p.width/2 && p.y-p.height/2>=bottom-8).sort((a,b)=>a.y-a.height/2-(b.y-b.height/2))[0];
+      const surfaces = this.pillar?.surface ? [...GATE_1_ROOM.platforms,this.pillar.surface] : [...GATE_1_ROOM.platforms];
+      const surface=surfaces.filter(p=>actor.sprite.x>=p.x-p.width/2 && actor.sprite.x<=p.x+p.width/2 && p.y-p.height/2>=bottom-8).sort((a,b)=>a.y-a.height/2-(b.y-b.height/2))[0];
       if(!surface) { this.shadows[i].setVisible(false); return; }
       const top=surface.y-surface.height/2, distance=Math.max(0,top-bottom);
       this.shadows[i].setVisible(true).setPosition(actor.sprite.x,top+2).setScale(Math.max(0.35,1-distance/220),1).setAlpha(Math.max(0.08,0.48-distance/400));

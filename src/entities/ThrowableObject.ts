@@ -88,7 +88,7 @@ export class ThrowableObject {
 
   private syncVisual(): void {
     this.visual.setPosition(this.sprite.x, this.sprite.y);
-    if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.00008;
+    if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.0048 * this.sprite.scene.game.loop.delta / 1000;
     else this.visual.rotation = 0;
   }
 }

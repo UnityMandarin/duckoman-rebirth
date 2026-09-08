@@ -8,7 +8,7 @@ export class BasicEnemy {
   private direction: -1 | 1 = -1;
   defeated = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, private readonly patrol?: { left: number; right: number }) {
     this.sprite = scene.add.rectangle(x, y, TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight, 0xef5350);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, 'robot').setDisplaySize(54, 54).setDepth(5);
@@ -26,6 +26,8 @@ export class BasicEnemy {
     if (this.defeated) return;
     if (this.body.blocked.left) this.direction = 1;
     if (this.body.blocked.right) this.direction = -1;
+    if (this.patrol && this.sprite.x <= this.patrol.left) this.direction = 1;
+    if (this.patrol && this.sprite.x >= this.patrol.right) this.direction = -1;
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
   }
 
@@ -34,8 +36,8 @@ export class BasicEnemy {
     this.defeated = true;
     this.body.setEnable(false);
     this.sprite.setVisible(false);
-    this.visual.setVisible(false);
-    this.sprite.scene.time.delayedCall(0, () => { this.sprite.destroy(); this.visual.destroy(); });
+    this.sprite.scene.tweens.add({targets:this.visual,scaleY:this.visual.scaleY*0.25,angle:this.direction*18,alpha:0,duration:220,onComplete:()=>this.visual.destroy()});
+    this.sprite.scene.time.delayedCall(0, () => this.sprite.destroy());
   }
 
   private syncVisual(): void {

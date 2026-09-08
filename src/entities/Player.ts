@@ -36,7 +36,7 @@ export class Player {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
     this.sprite.setVisible(false);
-    this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(5);
+    this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(10);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.player.bodyWidth, TUNING.player.bodyHeight);

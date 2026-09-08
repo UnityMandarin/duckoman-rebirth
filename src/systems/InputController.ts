@@ -24,6 +24,7 @@ export class InputController {
   private readonly downAction = new DigitalAction();
   private readonly dashAction = new DigitalAction();
   private readonly sprintAction = new DigitalAction();
+  private resetQueued=false;
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard;
@@ -37,6 +38,9 @@ export class InputController {
     this.dash = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K)];
     this.sprint = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R)];
     this.reset = [...this.left, ...this.right, keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP), ...this.down, ...this.dash, ...this.sprint, ...this.jump];
+    const queueReset=()=>{this.resetQueued=true;};
+    this.reset.forEach(key=>key.on('down',queueReset));
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.reset.forEach(key=>key.off('down',queueReset)));
   }
 
   read(): InputSnapshot {
@@ -47,6 +51,7 @@ export class InputController {
     const dash = this.dashAction.read(this.dash.some((key) => key.isDown));
     const sprint = this.sprintAction.read(this.sprint.some((key) => key.isDown));
     const horizontal = leftDown === rightDown ? 0 : leftDown ? -1 : 1;
+    const queuedReset=this.resetQueued;this.resetQueued=false;
     return {
       horizontal,
       down: down.down,
@@ -55,7 +60,7 @@ export class InputController {
       sprintPressed: sprint.pressed,
       jumpPressed: jump.pressed,
       jumpReleased: jump.released,
-      anyResetInput: this.reset.some((key) => Phaser.Input.Keyboard.JustDown(key))
+      anyResetInput: queuedReset || this.reset.some((key) => Phaser.Input.Keyboard.JustDown(key))
     };
   }
 }

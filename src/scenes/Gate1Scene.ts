@@ -7,6 +7,10 @@ import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
 import { FallingPillar } from '../entities/FallingPillar';
+import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
+import { CastleMechanisms } from '../systems/CastleMechanisms';
+import { CastleBoss } from '../entities/CastleBoss';
+import { installLocalQA, replayInput } from '../systems/localQA';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -19,23 +23,33 @@ export class Gate1Scene extends Phaser.Scene {
   private shadows: Phaser.GameObjects.Ellipse[] = [];
   private extraEnemies: BasicEnemy[] = [];
   private pillar!: FallingPillar;
+  private mechanisms!: CastleMechanisms;
+  private boss!: CastleBoss;
+  private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
   preload(): void {
     this.load.image('castle-background', 'assets/gate3/castle-panorama.png');
+    this.load.image('castle-depth', 'assets/gate3/castle-depth.png');
     this.load.image('duckoman', 'assets/gate3/duckoman.png');
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
     this.load.image('masonry', 'assets/gate3/masonry.png');
   }
   create(): void {
+    this.deathAt=undefined;
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
     this.cameras.main.setBackgroundColor(0x07111f);
-    this.physics.world.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
-    this.add.image(0, 0, 'castle-background').setOrigin(0)
-      .setDisplaySize(1800, 600).setY(-170).setScrollFactor(0.6, 0).setDepth(-20);
+    this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
+    this.add.image(1600,-260,'castle-depth').setOrigin(0).setDisplaySize(5200,920).setScrollFactor(.6,.25).setDepth(-21);
+    const background=this.textures.get('castle-background').getSourceImage();
+    // Crop strips fade the old architecture into the continuation, never a hard image edge.
+    for(let i=0;i<90;i++)this.add.image(i*20,-170,'castle-background').setOrigin(0)
+      .setCrop(i*background.width/90,0,background.width/90,background.height)
+      .setDisplaySize(1800,600).setX(0).setScrollFactor(.6,0).setDepth(-20)
+      .setAlpha(i<80?1:(90-i)/10);
     this.add.rectangle(TUNING.simulation.width / 2, TUNING.simulation.height / 2, TUNING.simulation.width, TUNING.simulation.height, 0x06101c, 0.18)
       .setScrollFactor(0).setDepth(-19);
     const terrain = this.physics.add.staticGroup();
-    for (const platform of GATE_1_ROOM.platforms) {
+    for (const platform of this.allPlatforms) {
       this.createPlatformVisual(platform.x, platform.y, platform.width, platform.height);
       const rectangle = this.add.rectangle(platform.x, platform.y, platform.width, platform.height, 0x000000, 0);
       this.physics.add.existing(rectangle, true); terrain.add(rectangle);
@@ -43,7 +57,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.player = new Player(this, GATE_1_ROOM.playerSpawn.x, GATE_1_ROOM.playerSpawn.y);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, GATE_1_ROOM.throwableSpawn.x, GATE_1_ROOM.throwableSpawn.y);
-    this.extraEnemies=GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn));
+    this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn,spawn.pointed))];
     this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));
@@ -59,8 +73,10 @@ export class Gate1Scene extends Phaser.Scene {
       this.physics.add.overlap(this.throwable.sprite,enemy.sprite,()=>contact.resolveThrownEnemy());
     }
     this.pillar=new FallingPillar(this,this.player);
-    this.cameras.main.setBounds(0, 0, GATE_1_ROOM.world.width, GATE_1_ROOM.world.height);
-    this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
+    this.mechanisms=new CastleMechanisms(this,this.player,this.throwable,terrain);
+    this.boss=new CastleBoss(this,this.player,this.throwable,terrain,text=>this.mechanisms.say(text));
+    this.cameras.main.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
+    this.cameras.main.startFollow(this.player.sprite, true, 1, .1, 0, TUNING.simulation.height / 2 - this.player.sprite.y);
     this.cameras.main.setDeadzone(0, TUNING.simulation.height);
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
@@ -73,11 +89,12 @@ export class Gate1Scene extends Phaser.Scene {
     this.resetText.setDepth(30);
     this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
     this.events.emit('play-ready');
+    installLocalQA(this,this.player,()=>this.boss.probeVictory());
     if(document.documentElement.dataset.entered!=='true') this.scene.pause();
     window.dispatchEvent(new Event('duckoman-ready'));
   }
   update(_time: number, delta: number): void {
-    const input = this.inputController.read();
+    const input = (this.player.active?replayInput(this.time.now):undefined) ?? this.inputController.read();
     this.updateHealthHud();
     if (this.player.lifeState === 'DEAD') {
       this.interactions.dropOnDeath(); this.deathAt ??= this.time.now;
@@ -88,8 +105,13 @@ export class Gate1Scene extends Phaser.Scene {
     this.player.update(input, delta);
     if (this.player.canAct && input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
-    this.extraEnemies.forEach(enemy=>enemy.update());
+    this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
     this.pillar.update();
+    this.mechanisms.update();
+    this.boss.update();
+    // Preserve the original horizontal feel; vertical following begins only above its old view.
+    this.cameras.main.setFollowOffset(0,this.player.sprite.y>170 ? 200-this.player.sprite.y : 0);
+    this.cameras.main.setDeadzone(0,this.player.sprite.y>170?400:150);
     this.updateAbilityHud();
   }
   private updateHealthHud(): void {
@@ -152,15 +174,17 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
-    if(width>600) {
+    if(height>width) {
+      for(let dy=0;dy<height;dy+=30)this.add.image(x,top+dy,'masonry','trimmed').setOrigin(.5,0).setDisplaySize(width,Math.min(30,height-dy)).setDepth(2);
+    } else if(width>600) {
       for(let left=x-width/2;left<x+width/2;left+=160) this.add.image(left,top,'masonry','trimmed').setOrigin(0).setDisplaySize(160,56).setDepth(2);
     } else this.add.image(x,top,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(width,Math.max(height, width/4)).setDepth(2);
   }
   private updateShadows(): void {
     [this.player, this.enemy, this.throwable, ...this.extraEnemies].forEach((actor,i) => {
-      if(actor instanceof BasicEnemy && actor.defeated) { this.shadows[i].setVisible(false); return; }
-      const bottom=actor.sprite.y+actor.body.halfHeight;
-      const surfaces = this.pillar?.surface ? [...GATE_1_ROOM.platforms,this.pillar.surface] : [...GATE_1_ROOM.platforms];
+      if(actor instanceof BasicEnemy && (actor.defeated || !actor.body.enable)) { this.shadows[i].setVisible(false); return; }
+      const bottom=actor.body.bottom;
+      const surfaces = this.pillar?.surface ? [...this.allPlatforms,this.pillar.surface] : this.allPlatforms;
       const surface=surfaces.filter(p=>actor.sprite.x>=p.x-p.width/2 && actor.sprite.x<=p.x+p.width/2 && p.y-p.height/2>=bottom-8).sort((a,b)=>a.y-a.height/2-(b.y-b.height/2))[0];
       if(!surface) { this.shadows[i].setVisible(false); return; }
       const top=surface.y-surface.height/2, distance=Math.max(0,top-bottom);

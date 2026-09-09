@@ -42,6 +42,8 @@ export class Gate1Scene extends Phaser.Scene {
   }
   create(): void {
     this.deathAt=undefined;
+    this.physics.world.resume();
+    this.cameras.main.setZoom(1);
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
     this.textures.get('lock-kit').add('door',0,10,10,915,990);
     this.textures.get('lock-kit').add('button',0,1015,790,510,210);
@@ -112,8 +114,15 @@ export class Gate1Scene extends Phaser.Scene {
   }
   update(_time: number, delta: number): void {
     const input = (this.player.active?replayInput(this.time.now):undefined) ?? this.inputController.read();
+    if(input.godModePressed&&this.player.active){
+      this.player.infiniteHealth=!this.player.infiniteHealth;
+      if(this.player.infiniteHealth)this.player.health=TUNING.player.maxHealth;
+    }
     this.updateHealthHud();
     if (this.player.lifeState === 'DEAD') {
+      // Finish the falling pillar instead of freezing it midair after a lethal hit.
+      this.pillar.update();
+      this.physics.world.pause();
       this.interactions.dropOnDeath(); this.deathAt ??= this.time.now;
       this.resetText.setText('Duckoman down\nPress a movement key or jump to reset');
       if (this.time.now - this.deathAt >= TUNING.player.deathResetDelay && input.anyResetInput) this.scene.restart();

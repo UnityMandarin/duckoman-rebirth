@@ -45,7 +45,7 @@ export class FallingPillar {
     const bottom=top+p.height;
     this.art.y=top;
     const body=this.player.body;
-    if(!this.landed && !this.hit && body.right>p.x-p.width/2 && body.left<p.x+p.width/2 && body.bottom>top && body.top<=bottom && body.bottom>=this.previousBottom) {
+    if(this.player.active && !this.landed && !this.hit && body.right>p.x-p.width/2 && body.left<p.x+p.width/2 && body.bottom>top && body.top<=bottom && body.bottom>=this.previousBottom) {
       this.hit=this.player.takeDamage(p.x,p.damage);
     }
     this.previousBottom=bottom;
@@ -56,7 +56,7 @@ export class FallingPillar {
       staticBody.updateFromGameObject(); staticBody.enable=true;
       const impact=this.scene.add.ellipse(p.x,357,90,10,0xe5bf81,0.65).setDepth(6);
       this.scene.tweens.add({targets:impact,scaleX:2,alpha:0,duration:280,onComplete:()=>impact.destroy()});
-      if(body.right>p.x-p.width/2 && body.left<p.x+p.width/2 && body.bottom>360-p.height && body.top<360) {
+      if(this.player.active && body.right>p.x-p.width/2 && body.left<p.x+p.width/2 && body.bottom>360-p.height && body.top<360) {
         const x=body.center.x<p.x?p.x-p.width/2-body.halfWidth-2:p.x+p.width/2+body.halfWidth+2;
         body.reset(x,this.player.sprite.y);
       }

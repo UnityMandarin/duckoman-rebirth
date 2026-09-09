@@ -24,6 +24,7 @@ export class Player {
   lifeState: PlayerLifeState = 'ACTIVE';
   facing: -1 | 1 = 1;
   health: number = TUNING.player.maxHealth;
+  infiniteHealth=false;
   private hurtUntil = 0;
   private invulnerableUntil = 0;
   private jumpCutAvailable = false;
@@ -113,7 +114,7 @@ export class Player {
 
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
-    if (!this.active || this.invulnerable) return false;
+    if (!this.active || this.infiniteHealth || this.invulnerable) return false;
     this.health = Math.max(0, this.health - amount);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;

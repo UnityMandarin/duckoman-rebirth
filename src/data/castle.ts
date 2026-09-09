@@ -67,5 +67,5 @@ export const STORY=[
   {x:4300,text:'The machines left only one road through my own halls.'},
   {x:5900,text:'They have turned the old foundry against us.'},
   {x:7380,text:'Dead ends. Traps. Someone expected my return.'},
-  {x:8900,text:'That winged sentinel guards the answer.'}
+  {x:8900,text:'The old hall… why is it so quiet?'}
 ];

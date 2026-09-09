@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
+import type {Player} from './Player';
 
 export class BasicEnemy {
   readonly sprite: Phaser.GameObjects.Rectangle;
@@ -29,6 +30,13 @@ export class BasicEnemy {
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.cleanup=()=>scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
+    const strike=(player:Player)=>{
+      if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
+        this.defeat();player.chargeUltimate(10);
+      }
+    };
+    scene.events.on('ultimate-strike',strike);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
   }
 
   setAwake(awake:boolean):void {
@@ -74,10 +82,11 @@ export class BasicEnemy {
   private syncVisual(): void {
     if (this.defeated || !this.body.enable) return;
     const phase = this.sprite.scene.time.now * 0.012;
+    if(Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
     const width=this.pointed?82:this.jumper?72:88;
     const height=this.pointed?82:this.jumper?108:88;
     this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
-    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.direction > 0);
+    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.pointed?this.direction<0:this.direction>0);
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035));
   }
 }

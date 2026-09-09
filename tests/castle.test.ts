@@ -4,6 +4,10 @@ import {BossClock,BossHealth,BOSS_RULES} from '../src/systems/BossRules';
 import {ARENA_LEDGES,nextLedge,connected} from '../src/systems/ArenaNavigation';
 import {enemyContact} from '../src/systems/contactRules';
 describe('castle and warden contracts',()=>{
+  it('takes four damage per ultimate and never drops below zero',()=>{
+    const h=new BossHealth();h.damage(4);expect(h.hp).toBe(6);
+    h.damage(4);expect(h.hp).toBe(2);h.damage(4);expect(h.hp).toBe(0);
+  });
   it('makes pointed heads dangerous to stomp but vulnerable to dash',()=>{
     expect(enemyContact(false,true,true)).toBe('damage');
     expect(enemyContact(true,true,true)).toBe('dash');
@@ -20,7 +24,7 @@ describe('castle and warden contracts',()=>{
     const c=new BossClock();let bombs=0,waves=0,flights=0;
     for(let t=0;t<=60000;t+=10){const e=c.tick(t);bombs+=+e.bomb;waves+=+e.wave;flights+=+e.flight;}
     expect([bombs,waves,flights]).toEqual([30,5,6]);
-    expect([BOSS_RULES.normals,BOSS_RULES.pointed,BOSS_RULES.bombDamage]).toEqual([3,1,1]);
+    expect([BOSS_RULES.normals,BOSS_RULES.pointed,BOSS_RULES.bombDamage]).toEqual([3,1,.5]);
   });
   it('has continuous solid ground through the entire expansion',()=>{
     const floors=CASTLE_PLATFORMS.filter(p=>p.y-p.height/2===360).sort((a,b)=>a.x-a.width/2-(b.x-b.width/2));

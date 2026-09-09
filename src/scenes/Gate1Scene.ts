@@ -106,7 +106,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
     this.events.emit('play-ready');
     installLocalQA(this,this.player,()=>this.boss.probeVictory());
-    if(document.documentElement.dataset.entered!=='true') this.scene.pause();
+    this.game.canvas.tabIndex=0;
+    this.game.canvas.focus();
     window.dispatchEvent(new Event('duckoman-ready'));
   }
   update(_time: number, delta: number): void {

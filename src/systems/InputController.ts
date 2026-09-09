@@ -4,6 +4,7 @@ import { DigitalAction } from './DigitalAction';
 export interface InputSnapshot {
   throwPressed?: boolean;
   godModePressed?: boolean;
+  ultimatePressed?:boolean;
   horizontal: -1 | 0 | 1;
   down: boolean;
   downPressed: boolean;
@@ -31,6 +32,8 @@ export class InputController {
   private readonly weaponAction=new DigitalAction();
   private readonly secret:Phaser.Input.Keyboard.Key[];
   private readonly secretAction=new DigitalAction();
+  private readonly ultimate:Phaser.Input.Keyboard.Key;
+  private readonly ultimateAction=new DigitalAction();
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard;
@@ -41,6 +44,7 @@ export class InputController {
     const l = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.jump = [space, l];
     this.weapon=keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+    this.ultimate=keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.U);
     this.secret=[Phaser.Input.Keyboard.KeyCodes.ONE,Phaser.Input.Keyboard.KeyCodes.TWO,Phaser.Input.Keyboard.KeyCodes.THREE].map(code=>keyboard.addKey(code));
     this.down = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)];
     this.dash = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K)];
@@ -61,6 +65,7 @@ export class InputController {
     const horizontal = leftDown === rightDown ? 0 : leftDown ? -1 : 1;
     const queuedReset=this.resetQueued;this.resetQueued=false;
     return {
+      ultimatePressed:this.ultimateAction.read(this.ultimate.isDown).pressed,
       godModePressed:this.secretAction.read(this.secret.every(key=>key.isDown)).pressed,
       throwPressed:this.weaponAction.read(this.weapon.isDown).pressed,
       horizontal,

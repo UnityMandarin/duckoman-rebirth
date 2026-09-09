@@ -15,17 +15,17 @@ export function gearExplosion(scene:Phaser.Scene,x:number,y:number,count=20):voi
 }
 
 export class IronWingAftermath {
-  private eye:Phaser.GameObjects.Arc;
+  private eye:Phaser.GameObjects.Image;
   private hint:Phaser.GameObjects.Text;
   private picked=false;
   private activated=false;
   get transitioning():boolean{return this.activated;}
   constructor(private scene:Phaser.Scene,private player:Player,x:number,y:number,terrain:Phaser.Physics.Arcade.StaticGroup){
     gearExplosion(scene,x,y);
-    this.eye=scene.add.circle(x,y-25,12,0xe02a21).setStrokeStyle(4,0xffc66a).setDepth(18);
+    this.eye=scene.add.image(x,y-25,'ironwing-eye').setDisplaySize(36,36).setDepth(18);
     scene.physics.add.existing(this.eye);
     const body=this.eye.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(12).setGravityY(900).setVelocity(0,-180).setBounce(.25).setCollideWorldBounds(true);
+    body.setSize(this.eye.width*.7,this.eye.height*.7).setGravityY(900).setVelocity(0,-180).setBounce(.25).setCollideWorldBounds(true);
     scene.physics.add.collider(this.eye,terrain);
     this.hint=scene.add.text(x,y-50,'',{fontSize:'12px',color:'#ffdf60',stroke:'#090c15',strokeThickness:4}).setOrigin(.5).setDepth(25);
     this.eye.setInteractive({useHandCursor:true}).on('pointerdown',()=>{if(this.picked)this.activate();});
@@ -46,6 +46,7 @@ export class IronWingAftermath {
   private activate():void {
     if(this.activated||!this.player.active)return;
     this.activated=true;this.hint.destroy();
+    this.scene.cameras.getCamera('hud')?.setVisible(false);
     gearExplosion(this.scene,this.eye.x,this.eye.y,10);this.eye.destroy();
     this.scene.physics.world.pause();
     this.scene.cameras.main.flash(150,255,175,90);

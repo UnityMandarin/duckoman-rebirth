@@ -10,7 +10,7 @@ import {TUNING} from '../config/tuning';
 import {IronWingAftermath} from '../systems/IronWingAftermath';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
-interface Bomb {art:Phaser.GameObjects.Arc;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
+interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
 export class CastleBoss {
   readonly health=new BossHealth();
   private clock=new BossClock();
@@ -32,7 +32,7 @@ export class CastleBoss {
   private targetY=80;
   private nextPattern=0;
   private retreatUntil=0;
-  private core:Phaser.GameObjects.Arc;
+  private core:Phaser.GameObjects.Image;
   private aftermath?:IronWingAftermath;
   private summonUntil=0;
   private nextSummon=0;
@@ -40,12 +40,20 @@ export class CastleBoss {
   get transitioning():boolean{return this.aftermath?.transitioning??false;}
   constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
     this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
-    this.core=scene.add.circle(this.bossX,-180,15,0xe52b24).setStrokeStyle(4,0xffd476).setDepth(16);
+    this.core=scene.add.image(this.bossX,-180,'ironwing-button').setDisplaySize(42,36).setDepth(16);
     this.image.setDepth(14);
     this.wings=scene.add.graphics().setDepth(13);
     this.summonArt=scene.add.graphics().setDepth(17);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
-    this.label=scene.add.text(320,108,'',{fontSize:'13px',color:'#fbd19d',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
+    this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
+    const strike=(p:Player)=>{
+      if(!this.finished&&this.started!==undefined&&Math.abs(p.sprite.x-this.image.x)<200&&Math.abs(p.sprite.y-this.image.y)<140){
+        this.health.damage(4);this.retreatUntil=scene.time.now+1400;
+        if(this.health.hp===0)this.finish();
+      }
+    };
+    scene.events.on('ultimate-strike',strike);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
     this.gate=scene.add.rectangle(8990,-200,80,1200,0,0).setAlpha(0).setDepth(4);
     scene.physics.add.existing(this.gate,true);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.gate);
@@ -114,9 +122,13 @@ export class CastleBoss {
     if(events.bomb)this.throwBomb(now);
     this.updateBombs(now);
     this.updateMinions(now);
-    this.label.setText(`IronWing  ${this.health.hp} / ${BOSS_RULES.hp}`);
-    this.hud.clear().fillStyle(0x080c15,.9).fillRoundedRect(136,119,368,13,5);
-    this.hud.fillStyle(0xe98644).fillRoundedRect(139,122,362*this.health.hp/BOSS_RULES.hp,7,3);
+    this.label.setText('IRONWING');
+    this.hud.clear().fillStyle(0x151022,.95).fillRoundedRect(413,32,214,24,4);
+    this.hud.lineStyle(2,0x8c77b6).strokeRoundedRect(413,32,214,24,4);
+    const width=198*this.health.hp/BOSS_RULES.hp;
+    this.hud.fillStyle(0x642ac4).fillRect(421,39,width,10).fillStyle(0xc393ff).fillRect(421,39,width,3);
+    for(let i=0;i<5;i++)this.hud.lineStyle(1,0xc4a0ef,.35).lineBetween(421+i*40,37,421+i*40,51);
+    for(const x of [417,623])this.hud.fillStyle(0xe0cef6).fillCircle(x,36,2).fillCircle(x,52,2);
   }
   probeVictory():void {if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa'))this.probeHit=true;}
   private drawWings(now:number,flying:boolean):void {
@@ -143,7 +155,7 @@ export class CastleBoss {
     // Target locks at release; the long marked arc can be evaded in either direction.
     const targetX=Phaser.Math.Clamp(this.player.sprite.x+this.player.body.velocity.x*.25,9040,11480);
     const targetY=this.player.body.bottom;
-    const art=this.scene.add.circle(this.image.x,this.image.y,11,0x202e41).setStrokeStyle(3,0xffb751).setDepth(9);
+    const art=this.scene.add.image(this.image.x,this.image.y,'ironwing-bomb').setDisplaySize(30,34).setDepth(15);
     const mark=this.scene.add.circle(targetX,targetY-4,BOSS_RULES.bombRadius,0xe99436,.09).setStrokeStyle(2,0xffb354,.75).setDepth(8);
     this.bombs.push({art,mark,start:now,x:art.x,y:art.y,targetX,targetY});
   }
@@ -203,6 +215,7 @@ export class CastleBoss {
     });
   }
   private finish():void {
+    this.player.chargeUltimate(50);
     this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('');this.summonArt.clear();
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];

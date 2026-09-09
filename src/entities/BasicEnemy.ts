@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
+import type {Player} from './Player';
 
 export class BasicEnemy {
   readonly sprite: Phaser.GameObjects.Rectangle;
@@ -29,6 +30,13 @@ export class BasicEnemy {
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.cleanup=()=>scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
+    const strike=(player:Player)=>{
+      if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
+        this.defeat();player.chargeUltimate(10);
+      }
+    };
+    scene.events.on('ultimate-strike',strike);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
   }
 
   setAwake(awake:boolean):void {

@@ -1,4 +1,4 @@
-export const BOSS_RULES = { hp:10, bombInterval:2000, bombDamage:1, bombRadius:55, minionInterval:12000, normals:3, pointed:1, flightInterval:10000, hitLock:650 } as const;
+export const BOSS_RULES = { hp:10, bombInterval:2000, bombDamage:.5, bombRadius:55, minionInterval:12000, normals:3, pointed:1, flightInterval:10000, hitLock:650 } as const;
 export class BossClock {
   private bomb=0; private wave=0; private flight=0;
   tick(elapsed:number): {bomb:boolean;wave:boolean;flight:boolean} {
@@ -9,9 +9,10 @@ export class BossClock {
 }
 export class BossHealth {
   hp:number=BOSS_RULES.hp; private until=0; private contact=false;
+  damage(amount:number):void {this.hp=Math.max(0,this.hp-amount);}
   touch(now:number,overlapping:boolean,attack:boolean):boolean {
     if(!overlapping){this.contact=false;return false;}
     if(this.contact || !attack || now<this.until || this.hp<=0)return false;
-    this.contact=true;this.until=now+BOSS_RULES.hitLock;this.hp--;return true;
+    this.contact=true;this.until=now+BOSS_RULES.hitLock;this.damage(1);return true;
   }
 }

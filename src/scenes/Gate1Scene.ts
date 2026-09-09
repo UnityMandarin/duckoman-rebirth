@@ -26,10 +26,14 @@ export class Gate1Scene extends Phaser.Scene {
   private mechanisms!: CastleMechanisms;
   private boss!: CastleBoss;
   private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
+  private hudCamera!:Phaser.Cameras.Scene2D.Camera;
   preload(): void {
     this.load.image('castle-background', 'assets/gate3/royal-hall.png');
     this.load.image('castle-depth', 'assets/gate3/royal-hall.png');
     this.load.image('jail-cell','assets/gate3/jail-cell.png');
+    this.load.image('ironwing-button','assets/gate3/ironwing-button.png');
+    this.load.image('ironwing-bomb','assets/gate3/ironwing-bomb.png');
+    this.load.image('ironwing-eye','assets/gate3/ironwing-eye.png');
     this.load.image('duckoman', 'assets/gate3/duckoman.png');
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
@@ -111,6 +115,15 @@ export class Gate1Scene extends Phaser.Scene {
     installLocalQA(this,this.player,()=>this.boss.probeVictory());
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
+    this.hudCamera=this.cameras.add(0,0,640,400).setName('hud');
+    const splitLayers=()=>{
+      for(const child of this.children.list){
+        const item=child as Phaser.GameObjects.Image;
+        item.cameraFilter=item.scrollFactorX===0?this.cameras.main.id:this.hudCamera.id;
+      }
+    };
+    splitLayers();this.events.on(Phaser.Scenes.Events.POST_UPDATE,splitLayers);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,splitLayers));
     window.dispatchEvent(new Event('duckoman-ready'));
   }
   update(_time: number, delta: number): void {
@@ -131,6 +144,7 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     this.player.update(input, delta);
+    if(input.ultimatePressed&&this.player.canAct&&this.player.ultimateCharge>=100&&!this.player.usingUltimate)this.useUltimate();
     if (this.player.canAct && input.throwPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
@@ -141,7 +155,7 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private updateHealthHud(): void {
     if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.time.now; }
-    this.healthText.setText(`Health: ${this.player.health.toFixed(1)} / ${TUNING.player.maxHealth}`);
+    this.healthText.setText('DUCKOMAN');
     const g = this.hud.clear();
     g.fillStyle(0x03070d, 0.7).fillRoundedRect(7, 4, 360, 72, 18);
     g.fillStyle(0x090c10).fillCircle(43, 40, 31);
@@ -150,7 +164,7 @@ export class Gate1Scene extends Phaser.Scene {
     for (let i=0;i<8;i++) { const a=i*Math.PI/4; g.fillStyle(0xe5aa42).fillCircle(43+Math.cos(a)*32,40+Math.sin(a)*32,2); }
     g.fillStyle(0x090b10).fillRoundedRect(81, 32, 250, 21, 9);
     g.lineStyle(2, 0xb17c29).strokeRoundedRect(81, 32, 250, 21, 9);
-    const w=242*this.player.health/TUNING.player.maxHealth;
+    const w=this.player.usingUltimate?0:242*this.player.ultimateCharge/100;
     if(w>0) { g.fillStyle(0xe96416).fillRoundedRect(85,36,w,13,5); g.fillStyle(0xffcb52).fillRoundedRect(85,36,w,6,3); g.fillStyle(0xfff2b0).fillRect(89,36,Math.max(0,w-8),2); }
     // Sword tip, shaded crossguard, leather grip and brass pommel.
     g.fillStyle(0x684018).fillTriangle(77,32,67,42,77,53);
@@ -195,7 +209,28 @@ export class Gate1Scene extends Phaser.Scene {
     }
   }
   private updateAbilityHud(): void {
-    this.abilityText.setText(`Stamina: ${this.player.stamina.toFixed(2)} / ${TUNING.player.maxStamina}${this.player.sprinting ? ' · SPRINT' : ''}${this.player.boostReady ? ' · BOOST READY' : ''}`);
+    this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');
+  }
+  private useUltimate():void {
+    const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.time.now+900;
+    p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
+    // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
+    if(this.textures.exists('ultimate-sword'))this.textures.remove('ultimate-sword');
+    this.hud.generateTexture('ultimate-sword',640,100);
+    this.textures.get('ultimate-sword').add('blade',0,67,27,298,31);
+    const start=this.cameras.main.getWorldPoint(215,42);
+    const sword=this.add.image(start.x,start.y,'ultimate-sword','blade').setDisplaySize(220,25).setDepth(45);
+    this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,displayWidth:130,displayHeight:20,duration:280,ease:'Cubic.InOut',onComplete:()=>{
+      sword.setOrigin(.9,.5).setFlipX(p.facing<0).setAngle(p.facing*-100);
+      this.tweens.add({targets:sword,angle:p.facing*70,duration:360,ease:'Cubic.InOut'});
+      this.time.delayedCall(160,()=>{
+        this.events.emit('ultimate-strike',p);
+        const arc=this.add.graphics().setPosition(p.sprite.x,p.sprite.y).setDepth(44).lineStyle(14,0xffda70,.75);
+        arc.beginPath().arc(0,0,125,-1.5,1.5).strokePath();
+        arc.setScale(p.facing,1);this.tweens.add({targets:arc,alpha:0,duration:250,onComplete:()=>arc.destroy()});
+      });
+    }});
+    this.time.delayedCall(900,()=>{sword.destroy();p.body.setAllowGravity(true);});
   }
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;

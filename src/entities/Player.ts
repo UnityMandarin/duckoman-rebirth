@@ -25,6 +25,10 @@ export class Player {
   facing: -1 | 1 = 1;
   health: number = TUNING.player.maxHealth;
   infiniteHealth=false;
+  ultimateCharge=0;
+  ultimateUntil=0;
+  get usingUltimate():boolean{return this.sprite.scene.time.now<this.ultimateUntil;}
+  chargeUltimate(amount:number):void {this.ultimateCharge=Math.min(100,this.ultimateCharge+amount);}
   private hurtUntil = 0;
   private invulnerableUntil = 0;
   private jumpCutAvailable = false;
@@ -59,6 +63,7 @@ export class Player {
   get sprinting(): boolean { return this.abilities.sprinting; }
 
   update(input: InputSnapshot, _deltaMs: number): void {
+    if(this.usingUltimate){this.body.setVelocity(0,0);return;}
     const now = this.sprite.scene.time.now;
     this.abilities.update(now);
     if (this.grounded) {
@@ -114,7 +119,7 @@ export class Player {
 
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
-    if (!this.active || this.infiniteHealth || this.invulnerable) return false;
+    if (!this.active || this.infiniteHealth || this.usingUltimate || this.invulnerable) return false;
     this.health = Math.max(0, this.health - amount);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;

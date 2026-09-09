@@ -3,6 +3,7 @@ import { TUNING } from '../config/tuning';
 import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities } from '../systems/PlayerAbilities';
+import { AirTuck } from '../systems/AirTuck';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -27,11 +28,16 @@ export class Player {
   private invulnerableUntil = 0;
   private jumpCutAvailable = false;
   private crouching = false;
+  private readonly airTuck = new AirTuck();
+  private lastGhostAt = -1000;
+  private wasGrounded = false;
+  private landedAt = -1000;
+  private ghosts:Phaser.GameObjects.Image[]=[];
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
     this.sprite.setVisible(false);
-    this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(5);
+    this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(10);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.player.bodyWidth, TUNING.player.bodyHeight);
@@ -65,7 +71,7 @@ export class Player {
     if (!this.canAct) return;
 
     if (input.horizontal !== 0) this.facing = input.horizontal;
-    this.setCrouching(this.grounded && input.down);
+    this.setCrouching(input.down);
 
     if (input.sprintPressed) this.abilities.toggleSprint(now);
 
@@ -73,14 +79,14 @@ export class Player {
       this.setCrouching(false);
     }
 
-    if (!this.grounded && input.downPressed) {
+    if (this.airTuck.update(this.grounded, input.downPressed)) {
       this.abilities.startSlam();
       this.body.setVelocity(this.body.velocity.x * 0.35, TUNING.player.slamVelocity);
     }
 
     if (this.abilities.isDashing(now)) {
       this.body.setVelocityX(this.facing * TUNING.player.dashSpeed);
-    } else if (this.crouching) {
+    } else if (this.crouching && this.grounded) {
       this.body.setVelocityX(0);
     } else {
       const moveSpeed = this.abilities.sprinting ? TUNING.player.sprintSpeed : TUNING.player.maxRunSpeed;
@@ -105,10 +111,10 @@ export class Player {
     this.body.setVelocityY(TUNING.player.stompBounceVelocity);
   }
 
-  takeDamage(attackerX: number): boolean {
+  takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
     if (!this.active || this.invulnerable) return false;
-    this.health = Math.max(0, this.health - TUNING.player.contactDamage);
+    this.health = Math.max(0, this.health - amount);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;
     this.lifeState = this.health === 0 ? 'DEAD' : 'HURT';
@@ -129,6 +135,10 @@ export class Player {
   }
 
   private syncVisual(): void {
+    const now = this.sprite.scene.time.now;
+    if(!this.isDashing){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
+    if (this.grounded && !this.wasGrounded) this.landedAt = now;
+    this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
     const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
     const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);
@@ -136,5 +146,20 @@ export class Player {
     this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 13 : 6) - bounce);
     this.visual.setDisplaySize(66 + bounce * 0.5, height - bounce * 0.6).setFlipX(this.facing < 0);
     this.visual.setRotation(moving ? Math.sin(phase) * 0.045 : 0);
+    if (!this.crouching && this.canAct) {
+      const squash = Math.max(0, 1 - (now - this.landedAt) / 140) * 4;
+      if (squash > 0) this.visual.setDisplaySize(66 + squash, 60 - squash).setY(this.visual.y + squash / 2);
+      else if (!this.grounded) this.visual.setRotation(Phaser.Math.Clamp(this.body.velocity.y / 5000, -0.1, 0.12) * this.facing);
+    }
+    if (this.lifeState === 'HURT') this.visual.setTint(0xffb6a0); else this.visual.clearTint();
+    if (this.lifeState === 'DEAD') this.visual.setRotation(this.facing * 1.25);
+    if (this.isDashing && this.canAct && now - this.lastGhostAt >= 35) {
+      this.lastGhostAt = now;
+      const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
+        .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)
+        .setRotation(this.visual.rotation).setTint(0xffdb45).setAlpha(.62).setDepth(9);
+      this.ghosts.push(ghost);
+      this.sprite.scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.12,scaleY:ghost.scaleY*1.12,duration:220,onComplete:()=>ghost.destroy()});
+    }
   }
 }

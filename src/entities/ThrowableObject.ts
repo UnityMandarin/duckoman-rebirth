@@ -13,12 +13,14 @@ export class ThrowableObject {
   private readonly spawn: Phaser.Math.Vector2;
   private hasHitEnemyThisThrow = false;
   private settledSince: number | undefined;
+  private readonly actionHint:Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.spawn = new Phaser.Math.Vector2(x, y);
     this.sprite = scene.add.circle(x, y, TUNING.throwable.radius, 0xffca28);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, 'cake').setDisplaySize(50, 50).setDepth(6);
+    this.actionHint=scene.add.text(x,y-40,'J · THROW',{fontSize:'10px',color:'#ffdf60',backgroundColor:'#17202bcc',padding:{x:5,y:3}}).setOrigin(.5).setDepth(18).setVisible(false);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCircle(TUNING.throwable.radius);
@@ -50,7 +52,8 @@ export class ThrowableObject {
     this.state = 'THROWN';
     this.hasHitEnemyThisThrow = false;
     this.settledSince = undefined;
-    this.body.setEnable(true).setVelocity(player.facing * component, -component);
+    this.body.setEnable(true);this.body.reset(this.sprite.x,this.sprite.y);
+    this.body.setVelocity(player.facing * component, -component);
   }
 
   registerEnemyHit(): boolean {
@@ -87,8 +90,9 @@ export class ThrowableObject {
   }
 
   private syncVisual(): void {
+    this.actionHint.setVisible(this.state==='CARRIED').setPosition(this.sprite.x,this.sprite.y-42);
     this.visual.setPosition(this.sprite.x, this.sprite.y);
-    if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.00008;
+    if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.0048 * this.sprite.scene.game.loop.delta / 1000;
     else this.visual.rotation = 0;
   }
 }

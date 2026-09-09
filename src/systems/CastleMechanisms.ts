@@ -78,7 +78,11 @@ export class CastleMechanisms {
       }
       const warning=now>=t.warnAt&&now<t.nextStrike;
       t.warning.clear();
-      if(warning)t.warning.lineStyle(4,0xff3028,.65+Math.sin(now*.025)*.3).lineBetween(t.x-39,t.groundY-4,t.x+39,t.groundY-4);
+      if(warning){
+        t.warning.lineStyle(4,0xff3028,.8).lineBetween(t.x-39,t.groundY-4,t.x+39,t.groundY-4);
+        t.warning.fillStyle(0xff3028,.85);
+        for(let y=t.art.y;y<t.groundY;y+=16)t.warning.fillRect(t.x-2,y,4,7);
+      }
       if(now<t.activeUntil&&p.right>t.x-38&&p.left<t.x+38&&p.bottom>t.art.y-250&&p.top<t.art.y)this.player.takeDamage(t.x,1);
     }
   }

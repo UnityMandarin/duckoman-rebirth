@@ -12,11 +12,13 @@ export class FallingPillar {
   private readonly art: Phaser.GameObjects.Container;
   private readonly warning: Phaser.GameObjects.Text;
   private readonly zone: Phaser.GameObjects.Rectangle;
+  private readonly guide:Phaser.GameObjects.Graphics;
   get surface() {
     const p=GATE_1_ROOM.pillar;
     return this.landed ? {x:p.x,y:360-p.height/2,width:p.width,height:p.height} : undefined;
   }
   constructor(private readonly scene: Phaser.Scene, private readonly player: Player) {
+    this.guide=scene.add.graphics().setDepth(12);
     const p=GATE_1_ROOM.pillar;
     this.shape=scene.add.rectangle(p.x,-200,p.width,p.height,0,0);
     scene.physics.add.existing(this.shape,true);
@@ -37,8 +39,11 @@ export class FallingPillar {
     const elapsed=this.scene.time.now-this.triggeredAt;
     const phase=pillarPhase(elapsed,p.warningMs,p.fallMs);
     if(phase==='warning') {
+      this.guide.clear().fillStyle(0xff3329,.9);
+      for(let y=-10;y<357;y+=16)this.guide.fillRect(p.x-2,y,4,7);
       this.warning.setVisible(true); this.zone.setVisible(true).setAlpha(0.4+Math.abs(Math.sin(elapsed/100))*0.6); return;
     }
+    this.guide.clear();
     this.warning.setVisible(false); this.art.setVisible(true);
     const progress=Phaser.Math.Clamp((elapsed-p.warningMs)/p.fallMs,0,1);
     const top=Phaser.Math.Linear(-p.height-10,360-p.height,progress*progress);

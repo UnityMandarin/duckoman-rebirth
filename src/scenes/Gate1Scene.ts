@@ -27,8 +27,9 @@ export class Gate1Scene extends Phaser.Scene {
   private boss!: CastleBoss;
   private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
   preload(): void {
-    this.load.image('castle-background', 'assets/gate3/castle-panorama.png');
-    this.load.image('castle-depth', 'assets/gate3/castle-depth.png');
+    this.load.image('castle-background', 'assets/gate3/royal-hall.png');
+    this.load.image('castle-depth', 'assets/gate3/royal-hall.png');
+    this.load.image('jail-cell','assets/gate3/jail-cell.png');
     this.load.image('duckoman', 'assets/gate3/duckoman.png');
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
@@ -99,7 +100,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
     this.add.text(16, 80, 'A/D move · R sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[9060,240,'Dash to kill or jump on the red button'],[4870,220,'R sprint → L jump → K dash']] as const)
+    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'R sprint → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
     this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
@@ -113,6 +114,7 @@ export class Gate1Scene extends Phaser.Scene {
     window.dispatchEvent(new Event('duckoman-ready'));
   }
   update(_time: number, delta: number): void {
+    if(this.boss.transitioning)return;
     const input = (this.player.active?replayInput(this.time.now):undefined) ?? this.inputController.read();
     if(input.godModePressed&&this.player.active){
       this.player.infiniteHealth=!this.player.infiniteHealth;
@@ -134,7 +136,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
     this.pillar.update();
     this.mechanisms.update();
-    this.boss.update();
+    this.boss.update(!!input.throwPressed);
     this.updateAbilityHud();
   }
   private updateHealthHud(): void {

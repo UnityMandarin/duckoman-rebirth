@@ -74,10 +74,11 @@ export class BasicEnemy {
   private syncVisual(): void {
     if (this.defeated || !this.body.enable) return;
     const phase = this.sprite.scene.time.now * 0.012;
+    if(Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
     const width=this.pointed?82:this.jumper?72:88;
     const height=this.pointed?82:this.jumper?108:88;
     this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
-    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.direction > 0);
+    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.pointed?this.direction<0:this.direction>0);
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035));
   }
 }

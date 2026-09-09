@@ -7,6 +7,7 @@ import { BOSS_RULES, BossClock, BossHealth } from '../systems/BossRules';
 import { isStomp } from '../systems/contactRules';
 import { ARENA_LEDGES, nextLedge, support } from '../systems/ArenaNavigation';
 import {TUNING} from '../config/tuning';
+import {IronWingAftermath} from '../systems/IronWingAftermath';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Arc;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -32,20 +33,26 @@ export class CastleBoss {
   private nextPattern=0;
   private retreatUntil=0;
   private core:Phaser.GameObjects.Arc;
+  private aftermath?:IronWingAftermath;
+  private summonUntil=0;
+  private nextSummon=0;
+  private summonArt:Phaser.GameObjects.Graphics;
+  get transitioning():boolean{return this.aftermath?.transitioning??false;}
   constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
     this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
     this.core=scene.add.circle(this.bossX,-180,15,0xe52b24).setStrokeStyle(4,0xffd476).setDepth(16);
     this.image.setDepth(14);
     this.wings=scene.add.graphics().setDepth(13);
+    this.summonArt=scene.add.graphics().setDepth(17);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(320,108,'',{fontSize:'13px',color:'#fbd19d',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
     this.gate=scene.add.rectangle(8990,-200,80,1200,0,0).setAlpha(0).setDepth(4);
     scene.physics.add.existing(this.gate,true);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.gate);
   }
-  update():void {
+  update(usePressed=false):void {
     const now=this.scene.time.now;
-    if(this.finished)return;
+    if(this.finished){this.aftermath?.update(usePressed);return;}
     if(this.started===undefined) {
       if(this.player.sprite.x<9080)return;
       this.started=now;this.gate.setAlpha(1);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=true;
@@ -53,11 +60,23 @@ export class CastleBoss {
       for(const x of [8965,9015]) {
         const pillar=this.scene.add.image(x,-720,'rock-pillar-kit','pillar').setOrigin(.5,1).setDisplaySize(86,520).setDepth(14);
         this.sealPillars.push(pillar);
-        this.scene.tweens.add({targets:pillar,y:380,duration:850,ease:'Cubic.In'});
+        const guide=this.scene.add.graphics().setDepth(19).fillStyle(0xff3028,.9);
+        for(let y=-720;y<360;y+=16)guide.fillRect(x-2,y,4,7);
+        guide.fillRect(x-43,356,86,4);
+        this.scene.time.delayedCall(700,()=>{
+          guide.destroy();
+          this.scene.tweens.add({targets:pillar,y:380,duration:850,ease:'Cubic.In'});
+        });
       }
-      this.say('THE WINGED WARDEN — stomp or dash its core.');
+      this.nextSummon=now+BOSS_RULES.minionInterval-2000;
+      this.say('IronWing?! That machine was never here before. Dash, or jump on its red core!');
     }
     const elapsed=now-this.started,events=this.clock.tick(elapsed);
+    if(now>=this.nextSummon&&this.summonUntil===0){
+      this.summonUntil=now+2000;this.nextSummon+=BOSS_RULES.minionInterval;
+    }
+    if(this.summonUntil>0&&now>=this.summonUntil){this.summonUntil=0;this.spawnWave(now);}
+    const summoning=this.summonUntil>0;
     if(events.flight)this.flightAt=now;
     const flying=now-this.flightAt<3600;
     if(now>=this.nextPattern){
@@ -69,9 +88,18 @@ export class CastleBoss {
     if(now<this.retreatUntil)this.targetX=Phaser.Math.Clamp(this.player.sprite.x+(this.image.x>=this.player.sprite.x?450:-450),9180,11360);
     const dt=Math.min(this.scene.game.loop.delta,50)/1000;
     const dx=this.targetX-this.image.x,dy=this.targetY-this.image.y,length=Math.hypot(dx,dy),step=Math.min(length,(now<this.retreatUntil?155:100)*dt);
-    if(length>0)this.image.setPosition(this.image.x+dx/length*step,this.image.y+dy/length*step);
+    if(length>0&&!summoning)this.image.setPosition(this.image.x+dx/length*step,this.image.y+dy/length*step);
     this.bossX=this.image.x;this.core.setPosition(this.image.x,this.image.y-60);
-    this.drawWings(now,flying);
+    this.drawWings(now,summoning||flying);
+    this.summonArt.clear();
+    if(summoning){
+      const charge=1-(this.summonUntil-now)/2000;
+      this.summonArt.lineStyle(3,0xff6c32,.8).strokeCircle(this.image.x,this.image.y,50+charge*45);
+      for(let i=0;i<4;i++){
+        const a=now*.005+i*Math.PI/2;
+        this.summonArt.fillStyle(0xffd78b).fillCircle(this.image.x+Math.cos(a)*75,this.image.y+Math.sin(a)*75,5+charge*3);
+      }
+    }
     if(this.probeHit){this.probeHit=false;this.health.hp=1;this.player.body.reset(this.image.x,this.image.y-98);this.player.body.setVelocityY(400);}
     const p=this.player.body,x=this.image.x,y=this.image.y;
     const overlap=p.right>x-60&&p.left<x+60&&p.bottom>y-60&&p.top<y+60;
@@ -84,10 +112,9 @@ export class CastleBoss {
     } else if(overlap&&now>=this.contactGrace&&!this.player.isDashing&&!stomp) this.player.takeDamage(x);
     if(this.health.hp===0){this.finish();return;}
     if(events.bomb)this.throwBomb(now);
-    if(events.wave)this.spawnWave(now);
     this.updateBombs(now);
     this.updateMinions(now);
-    this.label.setText(`WINGED WARDEN  ${this.health.hp} / ${BOSS_RULES.hp}`);
+    this.label.setText(`IronWing  ${this.health.hp} / ${BOSS_RULES.hp}`);
     this.hud.clear().fillStyle(0x080c15,.9).fillRoundedRect(136,119,368,13,5);
     this.hud.fillStyle(0xe98644).fillRoundedRect(139,122,362*this.health.hp/BOSS_RULES.hp,7,3);
   }
@@ -176,10 +203,11 @@ export class CastleBoss {
     });
   }
   private finish():void {
-    this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('WARDEN DEFEATED');
+    this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('');this.summonArt.clear();
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];
-    this.core.destroy();this.wings.destroy();this.scene.tweens.add({targets:this.image,alpha:0,angle:45,y:330,duration:900,onComplete:()=>this.image.destroy()});
-    this.say('A royal command seal… issued while I was gone. Someone wanted my castle intact. Why?');
+    this.aftermath=new IronWingAftermath(this.scene,this.player,this.image.x,this.image.y,this.terrain);
+    this.core.destroy();this.wings.destroy();this.scene.tweens.killTweensOf(this.image);this.image.destroy();
+    this.say('Its eye is still glowing…');
   }
 }

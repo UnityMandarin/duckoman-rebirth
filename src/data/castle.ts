@@ -33,9 +33,11 @@ const PLATFORM_LAYOUT: RoomRectangle[] = [
   // Double-width, double-height boss arena.
   {x:10240,y:380,width:2560,height:40},
   {x:9220,y:280,width:180,height:24},{x:9480,y:170,width:170,height:24},
-  {x:9740,y:45,width:165,height:24},{x:10000,y:-90,width:165,height:24},
-  {x:10260,y:-225,width:165,height:24},{x:10520,y:-90,width:165,height:24},
-  {x:10780,y:45,width:165,height:24},{x:11040,y:170,width:170,height:24},
+  {x:9740,y:70,width:165,height:24},{x:10000,y:-30,width:165,height:24},
+  {x:10260,y:-130,width:165,height:24},{x:10520,y:-30,width:165,height:24},
+  {x:10780,y:70,width:165,height:24},{x:11040,y:170,width:170,height:24},
+  {x:9620,y:280,width:160,height:24},{x:9900,y:180,width:160,height:24},
+  {x:10700,y:180,width:160,height:24},{x:11000,y:280,width:160,height:24},
   {x:11300,y:280,width:180,height:24},{x:10360,y:285,width:220,height:24}
 ];
 
@@ -43,6 +45,9 @@ const PLATFORM_LAYOUT: RoomRectangle[] = [
 export const CASTLE_PLATFORMS = PLATFORM_LAYOUT.filter(p =>
   p.height===40 || p.x>=8960 || (p.y>=195 && p.width>=130)
 );
+// A raised 320px gap: sprint + full jump + extended dash; floor catches misses.
+CASTLE_PLATFORMS.push({x:4790,y:230,width:220,height:24},{x:5330,y:230,width:220,height:24});
+CASTLE_PLATFORMS.push({x:4610,y:300,width:140,height:24});
 
 export type CastleEnemySpawn={x:number;y:number;left:number;right:number;pointed:boolean;jumper:boolean};
 export const CASTLE_ENEMIES:CastleEnemySpawn[]=[

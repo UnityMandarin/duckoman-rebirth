@@ -58,7 +58,6 @@ export class CastleMechanisms {
       this.traps.push({kind:'crusher',x,groundY,art,warning,nextStrike:next,warnAt:next-850,activeUntil:0});
     }
 
-    for(const x of [2900,4500,6100,7600,8600])scene.add.image(x,70,'royal-banner').setDisplaySize(68,105).setAlpha(.7).setDepth(-3);
   }
   say(text:string):void {this.caption.setText(text);this.captionUntil=this.scene.time.now+6500;}
   update():void {
@@ -79,7 +78,7 @@ export class CastleMechanisms {
       }
       const warning=now>=t.warnAt&&now<t.nextStrike;
       t.warning.clear();
-      if(warning)t.warning.lineStyle(3,0xffb54e,.45+Math.sin(now*.025)*.4).strokeCircle(t.x,t.groundY-4,42);
+      if(warning)t.warning.lineStyle(4,0xff3028,.65+Math.sin(now*.025)*.3).lineBetween(t.x-39,t.groundY-4,t.x+39,t.groundY-4);
       if(now<t.activeUntil&&p.right>t.x-38&&p.left<t.x+38&&p.bottom>t.art.y-250&&p.top<t.art.y)this.player.takeDamage(t.x,1);
     }
   }

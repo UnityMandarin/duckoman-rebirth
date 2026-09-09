@@ -10,8 +10,8 @@ canvas { display: block; margin: auto; border: 1px solid #8f5b22; box-shadow: 0 
 main { width:100vw; height:100dvh; padding:0; display:grid; place-items:center; }
 main > h1, main > p { display:none; }
 #game { width:min(100vw,160dvh); height:min(100dvh,62.5vw); aspect-ratio:8/5; }
-.entry { position:fixed; inset:0; z-index:100; background:#030609; display:grid; place-items:center; transition:opacity .6s ease; }
-.entry video { position:absolute; width:100%; height:100%; object-fit:contain; }
+.entry { position:fixed; inset:0; z-index:100; background:transparent; display:grid; place-items:center; transition:opacity .6s ease; }
+.entry video { position:absolute; width:100%; height:100%; object-fit:contain; mix-blend-mode:screen; }
 .entry-actions { z-index:1; text-align:center; background:#050a11d9; padding:36px 48px; border:1px solid #977442; }
 .entry button { color:#ffe4a8; background:#172132; border:1px solid #d6a557; border-radius:4px; padding:12px 24px; cursor:pointer; font:18px Georgia,serif; }
 .entry-actions h1 { margin-bottom:24px; }

@@ -6,6 +6,7 @@ import { InteractionSystem } from '../systems/InteractionSystem';
 import { BOSS_RULES, BossClock, BossHealth } from '../systems/BossRules';
 import { isStomp } from '../systems/contactRules';
 import { ARENA_LEDGES, nextLedge, support } from '../systems/ArenaNavigation';
+import {TUNING} from '../config/tuning';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Arc;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -26,9 +27,16 @@ export class CastleBoss {
   private gate:Phaser.GameObjects.Rectangle;
   private sealPillars:Phaser.GameObjects.Image[]=[];
   private bossX=10360;
+  private targetX=10360;
+  private targetY=80;
+  private nextPattern=0;
+  private retreatUntil=0;
+  private core:Phaser.GameObjects.Arc;
   constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
     this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
-    this.wings=scene.add.graphics().setDepth(6);
+    this.core=scene.add.circle(this.bossX,-180,15,0xe52b24).setStrokeStyle(4,0xffd476).setDepth(16);
+    this.image.setDepth(14);
+    this.wings=scene.add.graphics().setDepth(13);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(320,108,'',{fontSize:'13px',color:'#fbd19d',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
     this.gate=scene.add.rectangle(8990,-200,80,1200,0,0).setAlpha(0).setDepth(4);
@@ -52,9 +60,17 @@ export class CastleBoss {
     const elapsed=now-this.started,events=this.clock.tick(elapsed);
     if(events.flight)this.flightAt=now;
     const flying=now-this.flightAt<3600;
-    const desired=10320+Math.sin(elapsed/(flying?1400:3000))*(flying?650:320);
-    this.bossX=Phaser.Math.Linear(this.bossX,Phaser.Math.Clamp(desired,9180,11420),.035);
-    this.image.setPosition(this.bossX,flying?-150+Math.sin(elapsed*.0018)*90:80+Math.sin(elapsed*.0012)*55);
+    if(now>=this.nextPattern){
+      const chase=Math.random()<.2;
+      this.targetX=chase?this.player.sprite.x:Phaser.Math.Between(9340,11280);
+      this.targetY=chase?this.player.sprite.y-70:Phaser.Math.Between(flying?-180:-70,200);
+      this.nextPattern=now+Phaser.Math.Between(1800,3300);
+    }
+    if(now<this.retreatUntil)this.targetX=Phaser.Math.Clamp(this.player.sprite.x+(this.image.x>=this.player.sprite.x?450:-450),9180,11360);
+    const dt=Math.min(this.scene.game.loop.delta,50)/1000;
+    const dx=this.targetX-this.image.x,dy=this.targetY-this.image.y,length=Math.hypot(dx,dy),step=Math.min(length,(now<this.retreatUntil?155:100)*dt);
+    if(length>0)this.image.setPosition(this.image.x+dx/length*step,this.image.y+dy/length*step);
+    this.bossX=this.image.x;this.core.setPosition(this.image.x,this.image.y-60);
     this.drawWings(now,flying);
     if(this.probeHit){this.probeHit=false;this.health.hp=1;this.player.body.reset(this.image.x,this.image.y-98);this.player.body.setVelocityY(400);}
     const p=this.player.body,x=this.image.x,y=this.image.y;
@@ -62,6 +78,7 @@ export class CastleBoss {
     const stomp=isStomp({left:p.left,right:p.right,top:p.top,bottom:p.bottom,previousBottom:p.prev.y+p.height,velocityY:p.velocity.y},{left:x-60,right:x+60,top:y-60},10);
     if(this.health.touch(now,overlap,this.player.isDashing||stomp)) {
       this.contactGrace=now+650;
+      this.retreatUntil=now+1400;
       this.player.bounceFromStomp();this.image.setTint(0xffffff);
       this.scene.tweens.add({targets:this.image,alpha:.4,duration:80,yoyo:true,repeat:2});
     } else if(overlap&&now>=this.contactGrace&&!this.player.isDashing&&!stomp) this.player.takeDamage(x);
@@ -72,7 +89,7 @@ export class CastleBoss {
     this.updateMinions(now);
     this.label.setText(`WINGED WARDEN  ${this.health.hp} / ${BOSS_RULES.hp}`);
     this.hud.clear().fillStyle(0x080c15,.9).fillRoundedRect(136,119,368,13,5);
-    this.hud.fillStyle(0xe98644).fillRoundedRect(139,122,362*this.health.hp/15,7,3);
+    this.hud.fillStyle(0xe98644).fillRoundedRect(139,122,362*this.health.hp/BOSS_RULES.hp,7,3);
   }
   probeVictory():void {if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa'))this.probeHit=true;}
   private drawWings(now:number,flying:boolean):void {
@@ -120,7 +137,7 @@ export class CastleBoss {
     for(let i=0;i<BOSS_RULES.normals+BOSS_RULES.pointed;i++) {
       const x=this.player.sprite.x<10240?11380-i*60:9120+i*60;
       const enemy=new BasicEnemy(this.scene,x,330,{left:9030,right:11480},i===3,i<3);
-      if(!enemy.pointed)enemy.body.setMaxVelocity(220,900);
+      if(!enemy.pointed)enemy.body.setMaxVelocity(TUNING.player.sprintSpeed,900);
       const contact=new InteractionSystem(this.player,enemy,this.throwable);
       const colliders=[this.scene.physics.add.collider(enemy.sprite,this.terrain),
         this.scene.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contact.resolvePlayerEnemy()),
@@ -132,24 +149,28 @@ export class CastleBoss {
     this.minions=this.minions.filter(m=>{
       if(m.enemy.defeated){m.colliders.forEach(c=>c.destroy());return false;}
       const e=m.enemy,p=this.player;
-      e.update();
+      e.update(false);
       const grounded=e.body.blocked.down||e.body.touching.down;
-      if(e.pointed){e.body.setVelocityX(Math.sign(p.sprite.x-e.sprite.x)*100);return true;}
+      if(e.pointed){
+        if(e.sprite.x<this.image.x-240)e.body.setVelocityX(100);
+        else if(e.sprite.x>this.image.x+240)e.body.setVelocityX(-100);
+        return true;
+      }
       const from=support(e.sprite.x,e.body.bottom),to=support(p.sprite.x,p.body.bottom);
       if(grounded&&now>=m.jumpAt)m.target=undefined;
       if(m.target!==undefined) {
-        e.body.setVelocityX(Phaser.Math.Clamp((ARENA_LEDGES[m.target].x-e.sprite.x)*4,-220,220));
+        e.body.setVelocityX(Phaser.Math.Clamp((ARENA_LEDGES[m.target].x-e.sprite.x)*4,-300,300));
       } else if(from!==to) {
         const next=nextLedge(from,to),ledge=ARENA_LEDGES[next],current=ARENA_LEDGES[from];
         const dir=ledge.x>=e.sprite.x?1:-1;
-        const launch=ledge.top<current.top&&from===0?ledge.x-dir*(ledge.width/2+40):current.x+dir*(current.width/2-30);
+        const launch=ledge.top<current.top&&from===0?ledge.x-dir*(ledge.width/2+40):current.x+dir*(current.width/2-10);
         e.body.setVelocityX(Phaser.Math.Clamp((launch-e.sprite.x)*4,-180,180));
         if(grounded&&Math.abs(launch-e.sprite.x)<25&&now>=m.jumpAt) {
-          m.target=next;e.body.setVelocityY(-700);m.jumpAt=now+700;
+          m.target=next;e.body.setVelocityY(TUNING.player.jumpVelocity);m.jumpAt=now+700;
         }
       } else {
         e.body.setVelocityX(Math.sign(p.sprite.x-e.sprite.x)*150);
-        if(grounded&&now>=m.jumpAt&&Math.abs(p.sprite.x-e.sprite.x)<180&&p.body.bottom<e.body.bottom-25){e.body.setVelocityY(-700);m.jumpAt=now+850;}
+        if(grounded&&now>=m.jumpAt&&Math.abs(p.sprite.x-e.sprite.x)<180&&p.body.bottom<e.body.bottom-25){e.body.setVelocityY(TUNING.player.jumpVelocity);m.jumpAt=now+850;}
       }
       return true;
     });
@@ -158,7 +179,7 @@ export class CastleBoss {
     this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('WARDEN DEFEATED');
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];
-    this.wings.destroy();this.scene.tweens.add({targets:this.image,alpha:0,angle:45,y:330,duration:900,onComplete:()=>this.image.destroy()});
+    this.core.destroy();this.wings.destroy();this.scene.tweens.add({targets:this.image,alpha:0,angle:45,y:330,duration:900,onComplete:()=>this.image.destroy()});
     this.say('A royal command seal… issued while I was gone. Someone wanted my castle intact. Why?');
   }
 }

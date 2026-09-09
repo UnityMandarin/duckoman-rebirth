@@ -32,6 +32,7 @@ export class Player {
   private lastGhostAt = -1000;
   private wasGrounded = false;
   private landedAt = -1000;
+  private ghosts:Phaser.GameObjects.Image[]=[];
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
@@ -135,6 +136,7 @@ export class Player {
 
   private syncVisual(): void {
     const now = this.sprite.scene.time.now;
+    if(!this.isDashing){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
     if (this.grounded && !this.wasGrounded) this.landedAt = now;
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
@@ -155,7 +157,8 @@ export class Player {
       this.lastGhostAt = now;
       const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
         .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)
-        .setRotation(this.visual.rotation).setTint(0x4fc3ff).setAlpha(.62).setDepth(9);
+        .setRotation(this.visual.rotation).setTint(0xffdb45).setAlpha(.62).setDepth(9);
+      this.ghosts.push(ghost);
       this.sprite.scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.12,scaleY:ghost.scaleY*1.12,duration:220,onComplete:()=>ghost.destroy()});
     }
   }

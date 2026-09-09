@@ -26,7 +26,7 @@ export const TUNING = {
     slamBoostWindow: 750,
     crouchHeight: 34,
     dashSpeed: 440,
-    dashDuration: 170,
+    dashDuration: 255,
     dashCooldown: 500,
     maxStamina: 3,
     dashStaminaCost: 1,

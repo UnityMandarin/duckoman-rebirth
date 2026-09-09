@@ -49,8 +49,10 @@ export class Gate1Scene extends Phaser.Scene {
     this.textures.get('spike-platform').add('hazard',0,16,175,1740,505);
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
-    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1200,'castle-depth').setOrigin(0).setDisplaySize(5100,2400)
-      .setFlipX(i%2===1).setScrollFactor(.72,.3).setDepth(-21);
+    // Backdrop floor stays at the collision floor height through vertical traversal.
+    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-depth').setOrigin(0).setDisplaySize(5100,1700)
+      .setFlipX(i%2===1).setScrollFactor(.72,1).setDepth(-21);
+    this.add.rectangle(CASTLE.width/2,490,CASTLE.width,260,0x08111b).setDepth(-18);
     const background=this.textures.get('castle-background').getSourceImage();
     // Crop strips fade the old architecture into the continuation, never a hard image edge.
     for(let i=0;i<90;i++)this.add.image(i*20,-170,'castle-background').setOrigin(0)
@@ -94,7 +96,9 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
-    this.add.text(16, 80, 'A/D move · R sprint · Space/L jump/throw · K dash · S tuck · S again slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
+    this.add.text(16, 80, 'A/D move · R sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
+    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[9060,240,'Dash to kill or jump on the red button'],[4870,220,'R sprint → L jump → K dash']] as const)
+      this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
     this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
@@ -115,7 +119,7 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     this.player.update(input, delta);
-    if (this.player.canAct && input.jumpPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
+    if (this.player.canAct && input.throwPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
     this.pillar.update();

@@ -25,7 +25,7 @@ export class FallingPillar {
     const pieces: Phaser.GameObjects.GameObject[]=[];
     for(let i=0;i<4;i++) pieces.push(scene.add.image(0,i*p.height/4,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(p.width,p.height/4+5));
     this.art=scene.add.container(p.x,-p.height-10,pieces).setDepth(4).setVisible(false);
-    this.zone=scene.add.rectangle(p.x,357,p.width+20,6,0xff5936,0.9).setDepth(7).setVisible(false);
+    this.zone=scene.add.rectangle(p.x,357,p.width,6,0xff3028,0.9).setDepth(7).setVisible(false);
     this.warning=scene.add.text(p.x,160,'⚠ FALLING PILLAR',{fontFamily:'Arial',fontSize:'14px',color:'#ffd789',stroke:'#180b05',strokeThickness:4}).setOrigin(0.5).setDepth(12).setVisible(false);
   }
   update(): void {

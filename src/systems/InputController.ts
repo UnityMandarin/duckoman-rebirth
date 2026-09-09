@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DigitalAction } from './DigitalAction';
 
 export interface InputSnapshot {
+  throwPressed?: boolean;
   horizontal: -1 | 0 | 1;
   down: boolean;
   downPressed: boolean;
@@ -25,6 +26,8 @@ export class InputController {
   private readonly dashAction = new DigitalAction();
   private readonly sprintAction = new DigitalAction();
   private resetQueued=false;
+  private readonly weapon:Phaser.Input.Keyboard.Key;
+  private readonly weaponAction=new DigitalAction();
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard;
@@ -34,6 +37,7 @@ export class InputController {
     const space = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     const l = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.jump = [space, l];
+    this.weapon=keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.down = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)];
     this.dash = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K)];
     this.sprint = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R)];
@@ -53,6 +57,7 @@ export class InputController {
     const horizontal = leftDown === rightDown ? 0 : leftDown ? -1 : 1;
     const queuedReset=this.resetQueued;this.resetQueued=false;
     return {
+      throwPressed:this.weaponAction.read(this.weapon.isDown).pressed,
       horizontal,
       down: down.down,
       downPressed: down.pressed,

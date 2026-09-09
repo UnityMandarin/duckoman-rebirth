@@ -10,6 +10,7 @@ export class BasicEnemy {
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
+  private jumpAt=0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private readonly patrol?: { left: number; right: number }, pointed=false, jumper=false) {
     this.pointed=pointed;
@@ -35,13 +36,17 @@ export class BasicEnemy {
     this.body.setEnable(awake);this.visual.setVisible(awake);
   }
 
-  update(): void {
+  update(autoJump=true): void {
     if (this.defeated) return;
     if (this.body.blocked.left) this.direction = 1;
     if (this.body.blocked.right) this.direction = -1;
     if (this.patrol && this.sprite.x <= this.patrol.left) this.direction = 1;
     if (this.patrol && this.sprite.x >= this.patrol.right) this.direction = -1;
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
+    const now=this.sprite.scene.time.now;
+    if(autoJump&&this.jumper&&this.body.blocked.down&&now>=this.jumpAt){
+      this.body.setVelocityY(TUNING.player.jumpVelocity);this.jumpAt=now+1600;
+    }
   }
 
   defeat(): void {
@@ -51,7 +56,18 @@ export class BasicEnemy {
     this.sprite.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
     this.body.setEnable(false);
     this.sprite.setVisible(false);
-    this.sprite.scene.tweens.add({targets:this.visual,scaleY:this.visual.scaleY*0.25,angle:this.direction*18,alpha:0,duration:220,onComplete:()=>this.visual.destroy()});
+    const scene=this.sprite.scene,x=this.visual.x,y=this.visual.y;
+    const cracks=scene.add.graphics().setDepth(15).lineStyle(2,0xffd576)
+      .lineBetween(x-20,y-24,x+4,y-4).lineBetween(x+4,y-4,x-8,y+15).lineBetween(x+4,y-4,x+25,y+8);
+    scene.tweens.add({targets:[this.visual,cracks],alpha:0,duration:120,onComplete:()=>{this.visual.destroy();cracks.destroy();}});
+    for(let i=0;i<7;i++){
+      const gear=scene.add.graphics().setPosition(x,y).setDepth(15);
+      gear.fillStyle(i%2?0xa88348:0x788896).fillCircle(0,0,5).fillStyle(0x162231).fillCircle(0,0,2);
+      for(let j=0;j<8;j++){const a=j*Math.PI/4;gear.fillStyle(0xa88348).fillRect(Math.cos(a)*5-1,Math.sin(a)*5-1,3,3);}
+      scene.tweens.add({targets:gear,x:x+Phaser.Math.Between(-45,45),y:y-Phaser.Math.Between(15,40),angle:180,duration:150,delay:80,onComplete:()=>{
+        scene.tweens.add({targets:gear,y:y+45,alpha:0,angle:360,duration:270,onComplete:()=>gear.destroy()});
+      }});
+    }
     this.sprite.scene.time.delayedCall(0, () => this.sprite.destroy());
   }
 

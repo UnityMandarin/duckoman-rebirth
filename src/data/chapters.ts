@@ -1,4 +1,5 @@
 import {CASTLE} from './castle';
+import {encounterFor} from './chapterChallenges';
 
 export type ChapterKind='jail'|'outside';
 export interface Ledge {x:number;y:number;width:number;height:number;}
@@ -57,12 +58,7 @@ export function chapterPlatforms(kind:ChapterKind):Ledge[]{
    if(kind==='outside'&&i>=22){
      result.push({x:x+320,y:270,width:180,height:32},{x:x+1100,y:270,width:180,height:32});continue;
    }
-   const route=sections[i].route;
-   const pattern:readonly [number,number,number][]=route==='gallery'
-     ?[[220,280,180],[460,195,180],[760,195,300],[1080,280,180]]
-     :route==='stairs'?[[210,280,150],[430,190,170],[680,100,180],[930,190,170],[1170,280,160]]
-     :route==='gap'?[[220,280,180],[490,195,240],[990,195,240],[1220,280,160]]
-     :[[240,275,160],[520,235,200],[850,275,180],[1140,235,200]];
+   const pattern=encounterFor(kind,i)!.steps;
    for(const [dx,y,width]of pattern)result.push({x:x+dx,y,width,height:32});
  }
  return result;

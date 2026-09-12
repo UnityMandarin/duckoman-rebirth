@@ -13,6 +13,14 @@
 
 ## Delivery and validation
 
+### Difficulty revision
+
+The owner found the original route pass too easy and repetitive. The revision replaces four reused templates with 34 distinct encounter layouts: collapsing bridges, switchback climbs, spike-bed crossings, elevated ambushes, timed presses, and mixed pillar/guard encounters. Continuous physical ground remains underneath the visible spike beds; it is no longer a safe walk-through shortcut. Spike beds cost one heart, heavy presses two. Checkpoints now restore half a heart, every two jail sections or three outdoor sections, with a pre-boss checkpoint.
+
+Jail pressure targets 1.2 times kingdom guard speed (120 vs 100), with 750 ms pillar warnings vs 900 ms. Outdoor pressure targets 1.5 times guard speed (150), with 600 ms warnings. Collapse windows are 500/400 ms. These percentages are engineering tuning targets, not an exact measurement of perceived difficulty; owner playtest determines the feel.
+
+The outdoor boss occupies sections 23–24, starting at x=31,680. The HUD identifies its section. Local direct boss shortcut: `/duckoman-rebirth/?chapter=outside&boss=1`. There is no additional jail boss.
+
 Automated tests cover stamina timing, dash vertical lock and gravity recovery, world-size ratios, continuous ground, ascending route geometry, and actual PNG alpha/asset presence. TypeScript and production build pass. No gameplay, browser playthrough, or human visual acceptance performed. Geometry checks are not a substitute for a full owner playtest.
 
 Local shortcuts, restricted to localhost/127.0.0.1:
@@ -92,4 +100,3 @@ Saved: `public/assets/chapters/sealed-dispatch.png`
 Prompt: A single old folded royal letter tied with a dark gold ribbon and a small red wax fox seal, slightly angled front view. Premium hand-painted gothic fantasy collectible sprite, ivory parchment, aged ink edges, realistic restrained materials, readable at small size. Genuinely transparent alpha background, no glow cloud, no shadow plane, no environment, no readable text. Entire object isolated centered.
 
 The selected hare received a background-extraction pass: preserve the creature, remove background and halo, request genuine alpha. Original boar and regent concepts were retained after extracted variants failed alpha validation.
-

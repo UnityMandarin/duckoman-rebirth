@@ -6,6 +6,9 @@ import {AntlerRegent} from '../entities/AntlerRegent';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {ChapterHud} from '../systems/ChapterHud';
+import {ChapterTraps} from '../systems/ChapterTraps';
+import type {ChapterSurface} from '../systems/ChapterTraps';
+import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
 import {CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,JAIL_SECTIONS,OUTSIDE_SECTIONS,chapterPlatforms} from '../data/chapters';
 import type {ChapterKind,Ledge} from '../data/chapters';
 
@@ -34,6 +37,7 @@ export class JourneyScene extends Phaser.Scene {
  private leaving=false;
  private boss?:AntlerRegent;
  private foreground!:Phaser.GameObjects.Graphics;
+ private traps!:ChapterTraps;
  private walls:{body:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image}[]=[];
  constructor(private readonly kind:ChapterKind){super(kind);}
  preload():void {
@@ -51,15 +55,18 @@ export class JourneyScene extends Phaser.Scene {
   this.cameras.main.setBounds(0,-100,width,560).setZoom(1).setBackgroundColor(0x09131c);
   this.createBackdrop(width);
   this.terrain=this.physics.add.staticGroup();this.platforms=chapterPlatforms(this.kind);
+  const surfaces:ChapterSurface[]=[];
   const road=this.textures.get('road-platform');if(!road.has('walk'))road.add('walk',0,16,190,2135,400);
   for(const p of this.platforms){
    const body=this.add.rectangle(p.x,p.y,p.width,p.height,0x102027,0);this.physics.add.existing(body,true);this.terrain.add(body);
    if(p.height<60){
     this.add.ellipse(p.x+8,p.y+30,p.width*.95,20,0x020810,.28).setDepth(-1);
-    this.add.image(p.x,p.y-p.height/2,'road-platform','walk').setOrigin(.5,0).setDisplaySize(p.width,Math.max(45,p.width*.2)).setDepth(2).setTint(this.kind==='jail'?0xaebcca:0xffffff);
+    const art=this.add.image(p.x,p.y-p.height/2,'road-platform','walk').setOrigin(.5,0).setDisplaySize(p.width,Math.max(45,p.width*.2)).setDepth(2).setTint(this.kind==='jail'?0xaebcca:0xffffff);
+    surfaces.push({shape:body,art,ledge:p});
    }
   }
-  const spawn=this.state.checkpoint??100;
+  const bossPreview=this.kind==='outside'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&new URLSearchParams(window.location.search).has('boss');
+  const spawn=this.state.checkpoint??(bossPreview?22*1440+80:100);
   this.player=new Player(this,spawn,332.5);this.player.infiniteHealth=!!data.infiniteHealth;this.player.ultimateCharge=data.ultimateCharge??0;
   this.shadow=this.add.ellipse(spawn,358,54,9,0x000000,.35).setDepth(3);
   this.physics.add.collider(this.player.sprite,this.terrain);
@@ -70,6 +77,7 @@ export class JourneyScene extends Phaser.Scene {
   this.label=this.add.text(625,365,'',{fontSize:'10px',color:'#ded4b7'}).setOrigin(1).setScrollFactor(0).setDepth(52);
   this.add.text(13,382,'A/D · Hold Left Shift sprint · L jump · K dash · S tuck/slam · J interact/throw · U',{fontSize:'9px',color:'#bec9cc',stroke:'#061019',strokeThickness:3}).setScrollFactor(0).setDepth(51);
   this.foreground=this.add.graphics().setDepth(1);this.populate();
+  this.traps=new ChapterTraps(this,this.player,this.kind,surfaces);
   if(this.kind==='jail'){
    this.addGate(0,620,[{x:430,y:160}]);
    this.add.text(400,115,'J · Release the cell latch',{fontSize:'11px',color:'#ffe092',stroke:'#08111b',strokeThickness:4}).setOrigin(.5).setDepth(17);
@@ -103,7 +111,7 @@ export class JourneyScene extends Phaser.Scene {
   const sections=this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS;
   sections.forEach((section,i)=>{
    const x=i*SECTION_WIDTH;
-   if(i>0){
+   if(i>0&&(i%(this.kind==='jail'?2:3)===0||this.kind==='outside'&&i===22)){
     const checkpoint=this.add.image(x+80,333,'rest-lantern').setDisplaySize(30,54).setDepth(4);this.checkpoints.push(checkpoint);
     this.add.text(x+80,304,'REST',{fontSize:'8px',color:'#b6d1c9'}).setOrigin(.5).setDepth(4);
    }
@@ -119,18 +127,25 @@ export class JourneyScene extends Phaser.Scene {
     }
    }
    if(i===0||this.kind==='outside'&&i>=22)return;
-   const count=section.route==='gauntlet'?3:2;
+   const encounter=encounterFor(this.kind,i)!;
+   const ledges=this.platforms.filter(p=>p.height<60&&p.x>x&&p.x<x+1440).sort((a,b)=>a.x-b.x);
+   const count=encounter.type==='ambush'||encounter.type==='crossfire'?4:this.kind==='outside'?3:2;
    for(let j=0;j<count;j++){
-    const ex=x+530+j*260,jumper=j===1,pointed=!jumper&&i%3===0;
-    const enemy=new BasicEnemy(this,ex,325,{left:ex-95,right:ex+95},pointed,jumper,this.kind==='outside'?(jumper?'gloom-hare':'thorn-boar'):undefined);
+    const ledge=ledges[1+j%(ledges.length-2)],raised=j%2===0;
+    const ex=raised?ledge.x:x+420+j*230,jumper=j%2===1,pointed=!jumper&&(i+j)%3===0;
+    const span=raised?Math.max(18,ledge.width/2-35):100;
+    const enemy=new BasicEnemy(this,ex,raised?ledge.y-41:325,{left:ex-span,right:ex+span},pointed,jumper,this.kind==='outside'?(jumper?'gloom-hare':'thorn-boar'):undefined);
+    enemy.body.setMaxVelocity(100*CHAPTER_DIFFICULTY[this.kind],900);
     this.physics.add.collider(enemy.sprite,this.terrain);
     const contacts=new InteractionSystem(this.player,enemy,this.cake);
     this.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contacts.resolvePlayerEnemy());
     this.physics.add.overlap(this.cake.sprite,enemy.sprite,()=>contacts.resolveThrownEnemy());this.enemies.push(enemy);
    }
-   const offsets=section.route==='gap'?[700,784]:section.route==='gauntlet'?[355,655,975]:[630];
+   const offsets:number[]=[];
+   for(let dx=encounter.spikes[0];dx<=encounter.spikes[1];dx+=84)offsets.push(dx);
    for(const dx of offsets){const hx=x+dx;this.hazards.push({x:hx,y:356,width:84});this.add.image(hx,348,'spike-platform','hazard').setDisplaySize(84,32).setFlipY(true).setDepth(4);}
-   if(section.route==='gap')this.add.text(x+460,140,'Hold Shift · L · K',{fontSize:'10px',color:'#e8d69b',stroke:'#071119',strokeThickness:4}).setDepth(5);
+   const clue={presses:'Red line: wait, then commit.',crumble:'Cracked stones: keep moving.',relay:'Chain your jumps. Save a dash.',crossfire:'Pillars above. Guards ahead.',ambush:'Choose your landing before you jump.',ascent:'Climb, turn, then cross.'}[encounter.type];
+   this.add.text(x+170,220,clue,{fontSize:'10px',color:'#e8d69b',stroke:'#071119',strokeThickness:4}).setDepth(5);
   });
  }
  private addGate(id:number,x:number,buttons:{x:number;y:number}[]):void {
@@ -171,12 +186,13 @@ export class JourneyScene extends Phaser.Scene {
   }
   if(input.throwPressed&&!interacted&&this.player.canAct&&this.cake.state==='CARRIED')this.cake.throw(this.player);
   this.cake.follow(this.player);this.cake.update(delta);
-  for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake)enemy.update();}
-  for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,.5);
+  for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake){enemy.update();enemy.body.setVelocityX(enemy.body.velocity.x*CHAPTER_DIFFICULTY[this.kind]);}}
+  this.traps.update();
+  for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,1);
   const index=Math.min(Math.floor(this.player.sprite.x/1440),(this.kind==='jail'?12:24)-1);
-  if(index!==this.section){this.section=index;const section=(this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS)[index];this.label.setText(section.name);if(section.story)this.say(section.story);}
+  if(index!==this.section){this.section=index;const section=(this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS)[index];this.label.setText(`${section.name} · ${index+1}/${this.kind==='jail'?12:24}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
   for(const checkpoint of this.checkpoints)if(Math.abs(this.player.sprite.x-checkpoint.x)<35&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
-   this.state.checkpoint=checkpoint.x;this.player.health=3;this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · A moment to breathe.');
+   this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · Half a heart restored.');
   }
   for(const secret of this.secrets){
    if(!secret.art.active)continue;secret.art.setAngle(Math.sin(this.time.now*.003)*8);

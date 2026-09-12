@@ -10,6 +10,7 @@ export interface InputSnapshot {
   downPressed: boolean;
   dashPressed: boolean;
   sprintPressed: boolean;
+  sprintHeld?: boolean;
   jumpPressed: boolean;
   jumpReleased: boolean;
   anyResetInput: boolean;
@@ -28,6 +29,7 @@ export class InputController {
   private readonly dashAction = new DigitalAction();
   private readonly sprintAction = new DigitalAction();
   private resetQueued=false;
+  private leftShiftDown=false;
   private readonly weapon:Phaser.Input.Keyboard.Key;
   private readonly weaponAction=new DigitalAction();
   private readonly secret:Phaser.Input.Keyboard.Key[];
@@ -48,7 +50,16 @@ export class InputController {
     this.secret=[Phaser.Input.Keyboard.KeyCodes.ONE,Phaser.Input.Keyboard.KeyCodes.TWO,Phaser.Input.Keyboard.KeyCodes.THREE].map(code=>keyboard.addKey(code));
     this.down = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)];
     this.dash = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K)];
-    this.sprint = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R)];
+    this.sprint = [keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT)];
+    const shiftDown=(event:KeyboardEvent)=>{if(event.code==='ShiftLeft')this.leftShiftDown=true;};
+    const shiftUp=(event:KeyboardEvent)=>{if(event.code==='ShiftLeft')this.leftShiftDown=false;};
+    const clearShift=()=>{this.leftShiftDown=false;};
+    keyboard.on('keydown',shiftDown);keyboard.on('keyup',shiftUp);
+    scene.game.events.on(Phaser.Core.Events.BLUR,clearShift);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{
+      keyboard.off('keydown',shiftDown);keyboard.off('keyup',shiftUp);
+      scene.game.events.off(Phaser.Core.Events.BLUR,clearShift);
+    });
     this.reset = [...this.left, ...this.right, keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP), ...this.down, ...this.dash, ...this.sprint, ...this.jump];
     const queueReset=()=>{this.resetQueued=true;};
     this.reset.forEach(key=>key.on('down',queueReset));
@@ -73,6 +84,7 @@ export class InputController {
       downPressed: down.pressed,
       dashPressed: dash.pressed,
       sprintPressed: sprint.pressed,
+      sprintHeld: this.leftShiftDown,
       jumpPressed: jump.pressed,
       jumpReleased: jump.released,
       anyResetInput: queuedReset || this.reset.some((key) => Phaser.Input.Keyboard.JustDown(key))

@@ -38,6 +38,7 @@ export class Player {
   private wasGrounded = false;
   private landedAt = -1000;
   private ghosts:Phaser.GameObjects.Image[]=[];
+  private lastSweatAt=0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
@@ -65,6 +66,8 @@ export class Player {
   update(input: InputSnapshot, _deltaMs: number): void {
     if(this.usingUltimate){this.body.setVelocity(0,0);return;}
     const now = this.sprite.scene.time.now;
+    this.body.setAllowGravity(true);
+    this.abilities.setSprint(!!input.sprintHeld && input.horizontal!==0 && Math.abs(this.body.velocity.x)>1 && !input.down && this.canAct && !this.isDashing,now);
     this.abilities.update(now);
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
@@ -79,7 +82,6 @@ export class Player {
     if (input.horizontal !== 0) this.facing = input.horizontal;
     this.setCrouching(input.down);
 
-    if (input.sprintPressed) this.abilities.toggleSprint(now);
 
     if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration)) {
       this.setCrouching(false);
@@ -91,7 +93,9 @@ export class Player {
     }
 
     if (this.abilities.isDashing(now)) {
-      this.body.setVelocityX(this.facing * TUNING.player.dashSpeed);
+      this.body.setAllowGravity(false).setVelocity(this.facing * TUNING.player.dashSpeed,0);
+      this.jumpCutAvailable=false;
+      return;
     } else if (this.crouching && this.grounded) {
       this.body.setVelocityX(0);
     } else {
@@ -114,6 +118,7 @@ export class Player {
 
   bounceFromStomp(): void {
     this.abilities.cancelTransient();
+    this.body.setAllowGravity(true);
     this.body.setVelocityY(TUNING.player.stompBounceVelocity);
   }
 
@@ -125,6 +130,7 @@ export class Player {
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;
     this.lifeState = this.health === 0 ? 'DEAD' : 'HURT';
     this.abilities.cancelTransient();
+    this.body.setAllowGravity(true);
     this.setCrouching(false);
     const direction = this.sprite.x < attackerX ? -1 : 1;
     this.body.setAcceleration(0, 0).setVelocity(direction * TUNING.player.damageKnockback.x, TUNING.player.damageKnockback.y);
@@ -147,6 +153,11 @@ export class Player {
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
     const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
+    if(moving && this.sprinting && now-this.lastSweatAt>160){
+      this.lastSweatAt=now;
+      const drop=this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,this.sprite.y-21,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
+      this.sprite.scene.tweens.add({targets:drop,x:drop.x-this.facing*22,y:drop.y+20,alpha:0,duration:360,onComplete:()=>drop.destroy()});
+    }
     const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);
     const bounce = moving ? Math.abs(Math.sin(phase)) * 2 : 0;
     this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 13 : 6) - bounce);

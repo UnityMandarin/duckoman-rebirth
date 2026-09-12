@@ -4,6 +4,6 @@ export default defineConfig({
   base: '/duckoman-rebirth/',
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts']
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.js']
   }
 });

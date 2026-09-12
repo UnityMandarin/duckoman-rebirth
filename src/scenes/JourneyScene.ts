@@ -144,7 +144,7 @@ export class JourneyScene extends Phaser.Scene {
    const offsets:number[]=[];
    for(let dx=encounter.spikes[0];dx<=encounter.spikes[1];dx+=84)offsets.push(dx);
    for(const dx of offsets){const hx=x+dx;this.hazards.push({x:hx,y:356,width:84});this.add.image(hx,348,'spike-platform','hazard').setDisplaySize(84,32).setFlipY(true).setDepth(4);}
-   const clue={presses:'Red line: wait, then commit.',crumble:'Cracked stones: keep moving.',relay:'Chain your jumps. Save a dash.',crossfire:'Pillars above. Guards ahead.',ambush:'Choose your landing before you jump.',ascent:'Climb, turn, then cross.'}[encounter.type];
+   const clue={presses:'Red line: wait, then commit.',crumble:'Cracked stones: keep moving.',relay:'Chain your jumps. Save a dash.',crossfire:'Pillars above. Guards ahead.',ambush:'Choose your landing before you jump.',ascent:'Climb, turn, then cross.',ferry:'Ride the crossing. Jump when it closes.',lift:'Ride upward, then step off.',gust:'Read the wind. Dash holds your line.',conveyor:'The stones pull against you.',shutters:'Fading stones: cross while solid.'}[encounter.type];
    this.add.text(x+170,220,clue,{fontSize:'10px',color:'#e8d69b',stroke:'#071119',strokeThickness:4}).setDepth(5);
   });
  }

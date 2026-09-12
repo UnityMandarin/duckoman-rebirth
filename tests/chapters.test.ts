@@ -48,7 +48,9 @@ describe('authored expansion geometry',()=>{
  it('has distinct encounter layouts instead of four repeated templates',()=>{
   for(const encounters of [JAIL_ENCOUNTERS,OUTSIDE_ENCOUNTERS]){
    expect(new Set(encounters.map(e=>JSON.stringify(e.steps))).size).toBe(encounters.length);
-   expect(new Set(encounters.map(e=>e.type)).size).toBe(6);
+   const counts=new Map<string,number>();
+   for(const encounter of encounters)counts.set(encounter.type,(counts.get(encounter.type)??0)+1);
+   for(const [type,count]of counts)expect(count,`${type} repeated more than twice`).toBeLessThanOrEqual(2);
    expect(new Set(encounters.map(e=>e.steps.length)).size).toBeGreaterThan(1);
    for(const encounter of encounters.slice(1))expect(encounter.spikes[1]-encounter.spikes[0]).toBeGreaterThanOrEqual(300);
   }

@@ -15,6 +15,8 @@
 
 ### Difficulty revision
 
+Variety follow-up: each encounter type is capped at two uses per chapter, enforced by tests. Added horizontal ferries, vertical lifts, alternating wind corridors, opposed conveyors, and timed solid/fading platforms. These have distinct runtime behavior, not just different labels. Shared environmental materials and basic controls remain consistent.
+
 The owner found the original route pass too easy and repetitive. The revision replaces four reused templates with 34 distinct encounter layouts: collapsing bridges, switchback climbs, spike-bed crossings, elevated ambushes, timed presses, and mixed pillar/guard encounters. Continuous physical ground remains underneath the visible spike beds; it is no longer a safe walk-through shortcut. Spike beds cost one heart, heavy presses two. Checkpoints now restore half a heart, every two jail sections or three outdoor sections, with a pre-boss checkpoint.
 
 Jail pressure targets 1.2 times kingdom guard speed (120 vs 100), with 750 ms pillar warnings vs 900 ms. Outdoor pressure targets 1.5 times guard speed (150), with 600 ms warnings. Collapse windows are 500/400 ms. These percentages are engineering tuning targets, not an exact measurement of perceived difficulty; owner playtest determines the feel.

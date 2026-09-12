@@ -58,4 +58,24 @@ describe('PlayerAbilities', () => {
     abilities.update(5000);
     expect(abilities.stamina).toBe(3);
   });
+
+  it('holding sprint at rest neither starts sprint nor consumes stamina',()=>{
+    const abilities=createAbilities();
+    abilities.setSprint(false,1000);abilities.setSprint(false,20000);
+    expect(abilities.stamina).toBe(3);expect(abilities.sprinting).toBe(false);
+  });
+
+  it('charges only moving time, including separate short sprint bursts',()=>{
+    const abilities=createAbilities();
+    abilities.setSprint(true,1000);abilities.setSprint(false,2000);
+    abilities.setSprint(true,2100);abilities.setSprint(false,3100);
+    expect(abilities.stamina).toBe(2.75);
+    abilities.setSprint(false,5100);expect(abilities.stamina).toBe(3);
+  });
+
+  it('never regenerates during an active sprint',()=>{
+    const abilities=createAbilities();abilities.tryStartDash(0,255);
+    abilities.setSprint(true,500);abilities.update(4500);
+    expect(abilities.stamina).toBe(1.5);
+  });
 });

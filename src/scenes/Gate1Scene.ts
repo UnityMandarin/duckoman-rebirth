@@ -30,7 +30,6 @@ export class Gate1Scene extends Phaser.Scene {
   preload(): void {
     this.load.image('castle-background', 'assets/gate3/royal-hall.png');
     this.load.image('castle-depth', 'assets/gate3/royal-hall.png');
-    this.load.image('jail-cell','assets/gate3/jail-cell.png');
     this.load.image('ironwing-button','assets/gate3/ironwing-button.png');
     this.load.image('ironwing-bomb','assets/gate3/ironwing-bomb.png');
     this.load.image('ironwing-eye','assets/gate3/ironwing-eye.png');
@@ -41,7 +40,6 @@ export class Gate1Scene extends Phaser.Scene {
     this.load.image('spike-robot','assets/gate3/spike-robot.png');
     this.load.image('jumper-robot','assets/gate3/jumper-robot.png');
     this.load.image('spike-platform','assets/gate3/spike-platform.png');
-    this.load.image('royal-banner','assets/gate3/royal-banner.png');
     this.load.image('lock-kit','assets/gate3/lock-kit.png');
     this.load.image('rock-pillar-kit','assets/gate3/rock-pillar-kit.png');
   }
@@ -103,8 +101,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
-    this.add.text(16, 80, 'A/D move · R sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '11px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'R sprint → L jump → K dash']] as const)
+    this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
+    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
     this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
@@ -125,6 +123,10 @@ export class Gate1Scene extends Phaser.Scene {
     splitLayers();this.events.on(Phaser.Scenes.Events.POST_UPDATE,splitLayers);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,splitLayers));
     window.dispatchEvent(new Event('duckoman-ready'));
+    const previewChapter=new URLSearchParams(window.location.search).get('chapter');
+    if(['localhost','127.0.0.1'].includes(window.location.hostname)&&(previewChapter==='jail'||previewChapter==='outside')){
+      this.time.delayedCall(0,()=>this.scene.start(previewChapter));
+    }
   }
   update(_time: number, delta: number): void {
     if(this.boss.transitioning)return;
@@ -213,6 +215,7 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private useUltimate():void {
     const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.time.now+900;
+    p.abilities.setSprint(false,this.time.now);
     p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
     // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
     if(this.textures.exists('ultimate-sword'))this.textures.remove('ultimate-sword');

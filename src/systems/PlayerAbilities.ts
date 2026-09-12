@@ -13,6 +13,8 @@ export class PlayerAbilities {
   private nextDashAt = 0;
   private boostUntil = 0;
   private lastStaminaChangeAt = 0;
+  private sprintElapsed = 0;
+  private lastUpdateAt = 0;
   stamina: number;
   slamming = false;
   sprinting = false;
@@ -22,16 +24,26 @@ export class PlayerAbilities {
   }
 
   update(now: number): void {
+    const elapsed=Math.max(0,now-this.lastUpdateAt);
+    this.lastUpdateAt=now;
+    if(this.sprinting){
+      this.sprintElapsed+=elapsed;
+      const spent=Math.floor(this.sprintElapsed/this.config.sprintStaminaInterval);
+      this.sprintElapsed-=spent*this.config.sprintStaminaInterval;
+      this.stamina=Math.max(0,this.stamina-spent*this.config.sprintStaminaCost);
+      this.lastStaminaChangeAt=now;
+      if(this.stamina===0)this.sprinting=false;
+      return;
+    }
     const ticks = Math.floor((now - this.lastStaminaChangeAt) / this.config.staminaRegenInterval);
     if (ticks <= 0) return;
-    if (this.sprinting) {
-      this.stamina = Math.max(0, this.stamina - ticks * this.config.sprintStaminaCost);
-      if (this.stamina === 0) this.sprinting = false;
-      this.lastStaminaChangeAt += ticks * this.config.sprintStaminaInterval;
-    } else {
-      this.stamina = Math.min(this.config.maxStamina, this.stamina + ticks * this.config.staminaRegenAmount);
-      this.lastStaminaChangeAt += ticks * this.config.staminaRegenInterval;
-    }
+    this.stamina = Math.min(this.config.maxStamina, this.stamina + ticks * this.config.staminaRegenAmount);
+    this.lastStaminaChangeAt += ticks * this.config.staminaRegenInterval;
+  }
+
+  setSprint(heldAndMoving:boolean,now:number):void {
+    this.update(now);
+    this.sprinting=heldAndMoving&&this.stamina>0;
   }
 
   toggleSprint(now: number): void {

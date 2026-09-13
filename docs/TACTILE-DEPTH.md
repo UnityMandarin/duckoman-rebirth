@@ -17,3 +17,7 @@ Final generation prompt:
 Run `npm ci`, `npm test`, `npm run build`, then `npm run dev -- --host 127.0.0.1`. Open `http://127.0.0.1:5173/duckoman-rebirth/?chapter=jail` for the representative playable scene or `?chapter=outside` for reused presentation. Chapter shortcuts remain local-only.
 
 No gameplay input, traversal, combat playtest or subjective feel validation was performed by the agents, per the user's instruction. Initial rendering checks do not establish whole-level readability or frame-rate performance. Existing single-image character animation remains stylized deformation rather than a newly drawn animation set.
+
+## Expanded spatial layers
+
+Five extra scenery planes separate recessed arcades, distant walkways, structural piers, hanging fittings, and near foundation masonry. Each has its own horizontal scroll factor. Outdoor chapters reuse the planes for ridges, branches, trunks, and roots. All tall scenery renders behind gameplay; the only near plane in front of characters stays below world y=390, below the playable floor. Chunked static graphics avoid rebuilding architecture each frame. These are decorative shapes, not new collision surfaces.

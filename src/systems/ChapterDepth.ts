@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Player } from '../entities/Player';
 import type { ChapterKind, Ledge } from '../data/chapters';
+import { ChapterScenery } from './ChapterScenery';
 import {
   findGroundedSurface,
   findSurfaceBelow,
@@ -27,6 +28,7 @@ export class ChapterDepth {
   private nextFootstepAt = 0;
 
   constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind, private readonly width: number) {
+    new ChapterScenery(scene, kind, width);
     this.farSilhouette = scene.add.graphics().setDepth(-18).setScrollFactor(0.16, 1);
     this.midground = scene.add.graphics().setDepth(-7).setScrollFactor(0.66, 1);
     this.foreground = scene.add.graphics().setDepth(1);

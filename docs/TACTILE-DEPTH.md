@@ -21,3 +21,5 @@ No gameplay input, traversal, combat playtest or subjective feel validation was 
 ## Expanded spatial layers
 
 Five extra scenery planes separate recessed arcades, distant walkways, structural piers, hanging fittings, and near foundation masonry. Each has its own horizontal scroll factor. Outdoor chapters reuse the planes for ridges, branches, trunks, and roots. All tall scenery renders behind gameplay; the only near plane in front of characters stays below world y=390, below the playable floor. Chunked static graphics avoid rebuilding architecture each frame. These are decorative shapes, not new collision surfaces.
+
+The actor now occupies world depth 40, immediately behind a near framing plane at depth 46 (HUD remains separate). Narrow translucent piers or trunks cross in front at 1.12 parallax, fading further within 165 pixels of Duckoman. Strong footings stay below the floor; upper chains or branches frame the top. This replaces the earlier below-floor-only foreground constraint.

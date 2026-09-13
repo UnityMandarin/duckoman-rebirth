@@ -20,6 +20,7 @@ export class ChapterDepth {
   private readonly foreground: Phaser.GameObjects.Graphics;
   private readonly platformDetails: Phaser.GameObjects.Graphics;
   private readonly reaction: Phaser.GameObjects.Graphics;
+  private readonly nearFrame: Phaser.GameObjects.Graphics;
   private surfaces: readonly ChapterDepthSurface[] = [];
   private shadow?: Phaser.GameObjects.Ellipse;
   private player?: Player;
@@ -34,19 +35,25 @@ export class ChapterDepth {
     this.foreground = scene.add.graphics().setDepth(1);
     this.platformDetails = scene.add.graphics().setDepth(3);
     this.reaction = scene.add.graphics().setDepth(5);
+    this.nearFrame = scene.add.graphics().setDepth(46);
     this.drawMidground();
     this.drawFarFallback();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.tweens.killTweensOf(this.reaction));
   }
 
   setSurfaces(surfaces: readonly ChapterDepthSurface[]): void { this.surfaces = surfaces; }
-  setPlayer(player: Player): void { this.player = player; }
+  setPlayer(player: Player): void {
+    this.player = player;
+    // Actor plane sits immediately behind near scenery; HUD uses its own camera.
+    player.visual.setDepth(40);
+  }
   setShadow(shadow: Phaser.GameObjects.Ellipse): void { this.shadow = shadow; }
 
   update(): void {
     if (!this.player) return;
     this.drawPlatformDetails();
     this.drawForeground();
+    this.drawNearFrame();
     this.updateShadow();
     this.updateContactReaction();
   }
@@ -107,6 +114,36 @@ export class ChapterDepth {
       this.foreground.lineStyle(2, this.kind === 'jail' ? 0x25353b : 0x1e3026, 0.52)
         .lineBetween(left + 4, top + 7, left + 4, end)
         .lineBetween(right - 4, top + 7, right - 4, end);
+    }
+  }
+
+  private drawNearFrame(): void {
+    const g = this.nearFrame.clear(), camera = this.scene.cameras.main;
+    const playerX = this.player!.sprite.x;
+    // Convert the near plane's 1.12 parallax into world coordinates. Keep normal
+    // scroll factors so this remains in the world camera, never in the HUD camera.
+    const shift = camera.scrollX * 0.12;
+    const start = Math.floor((camera.scrollX + shift - 80) / 520);
+    for (let i = start; i <= start + 2; i++) {
+      const x = i * 520 + 34 - shift;
+      const distance = Math.abs(x - playerX);
+      const alpha = Phaser.Math.Clamp((distance - 45) / 120, 0.06, 0.26);
+      if (this.kind === 'jail') {
+        // Translucent narrow uprights can overlap the actor without concealing
+        // a hazard. Capitals and footings provide stronger near silhouettes.
+        g.fillStyle(0x071019, alpha).fillRect(x - 13, -240, 26, 630);
+        g.lineStyle(2, 0x92744d, alpha).lineBetween(x - 9, -240, x - 9, 390);
+        g.fillStyle(0x071019, 0.72).fillRect(x - 23, 390, 46, 70);
+        g.lineStyle(2, 0x6b5841, 0.5).lineBetween(x - 23, 390, x + 23, 390);
+        // Short hanging chain above the player's action corridor.
+        g.lineStyle(2, 0x27333b, 0.7);
+        for (let y = -80; y < 40; y += 13) g.strokeEllipse(x + 45, y, 6, 11);
+      } else {
+        g.lineStyle(19, 0x0b1d17, alpha).lineBetween(x - 9, -180, x + 10, 390);
+        g.lineStyle(2, 0x64704b, alpha).lineBetween(x - 16, -180, x + 3, 390);
+        g.lineStyle(5, 0x12291e, 0.6).lineBetween(x, -30, x + 74, 22);
+        g.fillStyle(0x0b1d17, 0.75).fillTriangle(x - 35, 440, x + 10, 390, x + 66, 440);
+      }
     }
   }
 

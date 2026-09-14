@@ -7,10 +7,13 @@ import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {ChapterHud} from '../systems/ChapterHud';
 import {ChapterTraps} from '../systems/ChapterTraps';
+import {ChapterDepth} from '../systems/ChapterDepth';
+import type {ChapterDepthSurface} from '../systems/ChapterDepth';
 import type {ChapterSurface} from '../systems/ChapterTraps';
 import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
 import {CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,JAIL_SECTIONS,OUTSIDE_SECTIONS,chapterPlatforms} from '../data/chapters';
 import type {ChapterKind,Ledge} from '../data/chapters';
+import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];wall:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image;}
@@ -36,13 +39,15 @@ export class JourneyScene extends Phaser.Scene {
  private dying=false;
  private leaving=false;
  private boss?:AntlerRegent;
- private foreground!:Phaser.GameObjects.Graphics;
+ private depthPresentation!:ChapterDepth;
  private traps!:ChapterTraps;
  private walls:{body:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image}[]=[];
  constructor(private readonly kind:ChapterKind){super(kind);}
  preload():void {
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
   for(const key of needed)if(!this.textures.exists(key))this.load.image(key,`${import.meta.env.BASE_URL}assets/chapters/${key}.png`);
+  if(this.kind==='jail'&&!this.textures.exists('jail-distance'))this.load.image('jail-distance',`${import.meta.env.BASE_URL}assets/depth/jail-distance.png`);
+  if(this.kind==='jail'&&!this.textures.exists('prison-atlas'))this.load.image('prison-atlas',`${import.meta.env.BASE_URL}assets/depth/prison-atlas.png`);
   const loading=this.add.text(320,200,this.kind==='jail'?'Beyond the bars…':'Beyond the fallen kingdom…',{fontFamily:'Georgia',fontSize:'16px',color:'#d8c59c'}).setOrigin(.5).setScrollFactor(0);
   this.load.once('complete',()=>loading.destroy());
  }
@@ -54,8 +59,10 @@ export class JourneyScene extends Phaser.Scene {
   this.physics.world.resume();this.physics.world.setBounds(0,-240,width,700);
   this.cameras.main.setBounds(0,-100,width,560).setZoom(1).setBackgroundColor(0x09131c);
   this.createBackdrop(width);
+  this.depthPresentation=new ChapterDepth(this,this.kind,width);
   this.terrain=this.physics.add.staticGroup();this.platforms=chapterPlatforms(this.kind);
   const surfaces:ChapterSurface[]=[];
+  const depthSurfaces:ChapterDepthSurface[]=[];
   const road=this.textures.get('road-platform');if(!road.has('walk'))road.add('walk',0,16,190,2135,400);
   for(const p of this.platforms){
    const body=this.add.rectangle(p.x,p.y,p.width,p.height,0x102027,0);this.physics.add.existing(body,true);this.terrain.add(body);
@@ -63,7 +70,8 @@ export class JourneyScene extends Phaser.Scene {
     this.add.ellipse(p.x+8,p.y+30,p.width*.95,20,0x020810,.28).setDepth(-1);
     const art=this.add.image(p.x,p.y-p.height/2,'road-platform','walk').setOrigin(.5,0).setDisplaySize(p.width,Math.max(45,p.width*.2)).setDepth(2).setTint(this.kind==='jail'?0xaebcca:0xffffff);
     surfaces.push({shape:body,art,ledge:p});
-   }
+    depthSurfaces.push({shape:body,art,ledge:p});
+   }else depthSurfaces.push({shape:body,ledge:p});
   }
   const bossPreview=this.kind==='outside'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&new URLSearchParams(window.location.search).has('boss');
   const spawn=this.state.checkpoint??(bossPreview?22*1440+80:100);
@@ -76,7 +84,7 @@ export class JourneyScene extends Phaser.Scene {
   this.story=this.add.text(320,100,'',{fontFamily:'Georgia',fontSize:'14px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:520}}).setOrigin(.5,0).setScrollFactor(0).setDepth(52);
   this.label=this.add.text(625,365,'',{fontSize:'10px',color:'#ded4b7'}).setOrigin(1).setScrollFactor(0).setDepth(52);
   this.add.text(13,382,'A/D · Hold Left Shift sprint · L jump · K dash · S tuck/slam · J interact/throw · U',{fontSize:'9px',color:'#bec9cc',stroke:'#061019',strokeThickness:3}).setScrollFactor(0).setDepth(51);
-  this.foreground=this.add.graphics().setDepth(1);this.populate();
+  this.depthPresentation.setSurfaces(depthSurfaces);this.depthPresentation.setPlayer(this.player);this.depthPresentation.setShadow(this.shadow);this.populate();
   this.traps=new ChapterTraps(this,this.player,this.kind,surfaces);
   if(this.kind==='jail'){
    this.addGate(0,620,[{x:430,y:160}]);
@@ -101,9 +109,15 @@ export class JourneyScene extends Phaser.Scene {
   // The painted ground moves one-to-one with collision terrain, never like wallpaper.
   for(let i=0;i<Math.ceil(width/1800);i++){
    const key=this.kind==='jail'?(i<3||i===5||i===6?'jail-gallery':'cistern'):i<6?'ruined-kingdom':i<15?'deepwood':'wildwood';
-   const texture=this.textures.get(key).getSourceImage(),h=1800*texture.height/texture.width;
+   const texture=this.textures.get(key),source=texture.getSourceImage(),h=1800*source.height/source.width;
    const floorRatio=key==='ruined-kingdom'?.725:key==='deepwood'?.76:key==='cistern'?.79:.80;
-   this.add.image(i*1800,360-h*floorRatio,key).setOrigin(0).setDisplaySize(1802,h).setDepth(-20).setFlipX(i%2===1);
+   if(this.kind==='jail'&&key==='jail-gallery'&&this.textures.exists('jail-distance')){
+    const cropY=Math.round(source.height*floorRatio);
+    if(!texture.has('floor-only'))texture.add('floor-only',0,0,cropY,source.width,source.height-cropY);
+    const floorHeight=1800*(source.height-cropY)/source.width;
+    const floorY=360-h*floorRatio+(h-floorHeight);
+    this.add.image(i*1800,floorY,key,'floor-only').setOrigin(0).setDisplaySize(1802,floorHeight).setDepth(-20).setFlipX(i%2===1);
+   }else this.add.image(i*1800,360-h*floorRatio,key).setOrigin(0).setDisplaySize(1802,h).setDepth(-20).setFlipX(i%2===1);
   }
   this.add.rectangle(width/2,440,width,100,0x081015).setDepth(-19);
  }
@@ -111,7 +125,7 @@ export class JourneyScene extends Phaser.Scene {
   const sections=this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS;
   sections.forEach((section,i)=>{
    const x=i*SECTION_WIDTH;
-   if(i>0&&(i%(this.kind==='jail'?2:3)===0||this.kind==='outside'&&i===22)){
+   if(shouldCheckpoint(this.kind,i)){
     const checkpoint=this.add.image(x+80,333,'rest-lantern').setDisplaySize(30,54).setDepth(4);this.checkpoints.push(checkpoint);
     this.add.text(x+80,304,'REST',{fontSize:'8px',color:'#b6d1c9'}).setOrigin(.5).setDepth(4);
    }
@@ -191,7 +205,7 @@ export class JourneyScene extends Phaser.Scene {
   for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,1);
   const index=Math.min(Math.floor(this.player.sprite.x/1440),(this.kind==='jail'?12:24)-1);
   if(index!==this.section){this.section=index;const section=(this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS)[index];this.label.setText(`${section.name} · ${index+1}/${this.kind==='jail'?12:24}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
-  for(const checkpoint of this.checkpoints)if(Math.abs(this.player.sprite.x-checkpoint.x)<35&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
+  for(const checkpoint of this.checkpoints)if((this.kind==='jail'?isCheckpointContact(this.player.sprite.x,this.player.body.bottom,checkpoint.x,360):Math.abs(this.player.sprite.x-checkpoint.x)<35)&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
    this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · Half a heart restored.');
   }
   for(const secret of this.secrets){
@@ -199,10 +213,7 @@ export class JourneyScene extends Phaser.Scene {
    if(Phaser.Math.Distance.Between(this.player.sprite.x,this.player.sprite.y,secret.x,secret.y)<40){secret.art.destroy();this.state.secrets!.push(secret.id);this.player.chargeUltimate(20);this.say(secret.text);}
   }
   this.boss?.update(delta);
-  const floor=this.platforms.filter(p=>Math.abs(p.x-this.player.sprite.x)<p.width/2&&p.y-p.height/2>=this.player.body.bottom-8).sort((a,b)=>a.y-b.y)[0];
-  if(floor){const dist=Math.max(0,floor.y-floor.height/2-this.player.body.bottom);this.shadow.setPosition(this.player.sprite.x,floor.y-floor.height/2+2).setScale(Math.max(.35,1-dist/350),1).setAlpha(Math.max(.08,.32-dist/900));}
-  this.foreground.clear();
-  if(this.kind==='jail')for(const p of this.platforms)if(p.height<60&&Math.abs(p.x-this.player.sprite.x)<650)this.foreground.lineStyle(2,0x1b2931,.7).lineBetween(p.x-p.width*.35,p.y+8,p.x-p.width*.35,359).lineBetween(p.x+p.width*.35,p.y+8,p.x+p.width*.35,359);
+  this.depthPresentation.update();
   if(this.time.now>this.storyUntil)this.story.setAlpha(Math.max(0,this.story.alpha-delta/500));
   if(this.player.sprite.x>CHAPTER_WIDTH[this.kind]-40){
    if(this.kind==='jail'){this.leaving=true;this.cameras.main.fadeOut(600);this.time.delayedCall(600,()=>this.scene.start('outside',{infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge}));}

@@ -2,7 +2,7 @@ import type {ChapterKind} from './chapters';
 
 // Timing/speed targets relative to kingdom guards (100) and crusher warning (900 ms).
 // These are tuning targets, not a claim to measure perceived difficulty precisely.
-export const CHAPTER_DIFFICULTY={jail:1.2,outside:1.5} as const;
+export const CHAPTER_DIFFICULTY={jail:1.2,outside:1.5,crimson:1.5*1.1} as const;
 export type Challenge='presses'|'crumble'|'ambush'|'ascent'|'relay'|'crossfire'|'ferry'|'lift'|'gust'|'conveyor'|'shutters';
 type Step=readonly [number,number,number];
 export interface Encounter {type:Challenge;steps:readonly Step[];spikes:readonly [number,number];}
@@ -45,4 +45,5 @@ export const OUTSIDE_ENCOUNTERS:Encounter[]=[
  e('conveyor',[320,1100],[170,280,135],[420,220,180],[740,220,180],[1060,220,180],[1280,280,135]),
  e('shutters',[420,990],[240,280,160],[490,210,135],[750,125,145],[1020,215,135],[1255,285,150])
 ];
-export function encounterFor(kind:ChapterKind,index:number):Encounter|undefined{return (kind==='jail'?JAIL_ENCOUNTERS:OUTSIDE_ENCOUNTERS)[index];}
+export const CRIMSON_ENCOUNTERS:Encounter[]=[0,6,2,13,9,15,12,16,14,11].map(i=>({...OUTSIDE_ENCOUNTERS[i],steps:OUTSIDE_ENCOUNTERS[i].steps.map(step=>[...step] as Step)}));
+export function encounterFor(kind:ChapterKind,index:number):Encounter|undefined{return (kind==='jail'?JAIL_ENCOUNTERS:kind==='outside'?OUTSIDE_ENCOUNTERS:CRIMSON_ENCOUNTERS)[index];}

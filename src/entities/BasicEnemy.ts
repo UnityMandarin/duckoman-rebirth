@@ -8,6 +8,8 @@ export class BasicEnemy {
   readonly body: Phaser.Physics.Arcade.Body;
   private direction: -1 | 1 = -1;
   defeated = false;
+  hp=1;
+  private hurtUntil=0;
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
@@ -33,7 +35,7 @@ export class BasicEnemy {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
     const strike=(player:Player)=>{
       if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
-        this.defeat();player.chargeUltimate(10);
+        if(this.hit(2))player.chargeUltimate(10);
       }
     };
     scene.events.on('ultimate-strike',strike);
@@ -56,6 +58,15 @@ export class BasicEnemy {
     if(autoJump&&this.jumper&&this.body.blocked.down&&now>=this.jumpAt){
       this.body.setVelocityY(TUNING.player.jumpVelocity);this.jumpAt=now+1600;
     }
+  }
+
+  hit(amount=1):boolean {
+    const now=this.sprite.scene.time.now;
+    if(this.defeated||now<this.hurtUntil)return false;
+    this.hp=Math.max(0,this.hp-amount);this.hurtUntil=now+400;
+    if(this.hp===0)this.defeat();
+    else {this.visual.setAlpha(.4);this.sprite.scene.tweens.add({targets:this.visual,alpha:1,duration:400});}
+    return true;
   }
 
   defeat(): void {

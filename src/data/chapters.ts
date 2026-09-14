@@ -1,10 +1,10 @@
 import {CASTLE} from './castle';
 import {encounterFor} from './chapterChallenges';
 
-export type ChapterKind='jail'|'outside';
+export type ChapterKind='jail'|'outside'|'crimson';
 export interface Ledge {x:number;y:number;width:number;height:number;}
 export interface ChapterSection {name:string;route:'gallery'|'stairs'|'gap'|'gauntlet';story?:string;secret?:string;}
-export const CHAPTER_WIDTH={jail:CASTLE.width*1.5,outside:CASTLE.width*3} as const;
+export const CHAPTER_WIDTH={jail:CASTLE.width*1.5,outside:CASTLE.width*3,crimson:CASTLE.width*1.5} as const;
 export const SECTION_WIDTH=1440;
 export const JAIL_SECTIONS:ChapterSection[]=[
  {name:'The Royal Cell',route:'stairs',story:'My own prison. My own crest on the bars. Who gave the order?'},
@@ -47,15 +47,31 @@ export const OUTSIDE_SECTIONS:ChapterSection[]=[
  {name:'Franklin’s Road',route:'gallery',story:'Fox lanterns beyond the gate. That is where I will find answers.'}
 ];
 
+export const CRIMSON_SECTIONS:ChapterSection[]=[
+ {name:'The Scarlet Border',route:'gallery',story:'Franklin’s kingdom. Red banners, empty streets… and blood on the stones. Where is everyone?'},
+ {name:'Occupation Avenue',route:'gauntlet',story:'Our robots, twisted into crimson machines. Their armor takes two hits.'},
+ {name:'The Silent Foundry',route:'stairs',secret:'Emergency dispatch: Franklin Fox was captured alive. The palace is occupied.'},
+ {name:'Bloodwater Canal',route:'gap',story:'They captured Franklin. He offered my people shelter; now I have to bring him home.'},
+ {name:'The Broken Parade',route:'gauntlet',secret:'Prisoner transfer: the king was taken below the throne. No return order.'},
+ {name:'Crimson Bellworks',route:'stairs',story:'Every bell is wired to the machines. They know I am here.'},
+ {name:'Refuge of Ash',route:'gallery',story:'A survivor’s note: “We hid beneath the red lamps. Please bring our king home.”'},
+ {name:'The Iron Procession',route:'gap',secret:'Siege manual: the crab’s shell rejects thrown weapons and downward blows. Dash through it. Or use IronWing.'},
+ {name:'Shattered Crownworks',route:'stairs',story:'Four impact marks. The siege engine brings down four pillars together.'},
+ {name:'The Captive King’s Gate',route:'gauntlet',story:'Franklin is still alive below the palace. I have to break their jailer.'},
+ {name:'The Crimson Claw',route:'gallery',story:'CRIMSON CLAW · 20 HP. K dash or U ultimate only. Watch the claw wind-up and four red pillar warnings.'},
+ {name:'Beneath the Empty Throne',route:'gallery',story:'The prison signal comes from beneath the throne. Hold on, Franklin.'}
+];
+export function chapterSections(kind:ChapterKind):ChapterSection[]{return kind==='jail'?JAIL_SECTIONS:kind==='outside'?OUTSIDE_SECTIONS:CRIMSON_SECTIONS;}
+
 /** Two readable paths at most; every upper route returns to the continuous lower road. */
 export function chapterPlatforms(kind:ChapterKind):Ledge[]{
- const sections=kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS;
+ const sections=chapterSections(kind);
  const result:Ledge[]=[];
  for(let i=0;i<sections.length;i++){
    const x=i*SECTION_WIDTH;
    result.push({x:x+720,y:390,width:1440,height:60});
    // Keep final outdoor arena open, with modest perimeter refuges.
-   if(kind==='outside'&&i>=22){
+   if((kind==='outside'&&i>=22)||(kind==='crimson'&&i>=10)){
      result.push({x:x+320,y:270,width:180,height:32},{x:x+1100,y:270,width:180,height:32});continue;
    }
    const pattern=encounterFor(kind,i)!.steps;

@@ -10,7 +10,7 @@ export class ChapterTraps {
  private wind:Phaser.GameObjects.Graphics;
  constructor(private scene:Phaser.Scene,private player:Player,private kind:ChapterKind,surfaces:ChapterSurface[]){
   this.wind=scene.add.graphics().setDepth(8);
-  const sections=kind==='jail'?12:22;
+  const sections=kind==='jail'?12:kind==='crimson'?10:22;
   for(let i=1;i<sections;i++){
    const encounter=encounterFor(kind,i)!;
    const ledges=surfaces.filter(s=>Math.floor(s.ledge.x/1440)===i).sort((a,b)=>a.ledge.x-b.ledge.x);

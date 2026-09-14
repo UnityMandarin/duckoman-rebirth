@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {Player} from '../entities/Player';
 import {BasicEnemy} from '../entities/BasicEnemy';
 import {ThrowableObject} from '../entities/ThrowableObject';
+import {CrabBoss} from '../entities/CrabBoss';
 import {AntlerRegent} from '../entities/AntlerRegent';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
@@ -11,7 +12,7 @@ import {ChapterDepth} from '../systems/ChapterDepth';
 import type {ChapterDepthSurface} from '../systems/ChapterDepth';
 import type {ChapterSurface} from '../systems/ChapterTraps';
 import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
-import {CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,JAIL_SECTIONS,OUTSIDE_SECTIONS,chapterPlatforms} from '../data/chapters';
+import {chapterSections,CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,chapterPlatforms} from '../data/chapters';
 import type {ChapterKind,Ledge} from '../data/chapters';
 import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
 
@@ -38,7 +39,7 @@ export class JourneyScene extends Phaser.Scene {
  private storyUntil=0;
  private dying=false;
  private leaving=false;
- private boss?:AntlerRegent;
+ private boss?:AntlerRegent|CrabBoss;
  private depthPresentation!:ChapterDepth;
  private traps!:ChapterTraps;
  private walls:{body:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image}[]=[];
@@ -47,7 +48,8 @@ export class JourneyScene extends Phaser.Scene {
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
   for(const key of needed)if(!this.textures.exists(key))this.load.image(key,`${import.meta.env.BASE_URL}assets/chapters/${key}.png`);
   if(this.kind==='jail'&&!this.textures.exists('jail-distance'))this.load.image('jail-distance',`${import.meta.env.BASE_URL}assets/depth/jail-distance.png`);
-  if(this.kind==='jail'&&!this.textures.exists('prison-atlas'))this.load.image('prison-atlas',`${import.meta.env.BASE_URL}assets/depth/prison-atlas.png`);
+  if(this.kind!=='outside'&&!this.textures.exists('prison-atlas'))this.load.image('prison-atlas',`${import.meta.env.BASE_URL}assets/depth/prison-atlas.png`);
+  if(this.kind==='crimson'&&!this.textures.exists('crimson-crab'))this.load.image('crimson-crab',`${import.meta.env.BASE_URL}assets/chapters/crimson-crab.png`);
   const loading=this.add.text(320,200,this.kind==='jail'?'Beyond the bars…':'Beyond the fallen kingdom…',{fontFamily:'Georgia',fontSize:'16px',color:'#d8c59c'}).setOrigin(.5).setScrollFactor(0);
   this.load.once('complete',()=>loading.destroy());
  }
@@ -68,13 +70,13 @@ export class JourneyScene extends Phaser.Scene {
    const body=this.add.rectangle(p.x,p.y,p.width,p.height,0x102027,0);this.physics.add.existing(body,true);this.terrain.add(body);
    if(p.height<60){
     this.add.ellipse(p.x+8,p.y+30,p.width*.95,20,0x020810,.28).setDepth(-1);
-    const art=this.add.image(p.x,p.y-p.height/2,'road-platform','walk').setOrigin(.5,0).setDisplaySize(p.width,Math.max(45,p.width*.2)).setDepth(2).setTint(this.kind==='jail'?0xaebcca:0xffffff);
+    const art=this.add.image(p.x,p.y-p.height/2,'road-platform','walk').setOrigin(.5,0).setDisplaySize(p.width,Math.max(45,p.width*.2)).setDepth(2).setTint(this.kind==='jail'?0xaebcca:this.kind==='crimson'?0xf09097:0xffffff);
     surfaces.push({shape:body,art,ledge:p});
     depthSurfaces.push({shape:body,art,ledge:p});
    }else depthSurfaces.push({shape:body,ledge:p});
   }
-  const bossPreview=this.kind==='outside'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&new URLSearchParams(window.location.search).has('boss');
-  const spawn=this.state.checkpoint??(bossPreview?22*1440+80:100);
+  const bossPreview=this.kind!=='jail'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&new URLSearchParams(window.location.search).has('boss');
+  const spawn=this.state.checkpoint??(bossPreview?(this.kind==='crimson'?10:22)*1440+120:100);
   this.player=new Player(this,spawn,332.5);this.player.infiniteHealth=!!data.infiniteHealth;this.player.ultimateCharge=data.ultimateCharge??0;
   this.shadow=this.add.ellipse(spawn,358,54,9,0x000000,.35).setDepth(3);
   this.physics.add.collider(this.player.sprite,this.terrain);
@@ -90,7 +92,7 @@ export class JourneyScene extends Phaser.Scene {
    this.addGate(0,620,[{x:430,y:160}]);
    this.add.text(400,115,'J · Release the cell latch',{fontSize:'11px',color:'#ffe092',stroke:'#08111b',strokeThickness:4}).setOrigin(.5).setDepth(17);
    for(const i of [3,7,11])this.addGate(i+1,(i+1)*1440-70,[{x:i*1440+1080,y:318},{x:i*1440+990,y:145}]);
-  }else{
+  }else if(this.kind==='outside'){
    if(this.state.bossDefeated)this.state.opened!.push(99);
    this.addGate(99,CHAPTER_WIDTH.outside-150,[]);
    if(!this.state.bossDefeated)this.boss=new AntlerRegent(this,this.player,this.cake,22*1440,CHAPTER_WIDTH.outside-400,()=>{
@@ -98,6 +100,16 @@ export class JourneyScene extends Phaser.Scene {
     const gate=this.gates.find(g=>g.id===99);
     if(gate){(gate.wall.body as Phaser.Physics.Arcade.StaticBody).enable=false;this.tweens.add({targets:gate.art,y:-260,duration:700});}
     this.say('The corruption breaks. The road to Franklin Fox is open.');
+   });
+  }
+  if(this.kind==='crimson'){
+   if(this.state.bossDefeated)this.state.opened!.push(99);
+   this.addGate(99,CHAPTER_WIDTH.crimson-150,[]);
+   if(!this.state.bossDefeated)this.boss=new CrabBoss(this,this.player,10*1440,CHAPTER_WIDTH.crimson-400,()=>{
+    this.state.bossDefeated=true;this.state.opened!.push(99);
+    const gate=this.gates.find(g=>g.id===99);
+    if(gate){(gate.wall.body as Phaser.Physics.Arcade.StaticBody).enable=false;this.tweens.add({targets:gate.art,y:-260,duration:700});}
+    this.say('The Crimson Claw falls. Beneath the throne, a prison beacon still pulses. Franklin is alive.');
    });
   }
   this.cameras.main.startFollow(this.player.sprite,false,.14,.12).setDeadzone(120,130).fadeIn(700);
@@ -108,7 +120,7 @@ export class JourneyScene extends Phaser.Scene {
  private createBackdrop(width:number):void {
   // The painted ground moves one-to-one with collision terrain, never like wallpaper.
   for(let i=0;i<Math.ceil(width/1800);i++){
-   const key=this.kind==='jail'?(i<3||i===5||i===6?'jail-gallery':'cistern'):i<6?'ruined-kingdom':i<15?'deepwood':'wildwood';
+   const key=this.kind==='crimson'?'ruined-kingdom':this.kind==='jail'?(i<3||i===5||i===6?'jail-gallery':'cistern'):i<6?'ruined-kingdom':i<15?'deepwood':'wildwood';
    const texture=this.textures.get(key),source=texture.getSourceImage(),h=1800*source.height/source.width;
    const floorRatio=key==='ruined-kingdom'?.725:key==='deepwood'?.76:key==='cistern'?.79:.80;
    if(this.kind==='jail'&&key==='jail-gallery'&&this.textures.exists('jail-distance')){
@@ -117,14 +129,18 @@ export class JourneyScene extends Phaser.Scene {
     const floorHeight=1800*(source.height-cropY)/source.width;
     const floorY=360-h*floorRatio+(h-floorHeight);
     this.add.image(i*1800,floorY,key,'floor-only').setOrigin(0).setDisplaySize(1802,floorHeight).setDepth(-20).setFlipX(i%2===1);
-   }else this.add.image(i*1800,360-h*floorRatio,key).setOrigin(0).setDisplaySize(1802,h).setDepth(-20).setFlipX(i%2===1);
+   }else this.add.image(i*1800,360-h*floorRatio,key).setOrigin(0).setDisplaySize(1802,h).setDepth(-20).setFlipX(i%2===1).setTint(this.kind==='crimson'?0xef677d:0xffffff);
   }
-  this.add.rectangle(width/2,440,width,100,0x081015).setDepth(-19);
+  this.add.rectangle(width/2,440,width,100,this.kind==='crimson'?0x260b18:0x081015).setDepth(-19);
  }
  private populate():void {
-  const sections=this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS;
+  const sections=chapterSections(this.kind);
   sections.forEach((section,i)=>{
    const x=i*SECTION_WIDTH;
+   if(this.kind==='crimson'){
+    const stains=this.add.graphics().setDepth(1);
+    for(let j=0;j<6;j++)stains.fillStyle(j%2?0x8e142e:0x490b22,.72).fillEllipse(x+210+j*209,363+j%3*8,46+j%3*17,6+j%2*4);
+   }
    if(shouldCheckpoint(this.kind,i)){
     const checkpoint=this.add.image(x+80,333,'rest-lantern').setDisplaySize(30,54).setDepth(4);this.checkpoints.push(checkpoint);
     this.add.text(x+80,304,'REST',{fontSize:'8px',color:'#b6d1c9'}).setOrigin(.5).setDepth(4);
@@ -140,15 +156,16 @@ export class JourneyScene extends Phaser.Scene {
      this.physics.add.collider(this.player.sprite,body);this.physics.add.collider(this.cake.sprite,body);this.walls.push({body,art:rock});
     }
    }
-   if(i===0||this.kind==='outside'&&i>=22)return;
+   if(i===0||this.kind==='outside'&&i>=22||this.kind==='crimson'&&i>=10)return;
    const encounter=encounterFor(this.kind,i)!;
    const ledges=this.platforms.filter(p=>p.height<60&&p.x>x&&p.x<x+1440).sort((a,b)=>a.x-b.x);
-   const count=encounter.type==='ambush'||encounter.type==='crossfire'?4:this.kind==='outside'?3:2;
+   const count=encounter.type==='ambush'||encounter.type==='crossfire'?4:this.kind!=='jail'?3:2;
    for(let j=0;j<count;j++){
     const ledge=ledges[1+j%(ledges.length-2)],raised=j%2===0;
     const ex=raised?ledge.x:x+420+j*230,jumper=j%2===1,pointed=!jumper&&(i+j)%3===0;
     const span=raised?Math.max(18,ledge.width/2-35):100;
     const enemy=new BasicEnemy(this,ex,raised?ledge.y-41:325,{left:ex-span,right:ex+span},pointed,jumper,this.kind==='outside'?(jumper?'gloom-hare':'thorn-boar'):undefined);
+    if(this.kind==='crimson'){enemy.hp=2;enemy.visual.setTint(0xff596a);}
     enemy.body.setMaxVelocity(100*CHAPTER_DIFFICULTY[this.kind],900);
     this.physics.add.collider(enemy.sprite,this.terrain);
     const contacts=new InteractionSystem(this.player,enemy,this.cake);
@@ -203,8 +220,9 @@ export class JourneyScene extends Phaser.Scene {
   for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake){enemy.update();enemy.body.setVelocityX(enemy.body.velocity.x*CHAPTER_DIFFICULTY[this.kind]);}}
   this.traps.update();
   for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,1);
-  const index=Math.min(Math.floor(this.player.sprite.x/1440),(this.kind==='jail'?12:24)-1);
-  if(index!==this.section){this.section=index;const section=(this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS)[index];this.label.setText(`${section.name} · ${index+1}/${this.kind==='jail'?12:24}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
+  const sections=chapterSections(this.kind);
+  const index=Math.max(0,Math.min(Math.floor(this.player.sprite.x/1440),sections.length-1));
+  if(index!==this.section){this.section=index;const section=sections[index];this.label.setText(`${section.name} · ${index+1}/${sections.length}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
   for(const checkpoint of this.checkpoints)if((this.kind==='jail'?isCheckpointContact(this.player.sprite.x,this.player.body.bottom,checkpoint.x,360):Math.abs(this.player.sprite.x-checkpoint.x)<35)&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
    this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · Half a heart restored.');
   }
@@ -217,7 +235,8 @@ export class JourneyScene extends Phaser.Scene {
   if(this.time.now>this.storyUntil)this.story.setAlpha(Math.max(0,this.story.alpha-delta/500));
   if(this.player.sprite.x>CHAPTER_WIDTH[this.kind]-40){
    if(this.kind==='jail'){this.leaving=true;this.cameras.main.fadeOut(600);this.time.delayedCall(600,()=>this.scene.start('outside',{infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge}));}
-   else if(this.state.bossDefeated){this.say('FRANKLIN FOX’S BORDER\nMy kingdom has fallen. But my story is not over.');this.leaving=true;this.player.body.setVelocity(0,0);}
+   else if(this.state.bossDefeated&&this.kind==='outside'){this.leaving=true;this.cameras.main.fadeOut(600);this.time.delayedCall(600,()=>this.scene.start('crimson',{infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge}));}
+   else if(this.state.bossDefeated){this.say('THE KING BELOW THE THRONE\nThe jailer is broken. Franklin is alive below. Duckoman descends to bring him home.');this.storyUntil=Infinity;this.leaving=true;this.player.body.setVelocity(0,0);}
   }
  }
 }

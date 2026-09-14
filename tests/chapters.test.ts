@@ -11,7 +11,7 @@ describe('authored expansion geometry',()=>{
   expect(JAIL_SECTIONS.length*SECTION_WIDTH).toBe(CHAPTER_WIDTH.jail);
   expect(OUTSIDE_SECTIONS.length*SECTION_WIDTH).toBe(CHAPTER_WIDTH.outside);
  });
- for(const kind of ['jail','outside'] as const){
+ for(const kind of ['jail','outside','crimson'] as const){
   it(`${kind} has no void floor seams or out-of-bounds platforms`,()=>{
    const platforms=chapterPlatforms(kind),floor=platforms.filter(p=>p.height===60);
    let end=0;

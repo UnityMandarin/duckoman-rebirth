@@ -144,7 +144,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,splitLayers));
     window.dispatchEvent(new Event('duckoman-ready'));
     const previewChapter=new URLSearchParams(window.location.search).get('chapter');
-    if(['localhost','127.0.0.1'].includes(window.location.hostname)&&(previewChapter==='jail'||previewChapter==='outside')){
+    if(['localhost','127.0.0.1'].includes(window.location.hostname)&&(previewChapter==='jail'||previewChapter==='outside'||previewChapter==='crimson')){
       this.time.delayedCall(0,()=>this.scene.start(previewChapter));
     }
   }

@@ -23,7 +23,8 @@ export class ChapterScenery {
     if (kind === 'jail') this.createDistance();
     if (!scene.textures.exists('prison-atlas')) return;
     this.addAtlasFrames(); this.createArches(); this.createBanners(); this.createPillars();
-    if (kind === 'jail') this.createCloth(); else this.createScrolls();
+    if(kind==='crimson'){for(const child of scene.children.list){const art=child as Phaser.GameObjects.Image;if(art.texture?.key==='prison-atlas')art.setTint(0xd85c70);}}
+    if (kind === 'jail'||kind==='crimson') this.createCloth(); else this.createScrolls();
   }
 
   update(player: Player): void {
@@ -37,7 +38,7 @@ export class ChapterScenery {
         const reactive = Phaser.Math.Clamp(player.body.velocity.x / 300, -1, 1) * 2 * influence;
         banner.image.setAngle(Math.sin(now * 0.001 + banner.phase) * 1.4 + reactive);
       }
-      if (this.kind === 'jail') this.updateFalling(this.cloth, player, Math.min(40, this.scene.game.loop.delta), now, 1800, 500);
+      if (this.kind === 'jail'||this.kind==='crimson') this.updateFalling(this.cloth, player, Math.min(40, this.scene.game.loop.delta), now, 1800, 500);
       else this.updateFalling(this.scrolls, player, Math.min(40, this.scene.game.loop.delta), now, 4000, 500);
     }
     for (const pillar of this.nearPillars) {

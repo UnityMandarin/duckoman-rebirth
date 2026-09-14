@@ -11,7 +11,7 @@ export class ChapterDepth {
   private shadow?: Phaser.GameObjects.Ellipse;
   private player?: Player;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind, private readonly width: number) {
+  constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind | 'castle', private readonly width: number) {
     this.scenery = new ChapterScenery(scene, kind, width);
   }
 

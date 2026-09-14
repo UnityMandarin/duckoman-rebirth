@@ -13,6 +13,7 @@ import type {ChapterSurface} from '../systems/ChapterTraps';
 import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
 import {CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,JAIL_SECTIONS,OUTSIDE_SECTIONS,chapterPlatforms} from '../data/chapters';
 import type {ChapterKind,Ledge} from '../data/chapters';
+import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];wall:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image;}
@@ -124,7 +125,7 @@ export class JourneyScene extends Phaser.Scene {
   const sections=this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS;
   sections.forEach((section,i)=>{
    const x=i*SECTION_WIDTH;
-   if(i>0&&(i%(this.kind==='jail'?2:3)===0||this.kind==='outside'&&i===22)){
+   if(shouldCheckpoint(this.kind,i)){
     const checkpoint=this.add.image(x+80,333,'rest-lantern').setDisplaySize(30,54).setDepth(4);this.checkpoints.push(checkpoint);
     this.add.text(x+80,304,'REST',{fontSize:'8px',color:'#b6d1c9'}).setOrigin(.5).setDepth(4);
    }
@@ -204,7 +205,7 @@ export class JourneyScene extends Phaser.Scene {
   for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,1);
   const index=Math.min(Math.floor(this.player.sprite.x/1440),(this.kind==='jail'?12:24)-1);
   if(index!==this.section){this.section=index;const section=(this.kind==='jail'?JAIL_SECTIONS:OUTSIDE_SECTIONS)[index];this.label.setText(`${section.name} · ${index+1}/${this.kind==='jail'?12:24}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
-  for(const checkpoint of this.checkpoints)if(Math.abs(this.player.sprite.x-checkpoint.x)<35&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
+  for(const checkpoint of this.checkpoints)if((this.kind==='jail'?isCheckpointContact(this.player.sprite.x,this.player.body.bottom,checkpoint.x,360):Math.abs(this.player.sprite.x-checkpoint.x)<35)&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
    this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · Half a heart restored.');
   }
   for(const secret of this.secrets){

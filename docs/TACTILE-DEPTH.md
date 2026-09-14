@@ -1,5 +1,7 @@
 # Chapter depth direction
 
+Presentation update: the geometric scenery and drawn contact marks described below have been superseded by [painted atmosphere](PAINTED-ATMOSPHERE.md). The live contact-shadow fix and original controls remain.
+
 Representative scene: jail. Duckoman's rounded golden silhouette, orange beak, blue edge light, royal prison setting and cake interaction remain the visual anchors. Controls, physics, encounter layouts and progression are retained.
 
 The previous chapter backdrop combined distant architecture and floor in one world-speed painting. Separate distant art, structural midground and a world-aligned floor give the playable surfaces a clear place in space. Restrained material contact reactions and surface-aware shadows provide grounding.

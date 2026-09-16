@@ -41,10 +41,13 @@ export function findSurfaceBelow(
   surfaces: readonly DepthSurfaceGeometry[],
   tolerance = 9
 ): DepthSurfaceGeometry | undefined {
-  return surfaces
-    .filter((surface) => surface.enabled && actor.right > surface.x - surface.width / 2 && actor.left < surface.x + surface.width / 2)
-    .filter((surface) => surfaceTop(surface) >= actor.bottom - tolerance)
-    .sort((a, b) => surfaceTop(a) - surfaceTop(b))[0];
+  let nearest:DepthSurfaceGeometry|undefined;
+  for(const surface of surfaces){
+    if(!surface.enabled||actor.right<=surface.x-surface.width/2||actor.left>=surface.x+surface.width/2)continue;
+    const top=surfaceTop(surface);
+    if(top>=actor.bottom-tolerance&&(!nearest||top<surfaceTop(nearest)))nearest=surface;
+  }
+  return nearest;
 }
 
 export function isInPresentationWindow(x: number, center: number, viewportWidth = 640, padding = 120): boolean {

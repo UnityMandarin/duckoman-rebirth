@@ -115,7 +115,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.boss=new CastleBoss(this,this.player,this.throwable,terrain,text=>this.mechanisms.say(text));
     this.cameras.main.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
     this.cameras.main.roundPixels=true;
-    this.cameras.main.startFollow(this.player.sprite,true,.18,.12);
+    this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
     this.cameras.main.setDeadzone(96,150);
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);

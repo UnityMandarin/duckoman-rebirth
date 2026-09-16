@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {damp} from './atmosphereMath';
 import type { Player } from '../entities/Player';
 import type { ChapterKind } from '../data/chapters';
 
@@ -13,7 +14,7 @@ export class ChapterScenery {
   private readonly nearPillars: Phaser.GameObjects.Image[] = [];
   private readonly cloth: Falling[] = [];
   private readonly scrolls: Falling[] = [];
-  private readonly reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  private readonly motion = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-reduced-motion: reduce)') : undefined;
   private releaseAt: number;
   private releaseIndex = 0;
 
@@ -30,21 +31,25 @@ export class ChapterScenery {
   update(player: Player): void {
     if (!this.banners.length) return;
     const now = this.scene.time.now, camera = this.scene.cameras.main;
-    if (!this.reducedMotion) {
+    if (!this.motion?.matches) {
       for (const banner of this.banners) {
         const projected = banner.homeX - camera.scrollX * 0.8;
         const playerProjected = player.sprite.x - camera.scrollX;
         const influence = Math.max(0, 1 - Math.abs(projected - playerProjected) / 120);
         const reactive = Phaser.Math.Clamp(player.body.velocity.x / 300, -1, 1) * 2 * influence;
-        banner.image.setAngle(Math.sin(now * 0.001 + banner.phase) * 1.4 + reactive);
+        banner.image.setAngle(damp(banner.image.angle,Math.sin(now * 0.001 + banner.phase) * 1.4 + reactive,5,this.scene.game.loop.delta));
       }
       if (this.kind === 'jail'||this.kind==='crimson') this.updateFalling(this.cloth, player, Math.min(40, this.scene.game.loop.delta), now, 1800, 500);
       else this.updateFalling(this.scrolls, player, Math.min(40, this.scene.game.loop.delta), now, 4000, 500);
     }
+    if(this.motion?.matches){
+      for(const banner of this.banners)banner.image.setAngle(0);
+      for(const item of [...this.cloth,...this.scrolls]){item.active=false;item.image.setVisible(false);}
+    }
     for (const pillar of this.nearPillars) {
       const renderedX = pillar.x - camera.scrollX * 0.12;
       const distance = Math.abs(renderedX - player.sprite.x);
-      pillar.setAlpha(0.12 + 0.16 * Phaser.Math.Clamp((distance - 65) / 100, 0, 1));
+      pillar.setAlpha(damp(pillar.alpha,0.12 + 0.16 * Phaser.Math.Clamp((distance - 65) / 100, 0, 1),7,this.scene.game.loop.delta));
     }
   }
 

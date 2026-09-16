@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {damp} from '../systems/atmosphereMath';
 import type {Player} from './Player';
 import {CRAB_RULES,crabDamage,pillarTargets} from '../systems/CrabRules';
 
@@ -66,14 +67,14 @@ export class CrabBoss {
    if(p.isDashing)this.damage('dash');else p.takeDamage(this.image.x,.5);
   }
   if(this.phase==='swing'&&dx*this.direction>0&&Math.abs(dx)<225&&p.body.bottom>240&&p.body.top<350)p.takeDamage(this.image.x,.5);
-  this.draw(now);this.image.setAlpha(now<this.hurtUntil?.65:1);
+  this.draw(now,delta);this.image.setAlpha(now<this.hurtUntil?.65:1);
  }
- private draw(now:number):void{
+ private draw(now:number,delta=16.67):void{
   this.shell.setY(-78+Math.sin(now*(this.phase==='charge'?.023:.004))*2);
   this.claws.forEach((claw,i)=>{
    const sign=i===0?-1:1,active=sign===this.direction;
    const angle=active&&this.phase==='windup'?-sign*52:active&&this.phase==='swing'?sign*12:sign*5;
-   claw.setAngle(angle).setX(sign*(active&&this.phase==='swing'?83:60)).setY(-70);
+   claw.setAngle(damp(claw.angle,angle,this.phase==='swing'?24:9,delta)).setX(damp(claw.x,sign*(active&&this.phase==='swing'?83:60),18,delta)).setY(-70);
   });
  }
  private damage(attack:'dash'|'ultimate'):void{

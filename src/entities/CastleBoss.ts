@@ -8,6 +8,7 @@ import { isStomp } from '../systems/contactRules';
 import { ARENA_LEDGES, nextLedge, support } from '../systems/ArenaNavigation';
 import {TUNING} from '../config/tuning';
 import {IronWingAftermath} from '../systems/IronWingAftermath';
+import {showHitbox} from '../systems/DebugHitboxes';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -110,8 +111,10 @@ export class CastleBoss {
     }
     if(this.probeHit){this.probeHit=false;this.health.hp=1;this.player.body.reset(this.image.x,this.image.y-98);this.player.body.setVelocityY(400);}
     const p=this.player.body,x=this.image.x,y=this.image.y;
-    const overlap=p.right>x-60&&p.left<x+60&&p.bottom>y-60&&p.top<y+60;
-    const stomp=isStomp({left:p.left,right:p.right,top:p.top,bottom:p.bottom,previousBottom:p.prev.y+p.height,velocityY:p.velocity.y},{left:x-60,right:x+60,top:y-60},10);
+    const bounds={left:x-60,right:x+60,top:y-60,bottom:y+60};
+    showHitbox(this.scene,now>=this.contactGrace?'danger':'target',bounds);
+    const overlap=p.right>bounds.left&&p.left<bounds.right&&p.bottom>bounds.top&&p.top<bounds.bottom;
+    const stomp=isStomp({left:p.left,right:p.right,top:p.top,bottom:p.bottom,previousBottom:p.prev.y+p.height,velocityY:p.velocity.y},bounds,10);
     if(this.health.touch(now,overlap,this.player.isDashing||stomp)) {
       this.contactGrace=now+650;
       this.retreatUntil=now+1400;
@@ -164,6 +167,7 @@ export class CastleBoss {
       const t=Math.min(1,(now-b.start)/1300);
       b.art.setPosition(Phaser.Math.Linear(b.x,b.targetX,t),Phaser.Math.Linear(b.y,b.targetY,t)-Math.sin(t*Math.PI)*130);
       b.mark.setAlpha(.4+t*.6);
+      showHitbox(this.scene,'danger',{x:b.targetX,y:b.targetY,radius:BOSS_RULES.bombRadius});
       if(t<1)return true;
       const p=this.player.body,dx=Math.max(p.left-b.targetX,0,b.targetX-p.right),dy=Math.max(p.top-b.targetY,0,b.targetY-p.bottom);
       if(dx*dx+dy*dy<=BOSS_RULES.bombRadius**2)this.player.takeDamage(b.targetX,BOSS_RULES.bombDamage);

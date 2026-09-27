@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type { Player } from '../entities/Player';
 import type { ThrowableObject } from '../entities/ThrowableObject';
 import { CASTLE, STORY } from '../data/castle';
+import { rectsOverlap } from './contactRules';
+import { showHitbox, tagBody } from './DebugHitboxes';
 
 interface SpikeTrap {kind:'spikes';x:number;groundY:number;art:Phaser.GameObjects.Image;}
 interface CrusherTrap {kind:'crusher';x:number;groundY:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;nextStrike:number;warnAt:number;activeUntil:number;}
@@ -18,7 +20,7 @@ export class CastleMechanisms {
     // The only second-layer spaces are small, trapped dead ends behind these walls.
     for(const [x,y] of [[3370,300],[6380,300],[7980,300]] as const) {
       const wall=scene.add.image(x,y,'masonry','trimmed').setDisplaySize(42,130).setDepth(3).setTint(0xb49a73);
-      scene.physics.add.existing(wall,true);
+      scene.physics.add.existing(wall,true);tagBody(wall,'target');
       const crack=scene.add.graphics().setDepth(4).lineStyle(2,0xffcb73,.9)
         .lineBetween(x-5,y-55,x+9,y-20).lineBetween(x+9,y-20,x-8,y+12).lineBetween(x-8,y+12,x+4,y+55);
       let broken=false;
@@ -35,7 +37,7 @@ export class CastleMechanisms {
       scene.add.rectangle(gateX,(CASTLE.top+130)/2,32,130-CASTLE.top,0x172333).setStrokeStyle(2,0x856236).setDepth(2);
       const button=scene.add.image(buttonX,groundY,'lock-kit','button').setOrigin(.5,1).setDisplaySize(54,16).setDepth(5);
       const trigger=scene.add.rectangle(buttonX,groundY-5,54,10,0,0);
-      scene.physics.add.existing(trigger,true);
+      scene.physics.add.existing(trigger,true);tagBody(trigger,'interact');
       let opened=false;
       scene.physics.add.overlap(player.sprite,trigger,()=>{
         if(opened)return;opened=true;
@@ -68,7 +70,9 @@ export class CastleMechanisms {
       if(t.kind==='spikes') {
         const pulse=.7+Math.sin(now*.012+t.x)*.3;
         t.art.setAlpha(.78+pulse*.22).setTint(pulse>.88?0xffffff:0xe7a260);
-        if(p.right>t.x-38&&p.left<t.x+38&&p.bottom>t.groundY-26&&p.top<t.groundY)this.player.takeDamage(t.x);
+        const zone={left:t.x-38,right:t.x+38,top:t.groundY-26,bottom:t.groundY};
+        showHitbox(this.scene,'danger',zone);
+        if(rectsOverlap(p,zone))this.player.takeDamage(t.x);
         continue;
       }
       if(now>=t.nextStrike) {
@@ -83,7 +87,11 @@ export class CastleMechanisms {
         t.warning.fillStyle(0xff3028,.85);
         for(let y=t.art.y;y<t.groundY;y+=16)t.warning.fillRect(t.x-2,y,4,7);
       }
-      if(now<t.activeUntil&&p.right>t.x-38&&p.left<t.x+38&&p.bottom>t.art.y-250&&p.top<t.art.y)this.player.takeDamage(t.x,1);
+      if(now<t.activeUntil){
+        const zone={left:t.x-38,right:t.x+38,top:t.art.y-250,bottom:t.art.y};
+        showHitbox(this.scene,'danger',zone);
+        if(rectsOverlap(p,zone))this.player.takeDamage(t.x,1);
+      }
     }
   }
 }

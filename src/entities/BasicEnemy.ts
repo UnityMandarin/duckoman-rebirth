@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type {Player} from './Player';
+import {tagBody} from '../systems/DebugHitboxes';
 
 export class BasicEnemy {
   readonly sprite: Phaser.GameObjects.Rectangle;
@@ -27,6 +28,7 @@ export class BasicEnemy {
     if(pointed)this.body.setSize(TUNING.enemy.bodyWidth,66,false).setOffset(0,-16);
     if(jumper)this.body.setSize(42,76,false).setOffset(4,-26);
     if(skin)this.body.setSize(jumper?46:68,jumper?64:48,false).setOffset(jumper?2:-9,jumper?-14:2);
+    tagBody(this.sprite,'danger');
     this.body.setGravityY(TUNING.enemy.gravity);
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);

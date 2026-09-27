@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type { Player } from './Player';
 import { approach } from '../utils/approach';
+import { tagBody } from '../systems/DebugHitboxes';
 
 export type ThrowableState = 'IDLE' | 'CARRIED' | 'THROWN';
 
@@ -24,6 +25,7 @@ export class ThrowableObject {
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCircle(TUNING.throwable.radius);
+    tagBody(this.sprite, 'interact');
     this.body.setGravityY(TUNING.throwable.gravity);
     this.body.setBounce(TUNING.throwable.bounce);
     this.body.setCollideWorldBounds(true);

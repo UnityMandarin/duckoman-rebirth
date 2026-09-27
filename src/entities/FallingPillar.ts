@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import type { Player } from './Player';
 import { pillarPhase } from '../systems/PillarTiming';
+import { showHitbox } from '../systems/DebugHitboxes';
 
 export class FallingPillar {
   private triggeredAt: number | undefined;
@@ -50,6 +51,7 @@ export class FallingPillar {
     const bottom=top+p.height;
     this.art.y=top;
     const body=this.player.body;
+    if(!this.landed && !this.hit) showHitbox(this.scene,'danger',{left:p.x-p.width/2,right:p.x+p.width/2,top,bottom});
     if(this.player.active && !this.landed && !this.hit && body.right>p.x-p.width/2 && body.left<p.x+p.width/2 && body.bottom>top && body.top<=bottom && body.bottom>=this.previousBottom) {
       this.hit=this.player.takeDamage(p.x,p.damage);
     }

@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
 import type {ChapterKind,Ledge} from '../data/chapters';
 import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
+import {rectsOverlap} from './contactRules';
+import {showHitbox} from './DebugHitboxes';
 export interface ChapterSurface {shape:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image;ledge:Ledge;}
 export class ChapterTraps {
  private presses:{x:number;ground:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;phase:'idle'|'warn'|'fall'|'return';at:number;hit:boolean}[]=[];
@@ -74,7 +76,9 @@ export class ChapterTraps {
    if(trap.phase==='fall'){
     const progress=Math.min(1,(now-trap.at)/180);
     trap.art.y=Phaser.Math.Linear(-360,trap.ground-120,progress*progress);
-    if(!trap.hit&&p.right>trap.x-32&&p.left<trap.x+32&&p.bottom>trap.art.y-120&&p.top<trap.art.y+120){trap.hit=this.player.takeDamage(trap.x,2);}
+    const zone={left:trap.x-32,right:trap.x+32,top:trap.art.y-120,bottom:trap.art.y+120};
+    if(!trap.hit)showHitbox(this.scene,'danger',zone);
+    if(!trap.hit&&rectsOverlap(p,zone)){trap.hit=this.player.takeDamage(trap.x,2);}
     if(now-trap.at>=500){trap.phase='return';trap.at=now;}
    }else if(trap.phase==='return'){
     trap.art.y=Phaser.Math.Linear(trap.ground-120,-360,Math.min(1,(now-trap.at)/650));

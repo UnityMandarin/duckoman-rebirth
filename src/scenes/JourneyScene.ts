@@ -15,6 +15,8 @@ import {CHAPTER_DIFFICULTY,encounterFor} from '../data/chapterChallenges';
 import {chapterSections,CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,chapterPlatforms} from '../data/chapters';
 import type {ChapterKind,Ledge} from '../data/chapters';
 import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
+import {rectsOverlap} from '../systems/contactRules';
+import {installHitboxDebug,showHitbox,tagBody} from '../systems/DebugHitboxes';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];wall:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image;}
@@ -117,6 +119,7 @@ export class JourneyScene extends Phaser.Scene {
   const main=this.cameras.main,hudCamera=this.cameras.add(0,0,640,400).setName('journey-hud');
   const split=()=>{for(const child of this.children.list){const object=child as Phaser.GameObjects.Image;object.cameraFilter=object.scrollFactorX===0?main.id:hudCamera.id;}};
   this.events.on(Phaser.Scenes.Events.POST_UPDATE,split);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,split));split();
+  installHitboxDebug(this);
  }
  private createBackdrop(width:number):void {
   // The painted ground moves one-to-one with collision terrain, never like wallpaper.
@@ -152,7 +155,7 @@ export class JourneyScene extends Phaser.Scene {
     const art=this.add.image(ledge.x+45,ledge.y-49,'sealed-dispatch').setDisplaySize(28,24).setDepth(5);
     this.secrets.push({id:i,x:ledge.x+45,y:ledge.y-49,art,text:section.secret});
     if(i%2===1){
-     const body=this.add.rectangle(ledge.x-20,ledge.y-52,24,72,0,0);this.physics.add.existing(body,true);
+     const body=this.add.rectangle(ledge.x-20,ledge.y-52,24,72,0,0);this.physics.add.existing(body,true);tagBody(body,'target');
      const rock=this.add.image(body.x,body.y,'rock-pillar-kit','pillar').setDisplaySize(28,76).setDepth(6);
      this.physics.add.collider(this.player.sprite,body);this.physics.add.collider(this.cake.sprite,body);this.walls.push({body,art:rock});
     }
@@ -210,6 +213,7 @@ export class JourneyScene extends Phaser.Scene {
   let interacted=false;
   for(const gate of this.gates){
    if(this.state.opened!.includes(gate.id))continue;
+   gate.buttons.forEach(b=>showHitbox(this,'interact',{x:b.x,y:b.y,radius:65}));
    const near=gate.buttons.some(b=>Phaser.Math.Distance.Between(b.x,b.y,this.player.sprite.x,this.player.sprite.y)<65);gate.buttons.forEach(b=>b.setTint(near?0xffde95:0xffffff));
    if(near&&input.throwPressed&&this.player.canAct){
     interacted=true;this.state.opened!.push(gate.id);(gate.wall.body as Phaser.Physics.Arcade.StaticBody).enable=false;
@@ -220,7 +224,11 @@ export class JourneyScene extends Phaser.Scene {
   this.cake.follow(this.player);this.cake.update(delta);
   for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake){enemy.update();enemy.body.setVelocityX(enemy.body.velocity.x*CHAPTER_DIFFICULTY[this.kind]);}}
   this.traps.update();
-  for(const h of this.hazards)if(Math.abs(this.player.sprite.x-h.x)<h.width/2+23&&this.player.body.bottom>h.y-15&&this.player.body.top<h.y)this.player.takeDamage(h.x,1);
+  for(const h of this.hazards){
+   const zone={left:h.x-h.width/2,right:h.x+h.width/2,top:h.y-15,bottom:h.y};
+   showHitbox(this,'danger',zone);
+   if(rectsOverlap(this.player.body,zone))this.player.takeDamage(h.x,1);
+  }
   const sections=chapterSections(this.kind);
   const index=Math.max(0,Math.min(Math.floor(this.player.sprite.x/1440),sections.length-1));
   if(index!==this.section){this.section=index;const section=sections[index];this.label.setText(`${section.name} · ${index+1}/${sections.length}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);if(section.story)this.say(section.story);}
@@ -229,6 +237,7 @@ export class JourneyScene extends Phaser.Scene {
   }
   for(const secret of this.secrets){
    if(!secret.art.active)continue;secret.art.setAngle(Math.sin(this.time.now*.003)*8);
+   showHitbox(this,'interact',{x:secret.x,y:secret.y,radius:40});
    if(Phaser.Math.Distance.Between(this.player.sprite.x,this.player.sprite.y,secret.x,secret.y)<40){secret.art.destroy();this.state.secrets!.push(secret.id);this.player.chargeUltimate(20);this.say(secret.text);}
   }
   this.boss?.update(delta);

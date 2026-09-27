@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
+import {alignSwordMeterFill,createUltimateSwordVisual,setSwordMeterCharge,SWORD_METER} from '../systems/SwordMeterArt';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import { BasicEnemy } from '../entities/BasicEnemy';
 import { Player } from '../entities/Player';
@@ -23,6 +24,7 @@ export class Gate1Scene extends Phaser.Scene {
   private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
   private hud!: Phaser.GameObjects.Graphics;
+  private swordFill!: Phaser.GameObjects.Image;
   private displayedHealth = 3;
   private healthChangedAt = -1000;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
@@ -43,6 +45,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.load.image('ironwing-bomb','assets/gate3/ironwing-bomb.png');
     this.load.image('ironwing-eye','assets/gate3/ironwing-eye.png');
     this.load.image('duckoman', 'assets/gate3/duckoman.png');
+    this.load.image('robot-health','assets/tutorial/robot-health.png');
+    this.load.image('dash-arrows-wind','assets/tutorial/dash-arrows-wind.png');
     this.load.image('robot', 'assets/gate3/robot.png');
     this.load.image('cake', 'assets/gate3/cake.png');
     this.load.image('masonry', 'assets/gate3/masonry.png');
@@ -55,6 +59,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.load.image('prison-atlas','assets/depth/prison-atlas.png');
     this.load.image('royal-scroll','assets/depth/royal-scroll.png');
     this.load.image('royal-archive','assets/depth/royal-archive.png');
+    this.load.image('ultimate-sword-frame','assets/hud/ultimate-sword-frame.png');
+    this.load.image('ultimate-sword-fill','assets/hud/ultimate-sword-fill.png');
   }
   create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number} = {}): void {
     this.deathAt=undefined;
@@ -121,6 +127,9 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
     this.cameras.main.setDeadzone(96,150);
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
+    this.swordFill=this.add.image(0,0,'ultimate-sword-fill').setScrollFactor(0).setDepth(19.5);
+    alignSwordMeterFill(this.swordFill);
+    this.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(20);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.dashMeter = new DashMeter(this, 20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
@@ -128,6 +137,11 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
+    // First-half dash cues: first robot, cracked wall, spike robot, and gap's airborne dash point.
+    for(const [x,y] of [[850,238],[3270,290],[3570,230],[5010,105],[5130,280]] as const) {
+      this.add.image(x,y,'dash-arrows-wind').setDisplaySize(100,70).setDepth(9);
+      this.add.text(x,y+36,'K · DASH',{fontFamily:'Arial',fontSize:'10px',color:'#a6f8ff',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,0).setDepth(9);
+    }
     this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
@@ -194,24 +208,8 @@ export class Gate1Scene extends Phaser.Scene {
     g.lineStyle(4, 0x70441a).strokeCircle(43, 40, 32);
     g.lineStyle(1, 0xf9ce71).strokeCircle(43, 40, 29).strokeCircle(43, 40, 35);
     for (let i=0;i<8;i++) { const a=i*Math.PI/4; g.fillStyle(0xe5aa42).fillCircle(43+Math.cos(a)*32,40+Math.sin(a)*32,2); }
-    g.fillStyle(0x090b10).fillRoundedRect(81, 32, 250, 21, 9);
-    g.lineStyle(2, 0xb17c29).strokeRoundedRect(81, 32, 250, 21, 9);
-    const w=this.player.usingUltimate?0:242*this.player.ultimateCharge/100;
-    if(w>0) { g.fillStyle(0xe96416).fillRoundedRect(85,36,w,13,5); g.fillStyle(0xffcb52).fillRoundedRect(85,36,w,6,3); g.fillStyle(0xfff2b0).fillRect(89,36,Math.max(0,w-8),2); }
-    // Sword tip, shaded crossguard, leather grip and brass pommel.
-    g.fillStyle(0x684018).fillTriangle(77,32,67,42,77,53);
-    g.fillStyle(0xffd27b).fillTriangle(77,33,69,42,77,41);
-    g.fillStyle(0x754918).fillRoundedRect(328,27,7,31,3);
-    g.fillStyle(0xeaba5d).fillRoundedRect(329,27,3,30,1);
-    g.fillStyle(0x38211b).fillRoundedRect(335,38,20,9,2);
-    for(let x=337;x<355;x+=4) { g.lineStyle(1,0xc18539).lineBetween(x,38,x-2,47); }
-    g.fillStyle(0x9c6221).fillCircle(358,42,7);
-    g.lineStyle(1,0xffd881).strokeCircle(358,42,5);
-    g.fillStyle(0xffe5a0).fillCircle(357,40,2);
-    if(w>8) {
-      const shine=89+(this.time.now*0.045)%Math.max(1,w-8);
-      g.fillStyle(0xffffff,0.18+Math.sin(this.time.now*0.003)*0.08).fillTriangle(shine,37,Math.min(shine+7,85+w),37,shine-3,48);
-    }
+    const charge=this.player.usingUltimate?0:this.player.ultimateCharge/100;
+    setSwordMeterCharge(this.swordFill,charge);
     for(let i=0;i<3;i++) {
       const pulse=Math.max(0,1-(this.time.now-this.healthChangedAt)/420);
       const x=221+i*32, y=17-Math.sin(pulse*Math.PI)*2;
@@ -239,13 +237,10 @@ export class Gate1Scene extends Phaser.Scene {
     p.abilities.setSprint(false);
     p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
     // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
-    if(this.textures.exists('ultimate-sword'))this.textures.remove('ultimate-sword');
-    this.hud.generateTexture('ultimate-sword',640,100);
-    this.textures.get('ultimate-sword').add('blade',0,67,27,298,31);
     const start=this.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
-    const sword=this.add.image(start.x,start.y,'ultimate-sword','blade').setDisplaySize(220,25).setDepth(45);
-    this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,displayWidth:130,displayHeight:20,duration:280,ease:'Cubic.InOut',onComplete:()=>{
-      sword.setOrigin(.9,.5).setFlipX(p.facing<0).setAngle(p.facing*-100);
+    const sword=createUltimateSwordVisual(this,start.x,start.y);
+    this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,scaleX:130/220,scaleY:20/25,duration:280,ease:'Cubic.InOut',onComplete:()=>{
+      sword.setScale((p.facing<0?-1:1)*130/220,20/25).setAngle(p.facing*-100);
       this.tweens.add({targets:sword,angle:p.facing*70,duration:360,ease:'Cubic.InOut'});
       this.time.delayedCall(160,()=>{
         this.events.emit('ultimate-strike',p);

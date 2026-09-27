@@ -12,15 +12,7 @@ export class Player {
   readonly visual: Phaser.GameObjects.Image;
   readonly body: Phaser.Physics.Arcade.Body;
   readonly jumpAssist = new JumpAssist();
-  readonly abilities = new PlayerAbilities({
-    dashCooldown: TUNING.player.dashCooldown,
-    maxStamina: TUNING.player.maxStamina,
-    dashStaminaCost: TUNING.player.dashStaminaCost,
-    staminaRegenAmount: TUNING.player.staminaRegenAmount,
-    staminaRegenInterval: TUNING.player.staminaRegenInterval,
-    sprintStaminaCost: TUNING.player.sprintStaminaCost,
-    sprintStaminaInterval: TUNING.player.sprintStaminaInterval
-  });
+  readonly abilities = new PlayerAbilities({ dashCooldown: TUNING.player.dashCooldown });
   lifeState: PlayerLifeState = 'ACTIVE';
   facing: -1 | 1 = 1;
   health: number = TUNING.player.maxHealth;
@@ -58,7 +50,6 @@ export class Player {
   get canAct(): boolean { return this.lifeState === 'ACTIVE'; }
   get grounded(): boolean { return this.body.blocked.down || this.body.touching.down; }
   get invulnerable(): boolean { return this.sprite.scene.time.now < this.invulnerableUntil; }
-  get stamina(): number { return this.abilities.stamina; }
   get boostReady(): boolean { return this.abilities.boostReady(this.sprite.scene.time.now); }
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
   get sprinting(): boolean { return this.abilities.sprinting; }
@@ -67,10 +58,10 @@ export class Player {
     if(this.usingUltimate){this.body.setVelocity(0,0);return;}
     const now = this.sprite.scene.time.now;
     this.body.setAllowGravity(true);
-    this.abilities.setSprint(!!input.sprintHeld && input.horizontal!==0 && Math.abs(this.body.velocity.x)>1 && !input.down && this.canAct && !this.isDashing,now);
-    this.abilities.update(now);
+    this.abilities.setSprint(!!input.sprintHeld && input.horizontal!==0 && Math.abs(this.body.velocity.x)>1 && !input.down && this.canAct && !this.isDashing);
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
+      this.abilities.land();
       this.abilities.landSlam(now, TUNING.player.slamBoostWindow);
     }
     if (!this.active) return;
@@ -83,7 +74,7 @@ export class Player {
     this.setCrouching(input.down);
 
 
-    if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration)) {
+    if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration, this.grounded)) {
       this.setCrouching(false);
     }
 

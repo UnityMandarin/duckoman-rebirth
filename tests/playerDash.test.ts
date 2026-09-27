@@ -34,4 +34,9 @@ describe('horizontal dash integration',()=>{
   player.sprite.scene.time.now=2000;player.update(input,16);player.takeDamage(200);
   expect(body.allowGravity).toBe(true);expect(player.isDashing).toBe(false);
  });
+ it('refuses a second dash in the same airborne period',()=>{
+  const {player}=playerFixture();player.update(input,16);
+  player.sprite.scene.time.now=3000;player.update(input,16);
+  expect(player.isDashing).toBe(false);
+ });
 });

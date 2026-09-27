@@ -7,8 +7,8 @@ export const TUNING = {
     physicsFps: 60
   },
   player: {
-    bodyWidth: 60,
-    bodyHeight: 55,
+    bodyWidth: 46,
+    bodyHeight: 40,
     maxRunSpeed: 200,
     sprintSpeed: 300,
     groundAcceleration: 1400,
@@ -24,7 +24,7 @@ export const TUNING = {
     boostedJumpVelocity: -760,
     slamVelocity: 850,
     slamBoostWindow: 750,
-    crouchHeight: 34,
+    crouchHeight: 28,
     dashSpeed: 440,
     dashDuration: 255,
     dashCooldown: 1000,

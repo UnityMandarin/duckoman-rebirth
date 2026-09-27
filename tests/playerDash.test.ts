@@ -10,7 +10,7 @@ function playerFixture(){
   setVelocity(x:number,y:number){this.velocity={x,y};return this;},
   setVelocityX(x:number){this.velocity.x=x;return this;},
   setVelocityY(y:number){this.velocity.y=y;return this;},
-  setAcceleration(){return this;},setEnable(){return this;}};
+  setAcceleration(){return this;},setEnable(){return this;},setSize(){return this;},setOffset(){return this;}};
  const player=Object.create(Player.prototype) as Player;
  Object.assign(player,{body,sprite:{x:100,scene:{time:{now:1000}}},visual:{setAlpha:vi.fn()},lifeState:'ACTIVE',health:3,facing:1,
   ultimateUntil:0,abilities:new PlayerAbilities(TUNING.player),airTuck:{update:()=>false},

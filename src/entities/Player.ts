@@ -137,6 +137,9 @@ export class Player {
   private setCrouching(value: boolean): void {
     if (this.crouching === value) return;
     this.crouching = value;
+    const { bodyWidth, bodyHeight, crouchHeight } = TUNING.player;
+    const height = value ? crouchHeight : bodyHeight;
+    this.body.setSize(bodyWidth, height, false).setOffset(0, bodyHeight - height);
   }
 
   private syncVisual(): void {
@@ -145,15 +148,16 @@ export class Player {
     if (this.grounded && !this.wasGrounded) this.landedAt = now;
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
+    const feet = this.sprite.y + TUNING.player.bodyHeight / 2;
     const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
     if(moving && this.sprinting && now-this.lastSweatAt>160){
       this.lastSweatAt=now;
-      const drop=this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,this.sprite.y-21,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
+      const drop=this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,feet-48,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
       this.sprite.scene.tweens.add({targets:drop,x:drop.x-this.facing*22,y:drop.y+20,alpha:0,duration:360,onComplete:()=>drop.destroy()});
     }
     const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);
     const bounce = moving ? Math.abs(Math.sin(phase)) * 2 : 0;
-    this.visual.setPosition(this.sprite.x, this.sprite.y + (this.crouching ? 13 : 6) - bounce);
+    this.visual.setPosition(this.sprite.x, feet - (this.crouching ? 14.5 : 21.5) - bounce);
     this.visual.setDisplaySize(66 + bounce * 0.5, height - bounce * 0.6).setFlipX(this.facing < 0);
     this.visual.setRotation(moving ? Math.sin(phase) * 0.045 : 0);
     if (!this.crouching && this.canAct) {

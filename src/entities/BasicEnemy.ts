@@ -7,6 +7,8 @@ import {debrisOffset,type KillImpulse} from '../systems/debrisMath';
 import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
 
+const SPIKE={bodyWidth:46,bodyHeight:84,spikeWidth:10,spikeHeight:22,displayHeight:84,displayWidth:59};
+
 export class BasicEnemy extends Dashable {
   readonly sprite: Phaser.GameObjects.Rectangle;
   readonly visual: Phaser.GameObjects.Image;
@@ -30,10 +32,10 @@ export class BasicEnemy extends Dashable {
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight);
-    if(pointed)this.body.setSize(TUNING.enemy.bodyWidth,66,false).setOffset(0,-16);
+    if(pointed)this.body.setSize(SPIKE.bodyWidth,SPIKE.bodyHeight,false).setOffset((TUNING.enemy.bodyWidth-SPIKE.bodyWidth)/2,TUNING.enemy.bodyHeight-SPIKE.bodyHeight);
     if(jumper)this.body.setSize(42,76,false).setOffset(4,-26);
     if(skin)this.body.setSize(jumper?46:68,jumper?64:48,false).setOffset(jumper?2:-9,jumper?-14:2);
-    tagBody(this.sprite,'danger');
+    tagBody(this.sprite,'danger',()=>this.hurtboxes);
     this.body.setGravityY(TUNING.enemy.gravity);
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
@@ -66,6 +68,17 @@ export class BasicEnemy extends Dashable {
     if(autoJump&&this.jumper&&this.body.blocked.down&&now>=this.jumpAt){
       this.body.setVelocityY(TUNING.player.jumpVelocity);this.jumpAt=now+1600;
     }
+  }
+
+  /** Solid hurt regions: the torso, plus the single spike on a pointed robot's head. */
+  get hurtboxes(): Rect[] {
+    const b=this.body;
+    if(!this.pointed)return [{left:b.left,right:b.right,top:b.top,bottom:b.bottom}];
+    const spikeBottom=b.top+SPIKE.spikeHeight,cx=b.center.x;
+    return [
+      {left:cx-SPIKE.spikeWidth/2,right:cx+SPIKE.spikeWidth/2,top:b.top,bottom:spikeBottom},
+      {left:b.left,right:b.right,top:spikeBottom,bottom:b.bottom}
+    ];
   }
 
   protected dashBounds(): Rect | null {
@@ -117,11 +130,11 @@ export class BasicEnemy extends Dashable {
     if (this.defeated || !this.body.enable) return;
     const phase = this.sprite.scene.time.now * 0.012;
     if(Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
-    const width=this.skin?(this.jumper?110:100):this.pointed?82:this.jumper?72:88;
-    const height=this.skin?width/1.5:this.pointed?82:this.jumper?108:88;
+    const width=this.skin?(this.jumper?110:100):this.pointed?SPIKE.displayWidth:this.jumper?72:88;
+    const height=this.skin?width/1.5:this.pointed?SPIKE.displayHeight:this.jumper?108:88;
     this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
     this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?this.direction<0:this.direction>0);
-    if(this.skin)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
+    if(this.skin||this.pointed)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035));
   }
 }

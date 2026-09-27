@@ -4,6 +4,7 @@ import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
+import { tagBody } from '../systems/DebugHitboxes';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -42,6 +43,7 @@ export class Player {
     this.body.setGravityY(TUNING.player.gravity);
     this.body.setMaxVelocity(TUNING.player.dashSpeed, TUNING.player.maxFallVelocity);
     this.body.setCollideWorldBounds(true);
+    tagBody(this.sprite, 'hurtbox');
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
   }

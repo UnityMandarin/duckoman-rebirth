@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import {damp} from '../systems/atmosphereMath';
 import type {Player} from './Player';
 import {CRAB_RULES,crabDamage,pillarTargets} from '../systems/CrabRules';
+import {rectsOverlap} from '../systems/contactRules';
+import {showHitbox} from '../systems/DebugHitboxes';
 
 /** Independent attack and pillar clocks: hitting the shell never postpones a volley. */
 export class CrabBoss {
@@ -51,7 +53,9 @@ export class CrabBoss {
     this.warnings.lineStyle(2,0xffb3a1,.85).lineBetween(pillar.x,-120,pillar.x,360).fillStyle(0xff334d,.6).fillEllipse(pillar.x,357,72,10);
    }else if(age<CRAB_RULES.clearMs){
     const t=Math.min(1,(age-CRAB_RULES.warningMs)/CRAB_RULES.fallMs);pillar.y=Phaser.Math.Linear(-400,230,t*t);
-    if(p.body.right>pillar.x-31&&p.body.left<pillar.x+31&&p.body.bottom>pillar.y-130&&p.body.top<pillar.y+130)p.takeDamage(pillar.x,.5);
+    const zone={left:pillar.x-31,right:pillar.x+31,top:pillar.y-130,bottom:pillar.y+130};
+    showHitbox(this.scene,'danger',zone);
+    if(rectsOverlap(p.body,zone))p.takeDamage(pillar.x,.5);
    }else pillar.setVisible(false);
   }
   if(now>=this.until){
@@ -62,11 +66,14 @@ export class CrabBoss {
   }
   if(this.phase==='charge')this.image.x=Phaser.Math.Clamp(this.image.x+this.direction*308*Math.min(delta,50)/1000,this.left+150,this.right-150);
   if(this.phase==='windup')this.warnings.lineStyle(4,0xffc073,.85).lineBetween(this.image.x,345,this.image.x+this.direction*220,345);
-  const dx=p.sprite.x-this.image.x;
-  if(Math.abs(dx)<100&&p.body.bottom>260&&p.body.top<350){
-   if(p.isDashing)this.damage('dash');else p.takeDamage(this.image.x,.5);
+  const x=this.image.x,contact={left:x-77,right:x+77,top:260,bottom:350};
+  const reach=[x+this.direction*23,x+this.direction*202],swing={left:Math.min(...reach),right:Math.max(...reach),top:240,bottom:350};
+  showHitbox(this.scene,'danger',contact);
+  if(this.phase==='swing')showHitbox(this.scene,'danger',swing);
+  if(rectsOverlap(p.body,contact)){
+   if(p.isDashing)this.damage('dash');else p.takeDamage(x,.5);
   }
-  if(this.phase==='swing'&&dx*this.direction>0&&Math.abs(dx)<225&&p.body.bottom>240&&p.body.top<350)p.takeDamage(this.image.x,.5);
+  if(this.phase==='swing'&&rectsOverlap(p.body,swing))p.takeDamage(x,.5);
   this.draw(now,delta);this.image.setAlpha(now<this.hurtUntil?.65:1);
  }
  private draw(now:number,delta=16.67):void{

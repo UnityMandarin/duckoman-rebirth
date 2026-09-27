@@ -13,6 +13,7 @@ import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
+import { installHitboxDebug } from '../systems/DebugHitboxes';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -131,6 +132,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
     this.events.emit('play-ready');
     installLocalQA(this,this.player,()=>this.boss.probeVictory());
+    installHitboxDebug(this);
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=this.cameras.add(0,0,640,400).setName('hud');

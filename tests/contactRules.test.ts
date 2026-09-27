@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { isStomp } from '../src/systems/contactRules';
+import { circleIntersectsRect, isStomp, rectsOverlap } from '../src/systems/contactRules';
+
+describe('rectsOverlap', () => {
+  const spike = { left: 120, right: 130, top: 100, bottom: 122 };
+  it('hits only when rects share area', () => {
+    expect(rectsOverlap({ left: 125, right: 170, top: 80, bottom: 105 }, spike)).toBe(true);
+    expect(rectsOverlap({ left: 131, right: 170, top: 80, bottom: 120 }, spike)).toBe(false);
+    expect(rectsOverlap({ left: 80, right: 120, top: 80, bottom: 120 }, spike)).toBe(false);
+  });
+});
+
+describe('circleIntersectsRect', () => {
+  const rect = { left: 100, right: 150, top: 100, bottom: 150 };
+  it('hits when the circle reaches an edge or contains the rect', () => {
+    expect(circleIntersectsRect({ x: 60, y: 125, radius: 40 }, rect)).toBe(true);
+    expect(circleIntersectsRect({ x: 125, y: 125, radius: 5 }, rect)).toBe(true);
+  });
+  it('uses true circular distance at corners', () => {
+    expect(circleIntersectsRect({ x: 70, y: 70, radius: 40 }, rect)).toBe(false);
+    expect(circleIntersectsRect({ x: 75, y: 75, radius: 40 }, rect)).toBe(true);
+  });
+});
 
 const enemy = { left: 100, right: 150, top: 200 };
 

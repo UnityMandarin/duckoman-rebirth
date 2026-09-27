@@ -18,3 +18,10 @@ main > h1, main > p { display:none; }
 .entry.playing .entry-actions { display:none; }
 .entry .skip { position:absolute; bottom:20px; right:20px; font-size:13px; background:#050a11b0; }
 .entry.finished { opacity:0; pointer-events:none; }
+.hitbox-debug { position:fixed; top:10px; right:10px; z-index:90; display:grid; gap:6px; justify-items:end; font:11px ui-monospace,Menlo,monospace; }
+.hitbox-debug[hidden] { display:none; }
+.hitbox-debug button { color:#e8eef5; background:#0d1520e6; border:1px solid #4a5a6e; border-radius:4px; padding:5px 10px; font:inherit; cursor:pointer; }
+.hitbox-debug button[aria-pressed="true"] { border-color:#3dff7a; color:#3dff7a; }
+.hitbox-debug ul { margin:0; padding:6px 10px; list-style:none; background:#0d1520e6; border:1px solid #4a5a6e; border-radius:4px; color:#c9d4e0; }
+.hitbox-debug li { display:flex; align-items:center; gap:7px; line-height:1.6; }
+.hitbox-debug li::before { content:''; width:10px; height:10px; border:1.5px solid var(--swatch); background:color-mix(in srgb, var(--swatch) 25%, transparent); }

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type {Player} from './Player';
 import type {ThrowableObject} from './ThrowableObject';
+import {rectsOverlap} from '../systems/contactRules';
+import {showHitbox} from '../systems/DebugHitboxes';
 
 /** Telegraph, committed charge, recovery: readable attacks without teleportation. */
 export class AntlerRegent {
@@ -43,7 +45,9 @@ export class AntlerRegent {
    this.warning.lineStyle(3,0xe77755,.7).lineBetween(this.image.x,356,this.image.x+this.direction*430,356);this.image.setAngle(this.direction*7);
   }else this.image.setAngle(this.phase==='charge'?Math.sin(now*.025)*2:Math.sin(now*.004));
   this.image.setFlipX(this.direction<0).setAlpha(now<this.hurtUntil?.65:1);
-  if(Math.abs(p.sprite.x-this.image.x)<92&&p.body.bottom>245){
+  const x=this.image.x,contact={left:x-69,right:x+69,top:245,bottom:Infinity};
+  showHitbox(this.scene,'danger',contact);
+  if(rectsOverlap(p.body,contact)){
    const stomp=p.body.velocity.y>0&&p.body.prev.y+p.body.height<=268;
    if(p.isDashing||stomp){this.damage(1);if(stomp)p.bounceFromStomp();}
    else if(now>=this.hurtUntil)p.takeDamage(this.image.x,.5);

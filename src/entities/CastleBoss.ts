@@ -9,6 +9,7 @@ import { ARENA_LEDGES, nextLedge, support } from '../systems/ArenaNavigation';
 import {TUNING} from '../config/tuning';
 import {IronWingAftermath} from '../systems/IronWingAftermath';
 import {showHitbox} from '../systems/DebugHitboxes';
+import {renderScale} from '../systems/renderScale';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
 
@@ -68,7 +69,7 @@ export class CastleBoss extends Dashable {
     if(this.started===undefined) {
       if(this.player.sprite.x<9080)return;
       this.started=now;this.gate.setAlpha(1);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=true;
-      this.scene.cameras.main.zoomTo(.68,700,'Sine.easeOut');
+      this.scene.cameras.main.zoomTo(.68*renderScale(),700,'Sine.easeOut');
       for(const x of [8965,9015]) {
         const pillar=this.scene.add.image(x,-720,'rock-pillar-kit','pillar').setOrigin(.5,1).setDisplaySize(86,520).setDepth(14);
         this.sealPillars.push(pillar);
@@ -236,7 +237,7 @@ export class CastleBoss extends Dashable {
   }
   private finish():void {
     this.player.chargeUltimate(50);
-    this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(1,700,'Sine.easeInOut');this.hud.clear();this.label.setText('');this.summonArt.clear();
+    this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(renderScale(),700,'Sine.easeInOut');this.hud.clear();this.label.setText('');this.summonArt.clear();
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];
     this.aftermath=new IronWingAftermath(this.scene,this.player,this.image.x,this.image.y,this.terrain);

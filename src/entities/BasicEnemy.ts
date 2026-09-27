@@ -18,6 +18,10 @@ export class BasicEnemy extends Dashable {
   defeated = false;
   hp=1;
   private hurtUntil=0;
+  private maxHp=1;
+  private readonly healthImage?:Phaser.GameObjects.Image;
+  private readonly healthLabel?:Phaser.GameObjects.Text;
+  private readonly healthEmpty?:Phaser.GameObjects.Graphics;
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
@@ -30,6 +34,11 @@ export class BasicEnemy extends Dashable {
     this.sprite = scene.add.rectangle(x, y, TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight, 0xef5350);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, skin??(pointed?'spike-robot':jumper?'jumper-robot':'robot')).setDepth(5);
+    if(!skin) {
+      this.healthImage=scene.add.image(x,y-64,'robot-health').setDisplaySize(108,36).setDepth(12);
+      this.healthEmpty=scene.add.graphics().setDepth(13);
+      this.healthLabel=scene.add.text(x,y-84,'1 / 1 HP',{fontFamily:'Arial',fontSize:'11px',color:'#fff2dc',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,1).setDepth(14);
+    }
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight);
@@ -56,6 +65,7 @@ export class BasicEnemy extends Dashable {
   setAwake(awake:boolean):void {
     if(this.defeated)return;
     this.body.setEnable(awake);this.visual.setVisible(awake);
+    this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
   }
 
   update(autoJump=true): void {
@@ -96,6 +106,7 @@ export class BasicEnemy extends Dashable {
   hit(amount=1,impulse?:KillImpulse,spark=true):boolean {
     const now=this.sprite.scene.time.now;
     if(this.defeated||now<this.hurtUntil)return false;
+    this.maxHp=Math.max(this.maxHp,this.hp);
     this.hp=Math.max(0,this.hp-amount);this.hurtUntil=now+400;
     if(spark)hitSpark(this.sprite.scene,this.body.center.x,this.body.center.y);
     if(this.hp===0)this.defeat(impulse);
@@ -106,6 +117,7 @@ export class BasicEnemy extends Dashable {
   defeat(impulse?:KillImpulse): void {
     if (this.defeated) return;
     this.defeated = true;
+    this.healthImage?.destroy();this.healthLabel?.destroy();this.healthEmpty?.destroy();
     this.sprite.scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.sprite.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
     this.body.setEnable(false);
@@ -136,5 +148,11 @@ export class BasicEnemy extends Dashable {
     this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?this.direction<0:this.direction>0);
     if(this.skin||this.pointed)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035));
+    this.maxHp=Math.max(this.maxHp,this.hp);
+    const barY=this.visual.y-this.visual.displayHeight/2-20;
+    this.healthImage?.setPosition(this.sprite.x,barY);
+    this.healthLabel?.setPosition(this.sprite.x,barY-19).setText(`${this.hp} / ${this.maxHp} HP`);
+    this.healthEmpty?.clear();
+    if(this.hp<this.maxHp)this.healthEmpty?.fillStyle(0x08131b,.95).fillRect(this.sprite.x-23+67*this.hp/this.maxHp,barY-1,67*(1-this.hp/this.maxHp),6);
   }
 }

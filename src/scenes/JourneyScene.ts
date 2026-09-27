@@ -57,6 +57,8 @@ export class JourneyScene extends Phaser.Scene {
   if(this.kind!=='outside'&&!this.textures.exists('prison-atlas'))this.load.image('prison-atlas',`${import.meta.env.BASE_URL}assets/depth/prison-atlas.png`);
   if(this.kind==='outside'&&!this.textures.exists('forest-atmosphere'))this.load.image('forest-atmosphere',`${import.meta.env.BASE_URL}assets/depth/forest-atmosphere.png`);
   if(this.kind==='crimson'&&!this.textures.exists('crimson-crab'))this.load.image('crimson-crab',`${import.meta.env.BASE_URL}assets/chapters/crimson-crab.png`);
+  if(!this.textures.exists('ultimate-sword-frame'))this.load.image('ultimate-sword-frame',`${import.meta.env.BASE_URL}assets/hud/ultimate-sword-frame.png`);
+  if(!this.textures.exists('ultimate-sword-fill'))this.load.image('ultimate-sword-fill',`${import.meta.env.BASE_URL}assets/hud/ultimate-sword-fill.png`);
   const loading=this.add.text(320,200,this.kind==='jail'?'Beyond the bars…':'Beyond the fallen kingdom…',{fontFamily:'Georgia',fontSize:'16px',color:'#d8c59c'}).setOrigin(.5).setScrollFactor(0);
   this.load.once('complete',()=>loading.destroy());
  }

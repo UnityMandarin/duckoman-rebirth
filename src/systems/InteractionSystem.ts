@@ -2,7 +2,7 @@ import type { BasicEnemy } from '../entities/BasicEnemy';
 import type { Player } from '../entities/Player';
 import type { ThrowableObject } from '../entities/ThrowableObject';
 import { TUNING } from '../config/tuning';
-import { isStomp, enemyContact } from './contactRules';
+import { isStomp, enemyContact, rectsOverlap } from './contactRules';
 
 export class InteractionSystem {
   constructor(private readonly player: Player, private readonly enemy: BasicEnemy, private readonly throwable: ThrowableObject) {}
@@ -11,6 +11,7 @@ export class InteractionSystem {
     const p = this.player.body; const e = this.enemy.body;
     const stomp=isStomp({ left: p.left, right: p.right, top: p.top, bottom: p.bottom, previousBottom: p.prev.y + p.height, velocityY: p.velocity.y }, { left: e.left, right: e.right, top: e.top }, TUNING.contacts.stompTopTolerance);
     const result=enemyContact(this.player.isDashing,this.enemy.pointed,stomp);
+    if(result!=='dash'&&this.enemy.pointed&&!this.enemy.hurtboxes.some(box=>rectsOverlap(p,box)))return;
     if(result==='dash'){this.enemy.receiveDash(this.player);return;}
     if (result==='stomp') {
       if(this.enemy.hit(1,{x:p.velocity.x,y:p.velocity.y}))this.player.chargeUltimate(10); this.player.bounceFromStomp(); return;

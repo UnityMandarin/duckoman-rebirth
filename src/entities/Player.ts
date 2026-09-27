@@ -31,7 +31,6 @@ export class Player {
   private recoilUntil = 0;
   private jumpCutAvailable = false;
   private dashMomentum: -1 | 0 | 1 = 0;
-  private dashDown = false;
   private dashStartedAt = -1000;
   private crouching = false;
   private readonly airTuck = new AirTuck();
@@ -73,10 +72,7 @@ export class Player {
   get sprinting(): boolean { return this.abilities.sprinting; }
   /** Objects that enemy overlaps should be registered against. */
   get enemyContactTargets(): Phaser.GameObjects.GameObject[] { return [this.sprite, this.dashHitboxZone]; }
-  get dashVelocity(): { x: number; y: number } {
-    const speed = this.dashDown ? TUNING.player.dashSpeed * Math.SQRT1_2 : TUNING.player.dashSpeed;
-    return { x: this.facing * speed, y: this.dashDown ? speed : 0 };
-  }
+  get dashVelocity(): { x: number; y: number } { return { x: this.facing * TUNING.player.dashSpeed, y: 0 }; }
   get dashHitbox(): Circle { return { x: this.body.center.x, y: this.body.center.y, radius: TUNING.player.dashHitboxRadius }; }
   dashHits(target: Rect): boolean { return this.isDashing && circleIntersectsRect(this.dashHitbox, target); }
   private get dashHitboxBody(): Phaser.Physics.Arcade.Body { return this.dashHitboxZone.body as Phaser.Physics.Arcade.Body; }
@@ -103,7 +99,6 @@ export class Player {
 
 
     if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration, this.grounded)) {
-      this.dashDown = input.down && !this.grounded;
       this.dashStartedAt = now;
       this.setCrouching(false);
     }
@@ -120,8 +115,6 @@ export class Player {
       this.dashMomentum = this.facing;
     }
     if (this.dashMomentum !== 0 && input.horizontal === -this.dashMomentum) this.dashMomentum = 0;
-    if (this.dashDown && this.grounded) this.abilities.endDash();
-
     if (this.abilities.isDashing(now)) {
       const { x, y } = this.dashVelocity;
       this.body.setAllowGravity(false).setVelocity(x, y);
@@ -197,7 +190,7 @@ export class Player {
     const g = this.dashEffect.clear().setVisible(dashing);
     if (!dashing) return;
     // Drawn along +x, then rotated to the dash direction.
-    g.setPosition(this.body.center.x, this.body.center.y).setRotation(Math.atan2(this.dashDown ? 1 : 0, this.facing));
+    g.setPosition(this.body.center.x, this.body.center.y).setRotation(this.facing < 0 ? Math.PI : 0);
     const linear = Phaser.Math.Clamp((now - this.dashStartedAt) / (TUNING.player.dashDuration * 0.5), 0, 1);
     const grow = 1 - (1 - linear) ** 3;
     const width = 0.4 + 0.6 * grow;

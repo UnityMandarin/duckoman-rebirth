@@ -48,21 +48,6 @@ describe('horizontal dash integration',()=>{
   player.update({...input,horizontal:-1 as never,dashPressed:false,jumpPressed:false},16);
   expect(body.velocity.x).toBe(-TUNING.player.maxRunSpeed);
  });
- it('dashes diagonally downward at 45 degrees when holding down in the air',()=>{
-  const {player,body}=playerFixture();player.update({...input,down:true,jumpPressed:false},16);
-  const component=TUNING.player.dashSpeed*Math.SQRT1_2;
-  expect(body.allowGravity).toBe(false);
-  expect(body.velocity.x).toBeCloseTo(component);expect(body.velocity.y).toBeCloseTo(component);
-  Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;player.sprite.scene.time.now=1050;
-  player.update({...input,down:true,dashPressed:false,jumpPressed:false},16);
-  expect(player.isDashing).toBe(false);expect(body.allowGravity).toBe(true);
- });
- it('keeps a horizontal dash when holding down on the ground',()=>{
-  const {player,body}=playerFixture();
-  Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;
-  player.update({...input,down:true,jumpPressed:false},16);
-  expect(body.velocity).toEqual({x:TUNING.player.dashSpeed,y:0});
- });
  it('dash hitbox is a circle around the body that only hits while dashing',()=>{
   const {player,body}=playerFixture();Object.assign(body,{center:{x:100,y:200}});
   const reach=TUNING.player.dashHitboxRadius;

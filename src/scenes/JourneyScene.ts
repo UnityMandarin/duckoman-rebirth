@@ -5,6 +5,7 @@ import {ThrowableObject} from '../entities/ThrowableObject';
 import {CrabBoss} from '../entities/CrabBoss';
 import {AntlerRegent} from '../entities/AntlerRegent';
 import {BreakableWall} from '../entities/BreakableWall';
+import {SolidDashable} from '../entities/SolidDashable';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {ChapterHud} from '../systems/ChapterHud';
@@ -46,6 +47,7 @@ export class JourneyScene extends Phaser.Scene {
  private depthPresentation!:ChapterDepth;
  private traps!:ChapterTraps;
  private walls:BreakableWall[]=[];
+ private solids:SolidDashable[]=[];
  constructor(private readonly kind:ChapterKind){super(kind);}
  preload():void {
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
@@ -59,7 +61,7 @@ export class JourneyScene extends Phaser.Scene {
  }
  create(data:JourneyState={}):void {
   this.state={...data,opened:[...(data.opened??[])],secrets:[...(data.secrets??[])]};
-  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.hazards=[];this.walls=[];
+  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.hazards=[];this.walls=[];this.solids=[];
   this.section=-1;this.dying=false;this.leaving=false;this.boss=undefined;
   const width=CHAPTER_WIDTH[this.kind];
   this.physics.world.resume();this.physics.world.setBounds(0,-240,width,700);
@@ -186,7 +188,7 @@ export class JourneyScene extends Phaser.Scene {
  }
  private addGate(id:number,x:number,buttons:{x:number;y:number}[]):void {
   const pier=this.add.rectangle(x,-22.5,125,435,0,0);this.physics.add.existing(pier,true);
-  this.physics.add.collider(this.player.sprite,pier);this.physics.add.collider(this.cake.sprite,pier);
+  this.physics.add.collider(this.player.sprite,pier);this.physics.add.collider(this.cake.sprite,pier);this.solids.push(new SolidDashable(pier));
   this.add.image(x,-22.5,'rock-pillar-kit','pillar').setDisplaySize(125,435).setDepth(7);
   if(this.state.opened!.includes(id))return;
   const wall=this.add.rectangle(x,277.5,30,165,0,0);this.physics.add.existing(wall,true);
@@ -205,6 +207,7 @@ export class JourneyScene extends Phaser.Scene {
   }
   this.player.update(input,delta);
   for(const wall of this.walls)wall.checkDash(this.player);
+  for(const solid of this.solids)solid.checkDash(this.player);
   if(input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();
   let interacted=false;
   for(const gate of this.gates){

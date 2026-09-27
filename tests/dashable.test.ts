@@ -11,7 +11,7 @@ class Target extends Dashable {
 }
 
 function playerStub(hitting:boolean){
- return {dashHits:vi.fn(()=>hitting),dashVelocity:{x:440,y:0},bounceFromDash:vi.fn()} as unknown as Player&{bounceFromDash:ReturnType<typeof vi.fn>};
+ return {dashHits:vi.fn(()=>hitting),dashVelocity:{x:440,y:0},bounceFromDash:vi.fn(),dashImpact:vi.fn()} as unknown as Player&{bounceFromDash:ReturnType<typeof vi.fn>;dashImpact:ReturnType<typeof vi.fn>};
 }
 
 describe('Dashable',()=>{
@@ -20,22 +20,25 @@ describe('Dashable',()=>{
   expect(target.checkDash(player)).toBe(true);
   expect(target.hits).toEqual([{x:440,y:0}]);
   expect(player.bounceFromDash).toHaveBeenCalledOnce();
+  expect(player.dashImpact).toHaveBeenCalledWith({left:0,right:10,top:0,bottom:10});
  });
  it('does nothing when the dash misses',()=>{
   const target=new Target(),player=playerStub(false);
   expect(target.checkDash(player)).toBe(false);
   expect(target.hits).toEqual([]);
   expect(player.bounceFromDash).not.toHaveBeenCalled();
+  expect(player.dashImpact).not.toHaveBeenCalled();
  });
  it('cannot be dashed once it has no bounds',()=>{
   const target=new Target(),player=playerStub(true);target.bounds=null;
   expect(target.checkDash(player)).toBe(false);
   expect(player.bounceFromDash).not.toHaveBeenCalled();
  });
- it('bounces the player even when the hit itself is ignored',()=>{
+ it('bounces the player and sparks even when the hit itself is ignored',()=>{
   const player=playerStub(true);
   class Invulnerable extends Target {protected onDash(){}}
   new Invulnerable().receiveDash(player);
   expect(player.bounceFromDash).toHaveBeenCalledOnce();
+  expect(player.dashImpact).toHaveBeenCalledOnce();
  });
 });

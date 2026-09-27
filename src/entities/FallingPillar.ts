@@ -3,6 +3,7 @@ import { GATE_1_ROOM } from '../data/gate1Room';
 import type { Player } from './Player';
 import { pillarPhase } from '../systems/PillarTiming';
 import { showHitbox } from '../systems/DebugHitboxes';
+import { SolidDashable } from './SolidDashable';
 
 export class FallingPillar {
   private triggeredAt: number | undefined;
@@ -14,6 +15,7 @@ export class FallingPillar {
   private readonly warning: Phaser.GameObjects.Text;
   private readonly zone: Phaser.GameObjects.Rectangle;
   private readonly guide:Phaser.GameObjects.Graphics;
+  private readonly dashable: SolidDashable;
   get surface() {
     const p=GATE_1_ROOM.pillar;
     return this.landed ? {x:p.x,y:360-p.height/2,width:p.width,height:p.height} : undefined;
@@ -25,6 +27,7 @@ export class FallingPillar {
     scene.physics.add.existing(this.shape,true);
     (this.shape.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.shape);
+    this.dashable=new SolidDashable(this.shape);
     const pieces: Phaser.GameObjects.GameObject[]=[];
     for(let i=0;i<4;i++) pieces.push(scene.add.image(0,i*p.height/4,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(p.width,p.height/4+5));
     this.art=scene.add.container(p.x,-p.height-10,pieces).setDepth(4).setVisible(false);
@@ -68,5 +71,6 @@ export class FallingPillar {
         body.reset(x,this.player.sprite.y);
       }
     }
+    if(this.landed && this.player.canAct) this.dashable.checkDash(this.player);
   }
 }

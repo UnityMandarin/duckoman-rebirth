@@ -5,6 +5,7 @@ import {CRAB_RULES,crabDamage,pillarTargets} from '../systems/CrabRules';
 import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
 import {Dashable} from './Dashable';
+import {hitSpark} from '../systems/HitSpark';
 
 /** Independent attack and pillar clocks: hitting the shell never postpones a volley. */
 export class CrabBoss extends Dashable {
@@ -89,6 +90,7 @@ export class CrabBoss extends Dashable {
  protected onDash():void{this.damage('dash');}
  private damage(attack:'dash'|'ultimate'):void{
   const now=this.scene.time.now;if(this.hp<=0||now<this.hurtUntil)return;
+  if(attack!=='dash')hitSpark(this.scene,this.image.x,300,1.4);
   this.hp=Math.max(0,this.hp-crabDamage(attack));this.hurtUntil=now+500;
   this.name.setText(`CRIMSON CLAW · ${this.hp} / 20`);
   if(attack==='dash')this.player.chargeUltimate(5);

@@ -4,6 +4,7 @@ import type {ThrowableObject} from './ThrowableObject';
 import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
 import {Dashable} from './Dashable';
+import {hitSpark} from '../systems/HitSpark';
 
 /** Telegraph, committed charge, recovery: readable attacks without teleportation. */
 export class AntlerRegent extends Dashable {
@@ -59,9 +60,10 @@ export class AntlerRegent extends Dashable {
  }
  private get hittable():Rect{return {left:this.image.x-62,right:this.image.x+62,top:245,bottom:Infinity};}
  protected dashBounds():Rect|null{return this.hp>0?this.hittable:null;}
- protected onDash():void{this.damage(1);}
- private damage(amount:number):boolean {
+ protected onDash():void{this.damage(1,false);}
+ private damage(amount:number,spark=true):boolean {
   const now=this.scene.time.now;if(this.hp<=0||now<this.hurtUntil)return false;
+  if(spark)hitSpark(this.scene,this.image.x,295,1.4);
   this.hp=Math.max(0,this.hp-amount);this.hurtUntil=now+700;this.phase='rest';this.until=now+1400;
   if(this.hp===0){
    this.player.chargeUltimate(50);this.bar.clear();this.name.destroy();this.warning.clear();

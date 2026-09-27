@@ -10,6 +10,10 @@ export class JumpAssist {
     return now - this.lastGroundedAt <= coyoteTime;
   }
 
+  hasBufferedPress(now: number, bufferTime: number): boolean {
+    return now - this.lastPressedAt <= bufferTime;
+  }
+
   consumeBufferedPress(now: number, bufferTime: number): boolean {
     if (now - this.lastPressedAt > bufferTime) return false;
     this.lastPressedAt = Number.NEGATIVE_INFINITY;

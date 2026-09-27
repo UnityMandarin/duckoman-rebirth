@@ -6,6 +6,7 @@ import { Player } from '../entities/Player';
 import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
+import { DashMeter } from '../systems/DashMeter';
 import { FallingPillar } from '../entities/FallingPillar';
 import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
 import { CastleMechanisms } from '../systems/CastleMechanisms';
@@ -30,6 +31,7 @@ export class Gate1Scene extends Phaser.Scene {
   private boss!: CastleBoss;
   private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
   private hudCamera!:Phaser.Cameras.Scene2D.Camera;
+  private dashMeter!:DashMeter;
   private depthPresentation!:ChapterDepth;
   private castleCheckpoint!:Phaser.GameObjects.Image;
   private checkpointX?:number;
@@ -102,13 +104,13 @@ export class Gate1Scene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));
     this.inputController = new InputController(this); this.interactions = new InteractionSystem(this.player, this.enemy, this.throwable);
     this.physics.add.collider(this.player.sprite, terrain); this.physics.add.collider(this.enemy.sprite, terrain); this.physics.add.collider(this.throwable.sprite, terrain);
-    this.physics.add.overlap(this.player.sprite, this.enemy.sprite, () => this.interactions.resolvePlayerEnemy());
+    this.physics.add.overlap(this.player.enemyContactTargets, this.enemy.sprite, () => this.interactions.resolvePlayerEnemy());
     this.physics.add.overlap(this.player.sprite, this.throwable.sprite, () => this.interactions.tryPickup());
     this.physics.add.overlap(this.throwable.sprite, this.enemy.sprite, () => this.interactions.resolveThrownEnemy());
     for(const enemy of this.extraEnemies) {
       const contact=new InteractionSystem(this.player,enemy,this.throwable);
       this.physics.add.collider(enemy.sprite,terrain);
-      this.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contact.resolvePlayerEnemy());
+      this.physics.add.overlap(this.player.enemyContactTargets,enemy.sprite,()=>contact.resolvePlayerEnemy());
       this.physics.add.overlap(this.throwable.sprite,enemy.sprite,()=>contact.resolveThrownEnemy());
     }
     this.pillar=new FallingPillar(this,this.player);
@@ -120,6 +122,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setDeadzone(96,150);
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
+    this.dashMeter = new DashMeter(this, 20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     this.updateHealthHud();
     this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
@@ -226,6 +229,7 @@ export class Gate1Scene extends Phaser.Scene {
         }
       }
     }
+    this.dashMeter.draw(g,this.player.dashCharge,this.player.dashDisabled);
   }
   private updateAbilityHud(): void {
     this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');

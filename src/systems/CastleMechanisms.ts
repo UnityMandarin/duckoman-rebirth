@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Player } from '../entities/Player';
 import type { ThrowableObject } from '../entities/ThrowableObject';
+import { BreakableWall } from '../entities/BreakableWall';
 import { CASTLE, STORY } from '../data/castle';
 import { rectsOverlap } from './contactRules';
 import { showHitbox, tagBody } from './DebugHitboxes';
@@ -11,6 +12,7 @@ type Trap=SpikeTrap|CrusherTrap;
 
 export class CastleMechanisms {
   private traps:Trap[]=[];
+  private walls:BreakableWall[]=[];
   private storyIndex=0;
   private caption:Phaser.GameObjects.Text;
   private captionUntil=0;
@@ -23,10 +25,12 @@ export class CastleMechanisms {
       scene.physics.add.existing(wall,true);tagBody(wall,'target');
       const crack=scene.add.graphics().setDepth(4).lineStyle(2,0xffcb73,.9)
         .lineBetween(x-5,y-55,x+9,y-20).lineBetween(x+9,y-20,x-8,y+12).lineBetween(x-8,y+12,x+4,y+55);
-      let broken=false;
-      const destroy=()=>{if(broken)return;broken=true;wall.destroy();crack.destroy();};
-      scene.physics.add.collider(player.sprite,wall,undefined,()=>player.isDashing?(destroy(),false):!broken);
-      scene.physics.add.collider(throwable.sprite,wall,()=>{if(throwable.registerEnemyHit())destroy();});
+      const breakable=new BreakableWall(scene,wall,[crack]);
+      this.walls.push(breakable);
+      scene.physics.add.collider(player.sprite,wall);
+      scene.physics.add.collider(throwable.sprite,wall,()=>{
+        if(throwable.registerEnemyHit())breakable.break({x:throwable.body.velocity.x,y:throwable.body.velocity.y});
+      });
     }
 
     // Full-height locks make every button mandatory; the generated art explains the pairing.
@@ -66,6 +70,7 @@ export class CastleMechanisms {
     const now=this.scene.time.now,p=this.player.body;
     if(this.storyIndex<STORY.length&&this.player.sprite.x>=STORY[this.storyIndex].x)this.say(STORY[this.storyIndex++].text);
     this.caption.setAlpha(Math.min(1,Math.max(0,(this.captionUntil-now)/600)));
+    for(const wall of this.walls)wall.checkDash(this.player);
     for(const t of this.traps) {
       if(t.kind==='spikes') {
         const pulse=.7+Math.sin(now*.012+t.x)*.3;

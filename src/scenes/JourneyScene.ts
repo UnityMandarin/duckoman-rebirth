@@ -4,6 +4,7 @@ import {BasicEnemy} from '../entities/BasicEnemy';
 import {ThrowableObject} from '../entities/ThrowableObject';
 import {CrabBoss} from '../entities/CrabBoss';
 import {AntlerRegent} from '../entities/AntlerRegent';
+import {BreakableWall} from '../entities/BreakableWall';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {ChapterHud} from '../systems/ChapterHud';
@@ -44,7 +45,7 @@ export class JourneyScene extends Phaser.Scene {
  private boss?:AntlerRegent|CrabBoss;
  private depthPresentation!:ChapterDepth;
  private traps!:ChapterTraps;
- private walls:{body:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image}[]=[];
+ private walls:BreakableWall[]=[];
  constructor(private readonly kind:ChapterKind){super(kind);}
  preload():void {
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
@@ -157,7 +158,7 @@ export class JourneyScene extends Phaser.Scene {
     if(i%2===1){
      const body=this.add.rectangle(ledge.x-20,ledge.y-52,24,72,0,0);this.physics.add.existing(body,true);tagBody(body,'target');
      const rock=this.add.image(body.x,body.y,'rock-pillar-kit','pillar').setDisplaySize(28,76).setDepth(6);
-     this.physics.add.collider(this.player.sprite,body);this.physics.add.collider(this.cake.sprite,body);this.walls.push({body,art:rock});
+     this.physics.add.collider(this.player.sprite,body);this.physics.add.collider(this.cake.sprite,body);this.walls.push(new BreakableWall(this,body,[rock]));
     }
    }
    if(i===0||this.kind==='outside'&&i>=22||this.kind==='crimson'&&i>=10)return;
@@ -173,7 +174,7 @@ export class JourneyScene extends Phaser.Scene {
     enemy.body.setMaxVelocity(100*CHAPTER_DIFFICULTY[this.kind],900);
     this.physics.add.collider(enemy.sprite,this.terrain);
     const contacts=new InteractionSystem(this.player,enemy,this.cake);
-    this.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contacts.resolvePlayerEnemy());
+    this.physics.add.overlap(this.player.enemyContactTargets,enemy.sprite,()=>contacts.resolvePlayerEnemy());
     this.physics.add.overlap(this.cake.sprite,enemy.sprite,()=>contacts.resolveThrownEnemy());this.enemies.push(enemy);
    }
    const offsets:number[]=[];
@@ -203,12 +204,7 @@ export class JourneyScene extends Phaser.Scene {
    if(!this.dying){this.dying=true;this.cake.drop();this.physics.world.pause();this.time.delayedCall(900,()=>this.scene.restart({...this.state,infiniteHealth:this.player.infiniteHealth,ultimateCharge:0}));}return;
   }
   this.player.update(input,delta);
-  for(const wall of this.walls){
-   if(!wall.body.active)continue;
-   if(this.player.isDashing&&Math.abs(this.player.sprite.x-wall.body.x)<55&&Math.abs(this.player.sprite.y-wall.body.y)<60){
-    wall.body.destroy();this.tweens.add({targets:wall.art,alpha:0,y:wall.art.y+20,angle:8,duration:220,onComplete:()=>wall.art.destroy()});
-   }
-  }
+  for(const wall of this.walls)wall.checkDash(this.player);
   if(input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();
   let interacted=false;
   for(const gate of this.gates){

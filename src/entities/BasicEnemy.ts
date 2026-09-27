@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type {Player} from './Player';
+import type {Rect} from '../systems/contactRules';
 import {hitSpark} from '../systems/HitSpark';
 import {debrisOffset,type KillImpulse} from '../systems/debrisMath';
+import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
 
-export class BasicEnemy {
+export class BasicEnemy extends Dashable {
   readonly sprite: Phaser.GameObjects.Rectangle;
   readonly visual: Phaser.GameObjects.Image;
   readonly body: Phaser.Physics.Arcade.Body;
@@ -19,6 +21,7 @@ export class BasicEnemy {
   private jumpAt=0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private readonly patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string) {
+    super();
     this.pointed=pointed;
     this.jumper=jumper;
     this.sprite = scene.add.rectangle(x, y, TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight, 0xef5350);
@@ -63,6 +66,16 @@ export class BasicEnemy {
     if(autoJump&&this.jumper&&this.body.blocked.down&&now>=this.jumpAt){
       this.body.setVelocityY(TUNING.player.jumpVelocity);this.jumpAt=now+1600;
     }
+  }
+
+  protected dashBounds(): Rect | null {
+    if(this.defeated||!this.body.enable)return null;
+    const b=this.body;
+    return {left:b.left,right:b.right,top:b.top,bottom:b.bottom};
+  }
+
+  protected onDash(player: Player, impulse: KillImpulse): void {
+    if(this.hit(1,impulse))player.chargeUltimate(10);
   }
 
   hit(amount=1,impulse?:KillImpulse):boolean {

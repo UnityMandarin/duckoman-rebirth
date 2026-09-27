@@ -13,11 +13,14 @@ export class InteractionSystem {
     const result=enemyContact(this.player.isDashing,this.enemy.pointed,stomp);
     if(result==='dash'){if(this.enemy.hit())this.player.chargeUltimate(10);return;}
     if (result==='stomp') {
-      if(this.enemy.hit())this.player.chargeUltimate(10); this.player.bounceFromStomp(); return;
+      if(this.enemy.hit(1,{x:p.velocity.x,y:p.velocity.y}))this.player.chargeUltimate(10); this.player.bounceFromStomp(); return;
     }
     this.player.takeDamage(this.enemy.sprite.x);
   }
   tryPickup(): void { if (this.player.active && this.player.grounded && this.throwable.isIdle) this.throwable.carry(this.player); }
-  resolveThrownEnemy(): void { if (!this.enemy.defeated && this.throwable.registerEnemyHit()){if(this.enemy.hit())this.player.chargeUltimate(10);} }
+  resolveThrownEnemy(): void {
+    const v={x:this.throwable.body.velocity.x,y:this.throwable.body.velocity.y};
+    if (!this.enemy.defeated && this.throwable.registerEnemyHit()){if(this.enemy.hit(1,v))this.player.chargeUltimate(10);}
+  }
   dropOnDeath(): void { this.throwable.drop(); }
 }

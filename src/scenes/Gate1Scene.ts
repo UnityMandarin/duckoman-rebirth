@@ -223,16 +223,6 @@ export class Gate1Scene extends Phaser.Scene {
           g.fillStyle(0xffded8,0.8).fillCircle(x+dir*4-2,y-5,0.9);
         }
       }
-      const fill=Phaser.Math.Clamp(this.player.stamina-i,0,1);
-      g.fillStyle(0x072838).fillRoundedRect(220+i*34,58,29,13,5);
-      if(fill>0) {
-        const sx=220+i*34, sw=29*fill;
-        g.fillStyle(0x075a9b).fillRoundedRect(sx,58,sw,13,5);
-        g.fillStyle(0x12c8ee).fillRoundedRect(sx+1,59,Math.max(0,sw-2),9,4);
-        g.fillStyle(0xa5f5ff).fillRoundedRect(sx+2,59,Math.max(0,sw-4),3,2);
-        g.fillStyle(0x03517c).fillTriangle(sx+2,68,sx+sw-2,68,sx+sw/2,71);
-        g.fillStyle(0xffffff,0.55).fillTriangle(sx+3,60,sx+Math.min(9,sw),60,sx+3,65);
-      }
     }
   }
   private updateAbilityHud(): void {
@@ -240,7 +230,7 @@ export class Gate1Scene extends Phaser.Scene {
   }
   private useUltimate():void {
     const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.time.now+900;
-    p.abilities.setSprint(false,this.time.now);
+    p.abilities.setSprint(false);
     p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
     // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
     if(this.textures.exists('ultimate-sword'))this.textures.remove('ultimate-sword');

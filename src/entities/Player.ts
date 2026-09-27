@@ -6,6 +6,7 @@ import { PlayerAbilities } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
 import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
+import { hitSpark } from '../systems/HitSpark';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -161,6 +162,12 @@ export class Player {
     this.jumpCutAvailable = false;
   }
 
+  /** Sparks where the dash met `target`: the point on it closest to the player. */
+  dashImpact(target: Rect | null): void {
+    const { x, y } = this.body.center;
+    hitSpark(this.sprite.scene, target ? Phaser.Math.Clamp(x, target.left, target.right) : x, target ? Phaser.Math.Clamp(y, target.top, target.bottom) : y);
+  }
+
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
     if (!this.active || this.infiniteHealth || this.usingUltimate || this.invulnerable) return false;
@@ -199,13 +206,47 @@ export class Player {
     const width = 0.4 + 0.6 * grow;
     g.fillStyle(0xffc93c, 0.28 * grow).fillTriangle(16, -30 * width, 16, 30 * width, 16 - 126 * grow, 0);
     g.fillStyle(0xfff4c4, 0.5 * grow).fillTriangle(12, -19 * width, 12, 19 * width, 12 - 90 * grow, 0);
-    g.lineStyle(3, 0xffffff, 0.75 * grow).beginPath().arc(0, 0, 36, -0.9 * grow, 0.9 * grow).strokePath();
+    const radius = TUNING.player.dashHitboxRadius * grow * (1 + 0.03 * Math.sin(now * 0.03));
+    g.fillStyle(0xffc93c, 0.12 * grow).slice(0, 0, radius, -Math.PI / 2, Math.PI / 2).fillPath();
+    const bands: [number, number, number, number, number][] = [
+      [0xffb020, 0.6, 0, 15, 1],
+      [0xffe27a, 0.85, 2, 9, 0.84],
+      [0xfffbe8, 1, 3, 4, 0.64],
+    ];
+    for (const [color, alpha, inset, thickness, span] of bands) {
+      g.fillStyle(color, alpha * grow).fillPoints(this.crescentPoints(radius - inset * grow, thickness * grow, span * Math.PI / 2), true);
+    }
+    for (let i = 0; i < 5; i++) {
+      const phase = (now * 0.004 + i * 0.2) % 1;
+      const angle = (i - 2) * 0.32 + Math.sin(now * 0.017 + i) * 0.06;
+      const r = radius + 2 + phase * 10;
+      const len = (8 - phase * 6) * grow;
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      g.fillStyle(i % 2 ? 0xfffbe8 : 0xffc93c, (1 - phase) * grow)
+        .fillTriangle(r * cos - sin * 1.5, r * sin + cos * 1.5, r * cos + sin * 1.5, r * sin - cos * 1.5, (r + len) * cos, (r + len) * sin);
+    }
     for (let i = 0; i < 4; i++) {
       const phase = (now * 0.006 + i * 0.37) % 1;
       const start = -26 - phase * 34 * grow;
       g.lineStyle(2, i % 2 ? 0xffffff : 0xffe27a, 0.85 * (1 - phase * 0.7) * grow)
         .lineBetween(start, (-24 + i * 15) * width, start - (22 + (i % 2) * 16) * grow, (-24 + i * 15) * width);
     }
+  }
+
+  private crescentPoints(radius: number, thickness: number, span: number): Phaser.Math.Vector2[] {
+    const steps = 16;
+    const points: Phaser.Math.Vector2[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const angle = -span + (2 * span * i) / steps;
+      points.push(new Phaser.Math.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius));
+    }
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const angle = -span + 2 * span * t;
+      const inner = radius - thickness * Math.sin(Math.PI * t);
+      points.push(new Phaser.Math.Vector2(Math.cos(angle) * inner, Math.sin(angle) * inner));
+    }
+    return points;
   }
 
   private syncVisual(): void {
@@ -241,7 +282,7 @@ export class Player {
       this.lastGhostAt = now;
       const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
         .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)
-        .setRotation(this.visual.rotation).setTint(0xffdb45).setAlpha(.62).setDepth(9);
+        .setRotation(this.visual.rotation).setTint(0xffdb45).setAlpha(.62).setDepth(9.7);
       this.ghosts.push(ghost);
       this.sprite.scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.12,scaleY:ghost.scaleY*1.12,duration:220,onComplete:()=>ghost.destroy()});
     }

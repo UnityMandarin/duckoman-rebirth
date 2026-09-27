@@ -1,7 +1,6 @@
 import type { Player } from './Player';
 import type { Rect } from '../systems/contactRules';
 import type { KillImpulse } from '../systems/debrisMath';
-
 /** Anything the player's dash can hit. A dash that connects always bounces the player back off it. */
 export abstract class Dashable {
   /** Area the dash can connect with right now, or null when it can't be dashed (broken, defeated, offstage). */
@@ -11,6 +10,7 @@ export abstract class Dashable {
 
   /** Resolves a dash contact that has already been detected, e.g. by a physics overlap. */
   receiveDash(player: Player): void {
+    player.dashImpact(this.dashBounds());
     this.onDash(player, player.dashVelocity);
     player.bounceFromDash();
   }

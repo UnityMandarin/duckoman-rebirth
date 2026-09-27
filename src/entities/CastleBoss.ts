@@ -10,6 +10,7 @@ import {TUNING} from '../config/tuning';
 import {IronWingAftermath} from '../systems/IronWingAftermath';
 import {showHitbox} from '../systems/DebugHitboxes';
 import {Dashable} from './Dashable';
+import {hitSpark} from '../systems/HitSpark';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -51,7 +52,7 @@ export class CastleBoss extends Dashable {
     this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
     const strike=(p:Player)=>{
       if(!this.finished&&this.started!==undefined&&Math.abs(p.sprite.x-this.image.x)<200&&Math.abs(p.sprite.y-this.image.y)<140){
-        this.health.damage(4);this.retreatUntil=scene.time.now+1400;
+        this.health.damage(4);this.retreatUntil=scene.time.now+1400;hitSpark(scene,this.image.x,this.image.y,1.4);
         if(this.health.hp===0)this.finish();
       }
     };
@@ -118,7 +119,7 @@ export class CastleBoss extends Dashable {
     const overlap=p.right>bounds.left&&p.left<bounds.right&&p.bottom>bounds.top&&p.top<bounds.bottom;
     const stomp=isStomp({left:p.left,right:p.right,top:p.top,bottom:p.bottom,previousBottom:p.prev.y+p.height,velocityY:p.velocity.y},bounds,10);
     if(!this.checkDash(this.player)) {
-      if(this.health.touch(now,overlap,stomp)){this.flinch(now);this.player.bounceFromStomp();}
+      if(this.health.touch(now,overlap,stomp)){hitSpark(this.scene,p.center.x,bounds.top);this.flinch(now);this.player.bounceFromStomp();}
       else if(overlap&&now>=this.contactGrace&&!this.player.isDashing&&!stomp) this.player.takeDamage(x);
     }
     if(this.health.hp===0){this.finish();return;}

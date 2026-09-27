@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import type {Player} from './Player';
 import type {ThrowableObject} from './ThrowableObject';
-import {rectsOverlap} from '../systems/contactRules';
+import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
+import {Dashable} from './Dashable';
 
 /** Telegraph, committed charge, recovery: readable attacks without teleportation. */
-export class AntlerRegent {
+export class AntlerRegent extends Dashable {
  readonly image:Phaser.GameObjects.Image;
  hp=10;
  private phase:'idle'|'warn'|'charge'|'rest'='idle';
@@ -17,6 +18,7 @@ export class AntlerRegent {
  private name:Phaser.GameObjects.Text;
  private warning:Phaser.GameObjects.Graphics;
  constructor(private scene:Phaser.Scene,private player:Player,private cake:ThrowableObject,private left:number,private right:number,private defeated:()=>void){
+  super();
   this.image=scene.add.image(left+750,360,'antler-regent').setOrigin(.5,1).setDisplaySize(230,180).setDepth(12);
   this.bar=scene.add.graphics().setScrollFactor(0).setDepth(51);
   this.name=scene.add.text(520,19,'THE BROKEN REGENT',{fontSize:'10px',color:'#dcc398'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
@@ -46,14 +48,18 @@ export class AntlerRegent {
   }else this.image.setAngle(this.phase==='charge'?Math.sin(now*.025)*2:Math.sin(now*.004));
   this.image.setFlipX(this.direction<0).setAlpha(now<this.hurtUntil?.65:1);
   const x=this.image.x,contact={left:x-69,right:x+69,top:245,bottom:Infinity};
-  showHitbox(this.scene,'danger',contact);
-  if(rectsOverlap(p.body,contact)){
-   const stomp=p.body.velocity.y>0&&p.body.prev.y+p.body.height<=268;
-   if(p.isDashing||stomp){this.damage(1);if(stomp)p.bounceFromStomp();}
-   else if(now>=this.hurtUntil)p.takeDamage(this.image.x,.5);
+  showHitbox(this.scene,'danger',contact);showHitbox(this.scene,'target',this.hittable);
+  const touching=rectsOverlap(p.body,contact);
+  const stomp=touching&&p.body.velocity.y>0&&p.body.prev.y+p.body.height<=268;
+  if(!this.checkDash(p)){
+   if(stomp){this.damage(1);p.bounceFromStomp();}
+   else if(touching&&!p.isDashing&&now>=this.hurtUntil)p.takeDamage(this.image.x,.5);
   }
   if(this.cake.isThrown&&Math.abs(this.cake.sprite.x-this.image.x)<105&&Math.abs(this.cake.sprite.y-295)<80&&this.cake.registerEnemyHit())this.damage(1);
  }
+ private get hittable():Rect{return {left:this.image.x-62,right:this.image.x+62,top:245,bottom:Infinity};}
+ protected dashBounds():Rect|null{return this.hp>0?this.hittable:null;}
+ protected onDash():void{this.damage(1);}
  private damage(amount:number):boolean {
   const now=this.scene.time.now;if(this.hp<=0||now<this.hurtUntil)return false;
   this.hp=Math.max(0,this.hp-amount);this.hurtUntil=now+700;this.phase='rest';this.until=now+1400;

@@ -4,6 +4,7 @@ import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
+import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
@@ -12,6 +13,9 @@ export class Player {
   readonly sprite: Phaser.GameObjects.Rectangle;
   readonly visual: Phaser.GameObjects.Image;
   readonly body: Phaser.Physics.Arcade.Body;
+  /** Invisible zone whose circular body is the dash hitbox. */
+  readonly dashHitboxZone: Phaser.GameObjects.Zone;
+  private readonly dashEffect: Phaser.GameObjects.Graphics;
   readonly jumpAssist = new JumpAssist();
   readonly abilities = new PlayerAbilities({ dashCooldown: TUNING.player.dashCooldown });
   lifeState: PlayerLifeState = 'ACTIVE';
@@ -24,7 +28,11 @@ export class Player {
   chargeUltimate(amount:number):void {this.ultimateCharge=Math.min(100,this.ultimateCharge+amount);}
   private hurtUntil = 0;
   private invulnerableUntil = 0;
+  private recoilUntil = 0;
   private jumpCutAvailable = false;
+  private dashMomentum: -1 | 0 | 1 = 0;
+  private dashDown = false;
+  private dashStartedAt = -1000;
   private crouching = false;
   private readonly airTuck = new AirTuck();
   private lastGhostAt = -1000;
@@ -43,7 +51,13 @@ export class Player {
     this.body.setGravityY(TUNING.player.gravity);
     this.body.setMaxVelocity(TUNING.player.dashSpeed, TUNING.player.maxFallVelocity);
     this.body.setCollideWorldBounds(true);
+    const radius = TUNING.player.dashHitboxRadius;
+    this.dashHitboxZone = scene.add.zone(x, y, radius * 2, radius * 2);
+    scene.physics.add.existing(this.dashHitboxZone);
+    this.dashHitboxBody.setCircle(radius).setAllowGravity(false).setEnable(false);
     tagBody(this.sprite, 'hurtbox');
+    tagBody(this.dashHitboxZone, 'attack');
+    this.dashEffect = scene.add.graphics().setDepth(9.5).setVisible(false);
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
   }
@@ -53,8 +67,19 @@ export class Player {
   get grounded(): boolean { return this.body.blocked.down || this.body.touching.down; }
   get invulnerable(): boolean { return this.sprite.scene.time.now < this.invulnerableUntil; }
   get boostReady(): boolean { return this.abilities.boostReady(this.sprite.scene.time.now); }
+  get dashDisabled(): boolean { return this.abilities.airDashSpent; }
+  get dashCharge(): number { return this.abilities.dashCharge(this.sprite.scene.time.now); }
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
   get sprinting(): boolean { return this.abilities.sprinting; }
+  /** Objects that enemy overlaps should be registered against. */
+  get enemyContactTargets(): Phaser.GameObjects.GameObject[] { return [this.sprite, this.dashHitboxZone]; }
+  get dashVelocity(): { x: number; y: number } {
+    const speed = this.dashDown ? TUNING.player.dashSpeed * Math.SQRT1_2 : TUNING.player.dashSpeed;
+    return { x: this.facing * speed, y: this.dashDown ? speed : 0 };
+  }
+  get dashHitbox(): Circle { return { x: this.body.center.x, y: this.body.center.y, radius: TUNING.player.dashHitboxRadius }; }
+  dashHits(target: Rect): boolean { return this.isDashing && circleIntersectsRect(this.dashHitbox, target); }
+  private get dashHitboxBody(): Phaser.Physics.Arcade.Body { return this.dashHitboxZone.body as Phaser.Physics.Arcade.Body; }
 
   update(input: InputSnapshot, _deltaMs: number): void {
     if(this.usingUltimate){this.body.setVelocity(0,0);return;}
@@ -64,6 +89,7 @@ export class Player {
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
       this.abilities.land();
+      this.dashMomentum = 0;
       this.abilities.landSlam(now, TUNING.player.slamBoostWindow);
     }
     if (!this.active) return;
@@ -77,18 +103,34 @@ export class Player {
 
 
     if (input.dashPressed && this.abilities.tryStartDash(now, TUNING.player.dashDuration, this.grounded)) {
+      this.dashDown = input.down && !this.grounded;
+      this.dashStartedAt = now;
       this.setCrouching(false);
     }
 
     if (this.airTuck.update(this.grounded, input.downPressed)) {
       this.abilities.startSlam();
+      this.dashMomentum = 0;
       this.body.setVelocity(this.body.velocity.x * 0.35, TUNING.player.slamVelocity);
     }
 
+    const canJump = !this.abilities.slamming && this.jumpAssist.canJump(now, TUNING.player.coyoteTime);
+    if (this.abilities.isDashing(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
+      this.abilities.endDash();
+      this.dashMomentum = this.facing;
+    }
+    if (this.dashMomentum !== 0 && input.horizontal === -this.dashMomentum) this.dashMomentum = 0;
+    if (this.dashDown && this.grounded) this.abilities.endDash();
+
     if (this.abilities.isDashing(now)) {
-      this.body.setAllowGravity(false).setVelocity(this.facing * TUNING.player.dashSpeed,0);
+      const { x, y } = this.dashVelocity;
+      this.body.setAllowGravity(false).setVelocity(x, y);
       this.jumpCutAvailable=false;
       return;
+    } else if (now < this.recoilUntil) {
+      // Keep the dash bounce velocity instead of steering out of it.
+    } else if (this.dashMomentum !== 0) {
+      this.body.setVelocityX(this.dashMomentum * TUNING.player.dashSpeed);
     } else if (this.crouching && this.grounded) {
       this.body.setVelocityX(0);
     } else {
@@ -96,7 +138,7 @@ export class Player {
       this.body.setVelocityX(input.horizontal * moveSpeed);
     }
 
-    if (!this.abilities.slamming && this.jumpAssist.canJump(now, TUNING.player.coyoteTime) && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {
+    if (canJump && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {
       this.jumpAssist.consumeGrounded();
       this.body.setVelocityY(this.abilities.consumeBoost(now) ? TUNING.player.boostedJumpVelocity : TUNING.player.jumpVelocity);
       this.setCrouching(false);
@@ -111,8 +153,19 @@ export class Player {
 
   bounceFromStomp(): void {
     this.abilities.cancelTransient();
+    this.dashMomentum = 0;
     this.body.setAllowGravity(true);
     this.body.setVelocityY(TUNING.player.stompBounceVelocity);
+  }
+
+  bounceFromDash(): void {
+    const { x, y, lockTime } = TUNING.player.dashBounce;
+    this.abilities.cancelTransient();
+    this.dashMomentum = 0;
+    this.body.setAllowGravity(true);
+    this.body.setVelocity(-this.facing * x, y);
+    this.recoilUntil = this.sprite.scene.time.now + lockTime;
+    this.jumpCutAvailable = false;
   }
 
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
@@ -123,6 +176,7 @@ export class Player {
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;
     this.lifeState = this.health === 0 ? 'DEAD' : 'HURT';
     this.abilities.cancelTransient();
+    this.dashMomentum = 0;
     this.body.setAllowGravity(true);
     this.setCrouching(false);
     const direction = this.sprite.x < attackerX ? -1 : 1;
@@ -139,9 +193,32 @@ export class Player {
     this.crouching = value;
   }
 
+  private drawDashEffect(dashing: boolean, now: number): void {
+    const g = this.dashEffect.clear().setVisible(dashing);
+    if (!dashing) return;
+    // Drawn along +x, then rotated to the dash direction.
+    g.setPosition(this.body.center.x, this.body.center.y).setRotation(Math.atan2(this.dashDown ? 1 : 0, this.facing));
+    const linear = Phaser.Math.Clamp((now - this.dashStartedAt) / (TUNING.player.dashDuration * 0.5), 0, 1);
+    const grow = 1 - (1 - linear) ** 3;
+    const width = 0.4 + 0.6 * grow;
+    g.fillStyle(0xffc93c, 0.28 * grow).fillTriangle(16, -30 * width, 16, 30 * width, 16 - 126 * grow, 0);
+    g.fillStyle(0xfff4c4, 0.5 * grow).fillTriangle(12, -19 * width, 12, 19 * width, 12 - 90 * grow, 0);
+    g.lineStyle(3, 0xffffff, 0.75 * grow).beginPath().arc(0, 0, 36, -0.9 * grow, 0.9 * grow).strokePath();
+    for (let i = 0; i < 4; i++) {
+      const phase = (now * 0.006 + i * 0.37) % 1;
+      const start = -26 - phase * 34 * grow;
+      g.lineStyle(2, i % 2 ? 0xffffff : 0xffe27a, 0.85 * (1 - phase * 0.7) * grow)
+        .lineBetween(start, (-24 + i * 15) * width, start - (22 + (i % 2) * 16) * grow, (-24 + i * 15) * width);
+    }
+  }
+
   private syncVisual(): void {
     const now = this.sprite.scene.time.now;
     if(!this.isDashing){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
+    const dashing = this.isDashing && this.canAct;
+    this.dashHitboxZone.setPosition(this.body.center.x, this.body.center.y);
+    this.dashHitboxBody.enable = dashing;
+    this.drawDashEffect(dashing, now);
     if (this.grounded && !this.wasGrounded) this.landedAt = now;
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;

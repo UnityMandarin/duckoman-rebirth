@@ -4,15 +4,16 @@ import type { Player } from './Player';
 import type { ThrowableObject } from './ThrowableObject';
 import { InteractionSystem } from '../systems/InteractionSystem';
 import { BOSS_RULES, BossClock, BossHealth } from '../systems/BossRules';
-import { isStomp } from '../systems/contactRules';
+import { isStomp, type Rect } from '../systems/contactRules';
 import { ARENA_LEDGES, nextLedge, support } from '../systems/ArenaNavigation';
 import {TUNING} from '../config/tuning';
 import {IronWingAftermath} from '../systems/IronWingAftermath';
 import {showHitbox} from '../systems/DebugHitboxes';
+import {Dashable} from './Dashable';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
-export class CastleBoss {
+export class CastleBoss extends Dashable {
   readonly health=new BossHealth();
   private clock=new BossClock();
   private started:number|undefined;
@@ -40,6 +41,7 @@ export class CastleBoss {
   private summonArt:Phaser.GameObjects.Graphics;
   get transitioning():boolean{return this.aftermath?.transitioning??false;}
   constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
+    super();
     this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
     this.core=scene.add.image(this.bossX,-180,'ironwing-button').setDisplaySize(42,36).setDepth(16);
     this.image.setDepth(14);
@@ -110,17 +112,15 @@ export class CastleBoss {
       }
     }
     if(this.probeHit){this.probeHit=false;this.health.hp=1;this.player.body.reset(this.image.x,this.image.y-98);this.player.body.setVelocityY(400);}
-    const p=this.player.body,x=this.image.x,y=this.image.y;
-    const bounds={left:x-60,right:x+60,top:y-60,bottom:y+60};
+    const p=this.player.body,x=this.image.x;
+    const bounds=this.bodyBounds;
     showHitbox(this.scene,now>=this.contactGrace?'danger':'target',bounds);
     const overlap=p.right>bounds.left&&p.left<bounds.right&&p.bottom>bounds.top&&p.top<bounds.bottom;
     const stomp=isStomp({left:p.left,right:p.right,top:p.top,bottom:p.bottom,previousBottom:p.prev.y+p.height,velocityY:p.velocity.y},bounds,10);
-    if(this.health.touch(now,overlap,this.player.isDashing||stomp)) {
-      this.contactGrace=now+650;
-      this.retreatUntil=now+1400;
-      this.player.bounceFromStomp();this.image.setTint(0xffffff);
-      this.scene.tweens.add({targets:this.image,alpha:.4,duration:80,yoyo:true,repeat:2});
-    } else if(overlap&&now>=this.contactGrace&&!this.player.isDashing&&!stomp) this.player.takeDamage(x);
+    if(!this.checkDash(this.player)) {
+      if(this.health.touch(now,overlap,stomp)){this.flinch(now);this.player.bounceFromStomp();}
+      else if(overlap&&now>=this.contactGrace&&!this.player.isDashing&&!stomp) this.player.takeDamage(x);
+    }
     if(this.health.hp===0){this.finish();return;}
     if(events.bomb)this.throwBomb(now);
     this.updateBombs(now);
@@ -132,6 +132,21 @@ export class CastleBoss {
     this.hud.fillStyle(0x642ac4).fillRect(421,39,width,10).fillStyle(0xc393ff).fillRect(421,39,width,3);
     for(let i=0;i<5;i++)this.hud.lineStyle(1,0xc4a0ef,.35).lineBetween(421+i*40,37,421+i*40,51);
     for(const x of [417,623])this.hud.fillStyle(0xe0cef6).fillCircle(x,36,2).fillCircle(x,52,2);
+  }
+  private get bodyBounds():Rect {
+    const x=this.image.x,y=this.image.y;
+    return {left:x-60,right:x+60,top:y-60,bottom:y+60};
+  }
+  protected dashBounds():Rect|null {return this.started===undefined||this.finished?null:this.bodyBounds;}
+  protected onDash():void {
+    const now=this.scene.time.now;
+    if(this.health.touch(now,true,true))this.flinch(now);
+  }
+  private flinch(now:number):void {
+    this.contactGrace=now+650;
+    this.retreatUntil=now+1400;
+    this.image.setTint(0xffffff);
+    this.scene.tweens.add({targets:this.image,alpha:.4,duration:80,yoyo:true,repeat:2});
   }
   probeVictory():void {if(location.hostname==='127.0.0.1'&&new URLSearchParams(location.search).has('qa'))this.probeHit=true;}
   private drawWings(now:number,flying:boolean):void {
@@ -183,7 +198,7 @@ export class CastleBoss {
       if(!enemy.pointed)enemy.body.setMaxVelocity(TUNING.player.sprintSpeed,900);
       const contact=new InteractionSystem(this.player,enemy,this.throwable);
       const colliders=[this.scene.physics.add.collider(enemy.sprite,this.terrain),
-        this.scene.physics.add.overlap(this.player.sprite,enemy.sprite,()=>contact.resolvePlayerEnemy()),
+        this.scene.physics.add.overlap(this.player.enemyContactTargets,enemy.sprite,()=>contact.resolvePlayerEnemy()),
         this.scene.physics.add.overlap(this.throwable.sprite,enemy.sprite,()=>contact.resolveThrownEnemy())];
       this.minions.push({enemy,jumpAt:now+500,colliders});
     }

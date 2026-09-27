@@ -16,6 +16,8 @@ export class PlayerAbilities {
     this.sprinting = heldAndMoving;
   }
 
+  get airDashSpent(): boolean { return this.airDashUsed; }
+
   land(): void {
     this.airDashUsed = false;
   }
@@ -32,7 +34,12 @@ export class PlayerAbilities {
     return true;
   }
 
+  dashCharge(now: number): number {
+    return Math.min(1, Math.max(0, 1 - (this.nextDashAt - now) / this.config.dashCooldown));
+  }
+
   isDashing(now: number): boolean { return now < this.dashUntil; }
+  endDash(): void { this.dashUntil = 0; }
   startSlam(): void {
     this.slamming = true;
     this.dashUntil = 0;

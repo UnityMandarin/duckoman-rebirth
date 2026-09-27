@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
+import {DashMeter} from './DashMeter';
 /** Shares the kingdom's hand-built HUD and ultimate choreography in the new chapters. */
 export class ChapterHud {
  private hud:Phaser.GameObjects.Graphics;
@@ -7,11 +8,13 @@ export class ChapterHud {
  private abilityText:Phaser.GameObjects.Text;
  private displayedHealth=-1;
  private healthChangedAt=0;
+ private dashMeter:DashMeter;
  constructor(private scene:Phaser.Scene,private player:Player){
   this.hud=scene.add.graphics().setScrollFactor(0).setDepth(50);
   scene.add.image(43,40,'duckoman').setDisplaySize(45,42).setScrollFactor(0).setDepth(51);
   this.healthText=scene.add.text(82,10,'DUCKOMAN',{fontSize:'11px',color:'#e8d8b7'}).setScrollFactor(0).setDepth(51);
   this.abilityText=scene.add.text(82,58,'U · ULTIMATE',{fontSize:'10px',color:'#dfceaa'}).setScrollFactor(0).setDepth(51);
+  this.dashMeter=new DashMeter(scene,51);
  }
   update(): void {
     if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.scene.time.now; }
@@ -58,6 +61,7 @@ export class ChapterHud {
         }
       }
     }
+    this.dashMeter.draw(g,this.player.dashCharge,this.player.dashDisabled);
   }
   private updateAbilityHud(): void {
     this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');

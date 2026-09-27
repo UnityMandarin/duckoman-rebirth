@@ -2,11 +2,12 @@ import Phaser from 'phaser';
 import {damp} from '../systems/atmosphereMath';
 import type {Player} from './Player';
 import {CRAB_RULES,crabDamage,pillarTargets} from '../systems/CrabRules';
-import {rectsOverlap} from '../systems/contactRules';
+import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
+import {Dashable} from './Dashable';
 
 /** Independent attack and pillar clocks: hitting the shell never postpones a volley. */
-export class CrabBoss {
+export class CrabBoss extends Dashable {
  hp:number=CRAB_RULES.hp;
  readonly image:Phaser.GameObjects.Container;
  private shell:Phaser.GameObjects.Image;
@@ -23,6 +24,7 @@ export class CrabBoss {
  private until=0;
  private direction=1;
  constructor(private scene:Phaser.Scene,private player:Player,private left:number,private right:number,private defeated:()=>void){
+  super();
   const shadow=scene.add.ellipse(0,0,240,24,0x080306,.65);
   const atlas=scene.textures.get('crimson-crab');
   if(!atlas.has('body')){atlas.add('body',0,0,0,1140,658);atlas.add('claw',0,750,658,786,366);}
@@ -68,11 +70,9 @@ export class CrabBoss {
   if(this.phase==='windup')this.warnings.lineStyle(4,0xffc073,.85).lineBetween(this.image.x,345,this.image.x+this.direction*220,345);
   const x=this.image.x,contact={left:x-77,right:x+77,top:260,bottom:350};
   const reach=[x+this.direction*23,x+this.direction*202],swing={left:Math.min(...reach),right:Math.max(...reach),top:240,bottom:350};
-  showHitbox(this.scene,'danger',contact);
+  showHitbox(this.scene,'danger',contact);showHitbox(this.scene,'target',this.shellBounds);
   if(this.phase==='swing')showHitbox(this.scene,'danger',swing);
-  if(rectsOverlap(p.body,contact)){
-   if(p.isDashing)this.damage('dash');else p.takeDamage(x,.5);
-  }
+  if(!this.checkDash(p)&&!p.isDashing&&rectsOverlap(p.body,contact))p.takeDamage(x,.5);
   if(this.phase==='swing'&&rectsOverlap(p.body,swing))p.takeDamage(x,.5);
   this.draw(now,delta);this.image.setAlpha(now<this.hurtUntil?.65:1);
  }
@@ -84,6 +84,9 @@ export class CrabBoss {
    claw.setAngle(damp(claw.angle,angle,this.phase==='swing'?24:9,delta)).setX(damp(claw.x,sign*(active&&this.phase==='swing'?83:60),18,delta)).setY(-70);
   });
  }
+ private get shellBounds():Rect{return {left:this.image.x-70,right:this.image.x+70,top:260,bottom:350};}
+ protected dashBounds():Rect|null{return this.hp>0?this.shellBounds:null;}
+ protected onDash():void{this.damage('dash');}
  private damage(attack:'dash'|'ultimate'):void{
   const now=this.scene.time.now;if(this.hp<=0||now<this.hurtUntil)return;
   this.hp=Math.max(0,this.hp-crabDamage(attack));this.hurtUntil=now+500;

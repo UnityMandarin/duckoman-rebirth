@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from 'vitest';
 vi.mock('phaser',()=>({default:{}}));
 import {Player} from '../src/entities/Player';
 import {PlayerAbilities} from '../src/systems/PlayerAbilities';
+import {JumpAssist} from '../src/systems/JumpAssist';
 import {TUNING} from '../src/config/tuning';
 
 function playerFixture(){
@@ -33,6 +34,43 @@ describe('horizontal dash integration',()=>{
   expect(body.allowGravity).toBe(true);expect(body.velocity.y).toBeLessThan(0);
   player.sprite.scene.time.now=2000;player.update(input,16);player.takeDamage(200);
   expect(body.allowGravity).toBe(true);expect(player.isDashing).toBe(false);
+ });
+ it('jumping cancels the dash and carries dash speed until reversed',()=>{
+  const {player,body}=playerFixture();
+  Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;
+  player.update({...input,jumpPressed:false},16);
+  player.sprite.scene.time.now=1100;player.update({...input,dashPressed:false},16);
+  expect(player.isDashing).toBe(false);expect(body.allowGravity).toBe(true);
+  expect(body.velocity).toEqual({x:TUNING.player.dashSpeed,y:TUNING.player.jumpVelocity});
+  body.blocked.down=false;
+  player.sprite.scene.time.now=1500;player.update({...input,horizontal:0 as never,dashPressed:false,jumpPressed:false},16);
+  expect(body.velocity.x).toBe(TUNING.player.dashSpeed);
+  player.update({...input,horizontal:-1 as never,dashPressed:false,jumpPressed:false},16);
+  expect(body.velocity.x).toBe(-TUNING.player.maxRunSpeed);
+ });
+ it('dashes diagonally downward at 45 degrees when holding down in the air',()=>{
+  const {player,body}=playerFixture();player.update({...input,down:true,jumpPressed:false},16);
+  const component=TUNING.player.dashSpeed*Math.SQRT1_2;
+  expect(body.allowGravity).toBe(false);
+  expect(body.velocity.x).toBeCloseTo(component);expect(body.velocity.y).toBeCloseTo(component);
+  Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;player.sprite.scene.time.now=1050;
+  player.update({...input,down:true,dashPressed:false,jumpPressed:false},16);
+  expect(player.isDashing).toBe(false);expect(body.allowGravity).toBe(true);
+ });
+ it('keeps a horizontal dash when holding down on the ground',()=>{
+  const {player,body}=playerFixture();
+  Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;
+  player.update({...input,down:true,jumpPressed:false},16);
+  expect(body.velocity).toEqual({x:TUNING.player.dashSpeed,y:0});
+ });
+ it('dash hitbox is a circle around the body that only hits while dashing',()=>{
+  const {player,body}=playerFixture();Object.assign(body,{center:{x:100,y:200}});
+  const reach=TUNING.player.dashHitboxRadius;
+  const target={left:100+reach-5,right:100+reach+40,top:180,bottom:220};
+  expect(player.dashHits(target)).toBe(false);
+  player.update({...input,jumpPressed:false},16);
+  expect(player.dashHits(target)).toBe(true);
+  expect(player.dashHits({...target,left:100+reach+5})).toBe(false);
  });
  it('refuses a second dash in the same airborne period',()=>{
   const {player}=playerFixture();player.update(input,16);

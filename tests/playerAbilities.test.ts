@@ -11,11 +11,23 @@ describe('PlayerAbilities', () => {
     expect(abilities.tryStartDash(2000, 170, true)).toBe(true);
   });
 
+  it('reports dash charge refilling across the cooldown', () => {
+    const abilities = createAbilities();
+    expect(abilities.dashCharge(0)).toBe(1);
+    abilities.tryStartDash(1000, 170, true);
+    expect(abilities.dashCharge(1000)).toBe(0);
+    expect(abilities.dashCharge(1500)).toBe(0.5);
+    expect(abilities.dashCharge(2000)).toBe(1);
+  });
+
   it('allows only one dash per airborne period', () => {
     const abilities = createAbilities();
+    expect(abilities.airDashSpent).toBe(false);
     expect(abilities.tryStartDash(1000, 170, false)).toBe(true);
+    expect(abilities.airDashSpent).toBe(true);
     expect(abilities.tryStartDash(5000, 170, false)).toBe(false);
     abilities.land();
+    expect(abilities.airDashSpent).toBe(false);
     expect(abilities.tryStartDash(6000, 170, false)).toBe(true);
   });
 

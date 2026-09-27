@@ -15,6 +15,7 @@ import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
 import { installHitboxDebug } from '../systems/DebugHitboxes';
+import { renderScale, setupRenderScale } from '../systems/renderScale';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -59,7 +60,6 @@ export class Gate1Scene extends Phaser.Scene {
     this.deathAt=undefined;
     this.checkpointX=data.checkpoint;
     this.physics.world.resume();
-    this.cameras.main.setZoom(1);
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
     this.textures.get('lock-kit').add('door',0,10,10,915,990);
     this.textures.get('lock-kit').add('button',0,1015,790,510,210);
@@ -138,7 +138,7 @@ export class Gate1Scene extends Phaser.Scene {
     installHitboxDebug(this);
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
-    this.hudCamera=this.cameras.add(0,0,640,400).setName('hud');
+    this.hudCamera=setupRenderScale(this,'hud');
     const splitLayers=()=>{
       for(const child of this.children.list){
         const item=child as Phaser.GameObjects.Image;
@@ -242,7 +242,7 @@ export class Gate1Scene extends Phaser.Scene {
     if(this.textures.exists('ultimate-sword'))this.textures.remove('ultimate-sword');
     this.hud.generateTexture('ultimate-sword',640,100);
     this.textures.get('ultimate-sword').add('blade',0,67,27,298,31);
-    const start=this.cameras.main.getWorldPoint(215,42);
+    const start=this.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
     const sword=this.add.image(start.x,start.y,'ultimate-sword','blade').setDisplaySize(220,25).setDepth(45);
     this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,displayWidth:130,displayHeight:20,duration:280,ease:'Cubic.InOut',onComplete:()=>{
       sword.setOrigin(.9,.5).setFlipX(p.facing<0).setAngle(p.facing*-100);

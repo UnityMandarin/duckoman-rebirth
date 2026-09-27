@@ -119,13 +119,13 @@ export class ChapterScenery {
       if (Math.abs(px - playerX) <= 100) item.vx = Phaser.Math.Clamp(item.vx + player.body.velocity.x * 0.015 * dt, -26, 26);
       item.image.setPosition(item.x, item.y).setAngle(Math.sin(now * 0.003 + item.x) * 10)
         .setAlpha(0.68 * Phaser.Math.Clamp((360 - item.y) / 40, 0, 1));
-      const retireY = Math.min(360, camera.scrollY + camera.height + 80);
+      const retireY = Math.min(360, camera.scrollY + camera.displayHeight + 80);
       if (item.y >= retireY) { item.active = false; item.image.setVisible(false).setAlpha(0); }
     }
     if (now < this.releaseAt) return;
     const visible = this.banners.filter((banner) => {
       const x = banner.homeX - camera.scrollX * 0.8, y = banner.homeY - camera.scrollY;
-      return x > -80 && x < camera.width + 80 && y < camera.height + 80 && y + banner.image.displayHeight > -80;
+      return x > -80 && x < camera.displayWidth + 80 && y < camera.displayHeight + 80 && y + banner.image.displayHeight > -80;
     });
     const item = pool.find((entry) => !entry.active);
     if (!visible.length || !item) { this.releaseAt = now + retry; return; }

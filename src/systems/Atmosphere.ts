@@ -59,7 +59,7 @@ export class Atmosphere {
    if(!p.active)continue;
    p.age+=dt;
    const x=projectedX(p.image.x,camera.scrollX,p.factor),y=p.image.y-camera.scrollY;
-   if(p.age>=p.life||!particleInView(x,y,camera.width,camera.height)){p.active=false;p.image.setVisible(false);continue;}
+   if(p.age>=p.life||!particleInView(x,y,camera.displayWidth,camera.displayHeight)){p.active=false;p.image.setVisible(false);continue;}
    const drift=Math.sin(this.elapsed*.001+p.phase)*12;
    const playerX=player.sprite.x-camera.scrollX;
    const gust=Math.abs(x-playerX)<90&&Math.abs(p.image.y-player.sprite.y)<100?player.body.velocity.x*.07:0;
@@ -74,7 +74,7 @@ export class Atmosphere {
   const p=this.particles.find(p=>!p.active);if(!p){this.spawnIn=150;return;}
   const n=++this.cursor;
   p.active=true;p.age=0;p.life=8500+n%4*800;p.vx=0;p.vy=24+n%5*7;
-  p.image.setPosition(camera.scrollX*p.factor+((n*173)%Math.max(1,camera.width+100))-50,camera.scrollY+20+n%3*32).setVisible(true).setAlpha(0);
+  p.image.setPosition(camera.scrollX*p.factor+((n*173)%Math.max(1,camera.displayWidth+100))-50,camera.scrollY+20+n%3*32).setVisible(true).setAlpha(0);
   this.spawnIn=this.kind==='crimson'?260:340;
  }
  private createTextures():void{

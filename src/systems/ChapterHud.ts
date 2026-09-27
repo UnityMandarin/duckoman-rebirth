@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
 import {DashMeter} from './DashMeter';
+import {renderScale} from './renderScale';
 /** Shares the kingdom's hand-built HUD and ultimate choreography in the new chapters. */
 export class ChapterHud {
  private hud:Phaser.GameObjects.Graphics;
@@ -74,7 +75,7 @@ export class ChapterHud {
     if(this.scene.textures.exists('ultimate-sword'))this.scene.textures.remove('ultimate-sword');
     this.hud.generateTexture('ultimate-sword',640,100);
     this.scene.textures.get('ultimate-sword').add('blade',0,67,27,298,31);
-    const start=this.scene.cameras.main.getWorldPoint(215,42);
+    const start=this.scene.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
     const sword=this.scene.add.image(start.x,start.y,'ultimate-sword','blade').setDisplaySize(220,25).setDepth(45);
     this.scene.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,displayWidth:130,displayHeight:20,duration:280,ease:'Cubic.InOut',onComplete:()=>{
       sword.setOrigin(.9,.5).setFlipX(p.facing<0).setAngle(p.facing*-100);

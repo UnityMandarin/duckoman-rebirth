@@ -18,6 +18,7 @@ import type {ChapterKind,Ledge} from '../data/chapters';
 import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
 import {rectsOverlap} from '../systems/contactRules';
 import {installHitboxDebug,showHitbox,tagBody} from '../systems/DebugHitboxes';
+import {setupRenderScale} from '../systems/renderScale';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];wall:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image;}
@@ -63,7 +64,7 @@ export class JourneyScene extends Phaser.Scene {
   this.section=-1;this.dying=false;this.leaving=false;this.boss=undefined;
   const width=CHAPTER_WIDTH[this.kind];
   this.physics.world.resume();this.physics.world.setBounds(0,-240,width,700);
-  this.cameras.main.setBounds(0,-100,width,560).setZoom(1).setBackgroundColor(0x09131c);
+  this.cameras.main.setBounds(0,-100,width,560).setBackgroundColor(0x09131c);
   this.createBackdrop(width);
   this.depthPresentation=new ChapterDepth(this,this.kind,width);
   this.terrain=this.physics.add.staticGroup();this.platforms=chapterPlatforms(this.kind);
@@ -117,7 +118,7 @@ export class JourneyScene extends Phaser.Scene {
    });
   }
   this.cameras.main.startFollow(this.player.sprite,false,.14,.12).setDeadzone(120,130).fadeIn(700);
-  const main=this.cameras.main,hudCamera=this.cameras.add(0,0,640,400).setName('journey-hud');
+  const main=this.cameras.main,hudCamera=setupRenderScale(this,'journey-hud');
   const split=()=>{for(const child of this.children.list){const object=child as Phaser.GameObjects.Image;object.cameraFilter=object.scrollFactorX===0?main.id:hudCamera.id;}};
   this.events.on(Phaser.Scenes.Events.POST_UPDATE,split);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,split));split();
   installHitboxDebug(this);

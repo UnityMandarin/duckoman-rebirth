@@ -173,7 +173,7 @@ export class Player {
 
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
-    if (!this.active || this.infiniteHealth || this.usingUltimate || this.invulnerable) return false;
+    if (!this.active || this.infiniteHealth || debugToggle('invincible') || this.usingUltimate || this.invulnerable) return false;
     this.health = Math.max(0, this.health - amount);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;

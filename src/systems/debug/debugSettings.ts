@@ -1,6 +1,7 @@
 /** Persistent debug switches. Game code reads these through `debugToggle`, which is always false outside debug mode. */
 export const DEBUG_TOGGLES = {
   hitboxes: { label: 'Hitboxes' },
+  invincible: { label: 'Invincible' },
   infiniteUltimate: { label: 'Infinite ultimate' },
   infiniteJumps: { label: 'Infinite jumps' },
   infiniteDashes: { label: 'Infinite dashes' }

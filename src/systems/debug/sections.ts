@@ -54,7 +54,7 @@ const levelSelect: DebugSectionFactory = game => {
   return { title: 'Level select', body };
 };
 
-const cheats: DebugSectionFactory = () => toggleList('Cheats', ['infiniteUltimate', 'infiniteJumps', 'infiniteDashes']);
+const cheats: DebugSectionFactory = () => toggleList('Cheats', ['invincible', 'infiniteUltimate', 'infiniteJumps', 'infiniteDashes']);
 
 const view: DebugSectionFactory = () => {
   const { row, refresh } = toggleRow('hitboxes');

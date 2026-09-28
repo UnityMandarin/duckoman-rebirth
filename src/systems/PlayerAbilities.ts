@@ -9,6 +9,8 @@ export class PlayerAbilities {
   private airDashUsed = false;
   slamming = false;
   sprinting = false;
+  /** Skips the cooldown and the one-air-dash limit. */
+  unlimitedDashes = false;
 
   constructor(private readonly config: PlayerAbilityConfig) {}
 
@@ -16,25 +18,28 @@ export class PlayerAbilities {
     this.sprinting = heldAndMoving;
   }
 
-  get airDashSpent(): boolean { return this.airDashUsed; }
+  get airDashSpent(): boolean { return this.airDashUsed && !this.unlimitedDashes; }
 
   land(): void {
     this.airDashUsed = false;
   }
 
   tryStartDash(now: number, duration: number, grounded: boolean): boolean {
-    if (now < this.nextDashAt) return false;
-    if (!grounded) {
-      if (this.airDashUsed) return false;
-      this.airDashUsed = true;
+    if (!this.unlimitedDashes) {
+      if (now < this.nextDashAt) return false;
+      if (!grounded) {
+        if (this.airDashUsed) return false;
+        this.airDashUsed = true;
+      }
+      this.nextDashAt = now + this.config.dashCooldown;
     }
     this.dashUntil = now + duration;
-    this.nextDashAt = now + this.config.dashCooldown;
     this.slamming = false;
     return true;
   }
 
   dashCharge(now: number): number {
+    if (this.unlimitedDashes) return 1;
     return Math.min(1, Math.max(0, 1 - (this.nextDashAt - now) / this.config.dashCooldown));
   }
 

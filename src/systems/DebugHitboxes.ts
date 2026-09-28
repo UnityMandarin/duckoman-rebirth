@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import type { Circle, Rect } from './contactRules';
+import { debugToggle } from './debug/debugSettings';
+import { platformLabels } from './debug/platformLabels';
 
 export type HitboxKind = 'hurtbox' | 'attack' | 'danger' | 'target' | 'interact' | 'solid';
 type Shape = Rect | Circle;
+type Rect2D = { x: number; y: number; width: number; height: number };
 type Tag = { kind: HitboxKind; shapes?: () => Shape[] };
 
 const STYLE: Record<HitboxKind, { color: number; label: string }> = {
@@ -13,21 +16,12 @@ const STYLE: Record<HitboxKind, { color: number; label: string }> = {
   interact: { color: 0xd070ff, label: 'Pickup / trigger' },
   solid: { color: 0x9aa4b2, label: 'Solid terrain' }
 };
-const STORAGE_KEY = 'duckoman-debug-hitboxes';
-const DEBUG_KEY = 'duckoman-debug';
-const DEBUG_SEQUENCE = ['1', '2', '3'];
-const DEBUG_SEQUENCE_GAP_MS = 600;
+export const HITBOX_LEGEND = Object.values(STYLE);
 
-const load = (key: string): boolean => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
-const save = (key: string, on: boolean): void => { try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* storage blocked */ } };
-
-let debugMode = load(DEBUG_KEY);
-let hitboxesOn = load(STORAGE_KEY);
-let enabled = debugMode && hitboxesOn;
 const tags = new WeakMap<Phaser.GameObjects.GameObject, Tag>();
 const frameShapes = new WeakMap<Phaser.Scene, { kind: HitboxKind; shape: Shape }[]>();
 
-export function hitboxDebugEnabled(): boolean { return enabled; }
+export function hitboxDebugEnabled(): boolean { return debugToggle('hitboxes'); }
 
 /** Colors a physics body by role. `shapes` replaces the body outline, e.g. for multi-part hurtboxes. */
 export function tagBody(object: Phaser.GameObjects.GameObject, kind: HitboxKind, shapes?: () => Shape[]): void {
@@ -36,7 +30,7 @@ export function tagBody(object: Phaser.GameObjects.GameObject, kind: HitboxKind,
 
 /** Shows a hand-tested zone (not a physics body) for the current frame. */
 export function showHitbox(scene: Phaser.Scene, kind: HitboxKind, shape: Shape): void {
-  if (!enabled) return;
+  if (!hitboxDebugEnabled()) return;
   let list = frameShapes.get(scene);
   if (!list) frameShapes.set(scene, list = []);
   list.push({ kind, shape });
@@ -48,7 +42,7 @@ export function installHitboxDebug(scene: Phaser.Scene): void {
     g.clear();
     const queued = frameShapes.get(scene) ?? [];
     frameShapes.delete(scene);
-    if (!enabled) return;
+    if (!hitboxDebugEnabled()) return;
     const view = scene.cameras.main.worldView;
     const visible = (r: Rect): boolean => r.right > view.x - 50 && r.left < view.right + 50 && r.bottom > view.y - 50 && r.top < view.bottom + 50;
     const paint = (kind: HitboxKind, shape: Shape): void => {
@@ -78,68 +72,14 @@ export function installHitboxDebug(scene: Phaser.Scene): void {
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.PRE_RENDER, draw));
 }
 
-/**
- * Debug panel (hitbox toggle and color legend), hidden until 1, 2, 3 is tapped quickly in order.
- * Each key must be released before the next is pressed, since holding 1+2+3 together is the god-mode chord.
- */
-export function installHitboxDebugToggle(): () => void {
-  const panel = document.createElement('div');
-  panel.className = 'hitbox-debug';
-  const button = document.createElement('button');
-  const legend = document.createElement('ul');
-  for (const { color, label } of Object.values(STYLE)) {
-    const item = document.createElement('li');
-    item.style.setProperty('--swatch', `#${color.toString(16).padStart(6, '0')}`);
-    item.textContent = label;
-    legend.append(item);
-  }
-  const render = (): void => {
-    enabled = debugMode && hitboxesOn;
-    panel.hidden = !debugMode;
-    button.textContent = hitboxesOn ? 'Hitboxes: on' : 'Hitboxes: off';
-    button.setAttribute('aria-pressed', String(hitboxesOn));
-    legend.hidden = !hitboxesOn;
-  };
-  button.onclick = () => {
-    hitboxesOn = !hitboxesOn;
-    save(STORAGE_KEY, hitboxesOn);
-    render();
-    document.querySelector<HTMLCanvasElement>('#game canvas')?.focus();
-  };
-
-  const held = new Set<string>();
-  let progress = 0;
-  let lastPress = 0;
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.repeat) return;
-    const digit = DEBUG_SEQUENCE.includes(event.key);
-    const chorded = digit && DEBUG_SEQUENCE.some(key => key !== event.key && held.has(key));
-    if (digit) held.add(event.key);
-    if (event.timeStamp - lastPress > DEBUG_SEQUENCE_GAP_MS) progress = 0;
-    lastPress = event.timeStamp;
-    if (chorded || event.key !== DEBUG_SEQUENCE[progress]) {
-      progress = event.key === DEBUG_SEQUENCE[0] && !chorded ? 1 : 0;
-      return;
-    }
-    if (++progress < DEBUG_SEQUENCE.length) return;
-    progress = 0;
-    debugMode = !debugMode;
-    save(DEBUG_KEY, debugMode);
-    render();
-  };
-  const onKeyUp = (event: KeyboardEvent): void => { held.delete(event.key); };
-  const onBlur = (): void => { held.clear(); progress = 0; };
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('blur', onBlur);
-
-  panel.append(button, legend);
-  document.body.append(panel);
-  render();
-  return () => {
-    panel.remove();
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
-    window.removeEventListener('blur', onBlur);
-  };
+/** Tags each platform with its A1/B2-style label while hitboxes are shown. */
+export function installPlatformLabels(scene: Phaser.Scene, platforms: readonly Rect2D[]): void {
+  const style = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '11px', color: '#ffffff', backgroundColor: '#0d1520cc', padding: { x: 3, y: 1 } };
+  const texts = platformLabels(platforms).map((label, i) => {
+    const p = platforms[i];
+    return scene.add.text(p.x, p.y - p.height / 2 - 2, label, style).setOrigin(0.5, 1).setDepth(1001).setVisible(false);
+  });
+  const sync = (): void => { const on = hitboxDebugEnabled(); for (const text of texts) text.setVisible(on); };
+  scene.events.on(Phaser.Scenes.Events.PRE_RENDER, sync);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.PRE_RENDER, sync));
 }

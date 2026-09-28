@@ -18,7 +18,7 @@ import {chapterSections,CHAPTER_ART,CHAPTER_WIDTH,SECTION_WIDTH,chapterPlatforms
 import type {ChapterKind,Ledge} from '../data/chapters';
 import {isCheckpointContact,shouldCheckpoint} from '../systems/checkpointPolicy';
 import {rectsOverlap} from '../systems/contactRules';
-import {installHitboxDebug,showHitbox,tagBody} from '../systems/DebugHitboxes';
+import {installHitboxDebug,installPlatformLabels,showHitbox,tagBody} from '../systems/DebugHitboxes';
 import {setupRenderScale} from '../systems/renderScale';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;}
@@ -125,7 +125,7 @@ export class JourneyScene extends Phaser.Scene {
   const main=this.cameras.main,hudCamera=setupRenderScale(this,'journey-hud');
   const split=()=>{for(const child of this.children.list){const object=child as Phaser.GameObjects.Image;object.cameraFilter=object.scrollFactorX===0?main.id:hudCamera.id;}};
   this.events.on(Phaser.Scenes.Events.POST_UPDATE,split);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off(Phaser.Scenes.Events.POST_UPDATE,split));split();
-  installHitboxDebug(this);
+  installHitboxDebug(this);installPlatformLabels(this,this.platforms);
  }
  private createBackdrop(width:number):void {
   // The painted ground moves one-to-one with collision terrain, never like wallpaper.

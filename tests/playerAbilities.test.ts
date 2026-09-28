@@ -37,6 +37,15 @@ describe('PlayerAbilities', () => {
     expect(abilities.tryStartDash(2000, 170, false)).toBe(true);
   });
 
+  it('ignores cooldown and the air limit with unlimited dashes', () => {
+    const abilities = createAbilities();
+    abilities.unlimitedDashes = true;
+    expect(abilities.tryStartDash(1000, 170, false)).toBe(true);
+    expect(abilities.tryStartDash(1001, 170, false)).toBe(true);
+    expect(abilities.airDashSpent).toBe(false);
+    expect(abilities.dashCharge(1001)).toBe(1);
+  });
+
   it('arms one boosted jump after a slam landing', () => {
     const abilities = createAbilities();
     abilities.startSlam();

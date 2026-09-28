@@ -15,7 +15,7 @@ import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
-import { installHitboxDebug } from '../systems/DebugHitboxes';
+import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
 import { renderScale, setupRenderScale } from '../systems/renderScale';
 
 export class Gate1Scene extends Phaser.Scene {
@@ -150,6 +150,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.events.emit('play-ready');
     installLocalQA(this,this.player,()=>this.boss.probeVictory());
     installHitboxDebug(this);
+    installPlatformLabels(this,this.allPlatforms);
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');

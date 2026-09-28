@@ -7,6 +7,7 @@ import { AirTuck } from '../systems/AirTuck';
 import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
 import { hitSpark } from '../systems/HitSpark';
+import { debugToggle } from '../systems/debug/debugSettings';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -79,6 +80,8 @@ export class Player {
   private get dashHitboxBody(): Phaser.Physics.Arcade.Body { return this.dashHitboxZone.body as Phaser.Physics.Arcade.Body; }
 
   update(input: InputSnapshot, _deltaMs: number): void {
+    if (debugToggle('infiniteUltimate')) this.ultimateCharge = 100;
+    this.abilities.unlimitedDashes = debugToggle('infiniteDashes');
     if(this.usingUltimate){this.body.setVelocity(0,0);return;}
     const now = this.sprite.scene.time.now;
     this.body.setAllowGravity(true);
@@ -110,7 +113,7 @@ export class Player {
       this.body.setVelocity(this.body.velocity.x * 0.35, TUNING.player.slamVelocity);
     }
 
-    const canJump = !this.abilities.slamming && this.jumpAssist.canJump(now, TUNING.player.coyoteTime);
+    const canJump = !this.abilities.slamming && (debugToggle('infiniteJumps') || this.jumpAssist.canJump(now, TUNING.player.coyoteTime));
     if (this.abilities.isDashing(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
       this.abilities.endDash();
       this.dashMomentum = this.facing;
@@ -170,7 +173,7 @@ export class Player {
 
   takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
     const now = this.sprite.scene.time.now;
-    if (!this.active || this.infiniteHealth || this.usingUltimate || this.invulnerable) return false;
+    if (!this.active || this.infiniteHealth || debugToggle('invincible') || this.usingUltimate || this.invulnerable) return false;
     this.health = Math.max(0, this.health - amount);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;

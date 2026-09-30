@@ -15,7 +15,7 @@ function playerFixture(){
  const player=Object.create(Player.prototype) as Player;
  Object.assign(player,{body,sprite:{x:100,scene:{time:{now:1000}}},visual:{setAlpha:vi.fn()},lifeState:'ACTIVE',health:3,facing:1,
   ultimateUntil:0,abilities:new PlayerAbilities(TUNING.player),airTuck:{update:()=>false},
-  jumpAssist:{recordPress:vi.fn(),canJump:()=>false},invulnerableUntil:0});
+  jumpAssist:{recordPress:vi.fn(),canJump:()=>false},invulnerableUntil:0,appliedSpeedScale:1});
  return {player,body};
 }
 const input={horizontal:1 as const,down:false,downPressed:false,dashPressed:true,sprintPressed:false,jumpPressed:true,jumpReleased:false,anyResetInput:false};

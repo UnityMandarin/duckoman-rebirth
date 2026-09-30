@@ -5,7 +5,8 @@ import type {ChapterKind} from './chapters';
 export const CHAPTER_DIFFICULTY={jail:1.2,outside:1.5,crimson:1.5*1.1} as const;
 export type Challenge='presses'|'crumble'|'ambush'|'ascent'|'relay'|'crossfire'|'ferry'|'lift'|'gust'|'conveyor'|'shutters';
 type Step=readonly [number,number,number];
-export interface Encounter {type:Challenge;steps:readonly Step[];spikes:readonly [number,number];}
+/** `belts` sets each step's conveyor push (1 right, -1 left, 0 none); by default the inner steps alternate. */
+export interface Encounter {type:Challenge;steps:readonly Step[];spikes:readonly [number,number];belts?:readonly (1|-1|0)[];}
 const e=(type:Challenge,spikes:readonly [number,number],...steps:Step[]):Encounter=>({type,spikes,steps});
 export const JAIL_ENCOUNTERS:Encounter[]=[
  e('ascent',[760,920],[210,280,150],[430,190,170],[680,100,180],[940,200,140],[1170,280,150]),
@@ -38,7 +39,7 @@ export const OUTSIDE_ENCOUNTERS:Encounter[]=[
  e('ferry',[360,1120],[195,280,140],[510,260,150],[890,260,150],[1210,280,145]),
  e('shutters',[320,1150],[175,280,135],[390,255,120],[610,220,125],[830,220,120],[1040,255,120],[1250,280,135]),
  e('lift',[360,1080],[195,280,140],[420,245,160],[720,150,180],[1030,245,160],[1260,280,140]),
- e('conveyor',[330,1130],[180,280,130],[430,265,180],[750,265,220],[1100,265,180]),
+ {...e('conveyor',[330,1130],[180,280,130],[430,265,180],[750,265,220],[1100,265,180]),belts:[0,1,-1,-1]},
  e('gust',[390,1070],[215,280,145],[465,190,130],[735,100,140],[1000,195,130],[1230,285,140]),
  e('ferry',[300,1150],[170,280,135],[470,215,160],[870,215,160],[1240,280,135]),
  e('lift',[380,1100],[200,280,140],[470,270,160],[755,165,180],[1040,270,160],[1280,280,140]),

@@ -16,7 +16,7 @@ import { CastleMechanisms } from '../systems/CastleMechanisms';
 import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
-import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
+import { CASTLE_BOSS_CHECKPOINT, CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
 import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
 import { setupRenderScale } from '../systems/renderScale';
 
@@ -101,12 +101,14 @@ export class Gate1Scene extends Phaser.Scene {
     }
     this.castleCheckpoint=this.add.image(CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop,'rest-lantern').setOrigin(.5,1).setDisplaySize(30,54).setDepth(4);
     if(data.checkpoint===CASTLE_CHECKPOINT.x)this.castleCheckpoint.setTint(0xffe2a3);
-    const spawnY=data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
-    this.player = new Player(this, data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
+    const start=[CASTLE_CHECKPOINT,CASTLE_BOSS_CHECKPOINT].find(c=>c.x===data.checkpoint);
+    const spawnY=start?checkpointSpawnY(start.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
+    this.player = new Player(this, start?start.x:GATE_1_ROOM.playerSpawn.x, spawnY);
     this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
     this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width); this.depthPresentation.setPlayer(this.player);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
-    this.throwable = new ThrowableObject(this, data.checkpoint===CASTLE_CHECKPOINT.x?5745:GATE_1_ROOM.throwableSpawn.x, data.checkpoint===CASTLE_CHECKPOINT.x?160:GATE_1_ROOM.throwableSpawn.y);
+    const throwableSpawn=start===CASTLE_CHECKPOINT?{x:5745,y:160}:start===CASTLE_BOSS_CHECKPOINT?{x:8900,y:330}:GATE_1_ROOM.throwableSpawn;
+    this.throwable = new ThrowableObject(this, throwableSpawn.x, throwableSpawn.y);
     this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,325,spawn,spawn.pointed,spawn.jumper))];
     this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);

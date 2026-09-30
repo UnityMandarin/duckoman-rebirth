@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { SECTION_WIDTH } from '../../data/chapters';
 import { HITBOX_LEGEND } from '../DebugHitboxes';
+import { CASTLE_BOSS_CHECKPOINT } from '../checkpointPolicy';
 import { DEBUG_TOGGLES, debugToggleSetting, setDebugToggle, type DebugToggle } from './debugSettings';
 
 export interface DebugSection { title: string; body: HTMLElement; refresh?: () => void; }
@@ -31,6 +32,7 @@ function toggleList(title: string, toggles: DebugToggle[]): DebugSection {
 
 const LEVELS: { label: string; scene: string; data?: object }[] = [
   { label: 'Castle', scene: 'gate-1' },
+  { label: 'Castle · IronWing', scene: 'gate-1', data: { checkpoint: CASTLE_BOSS_CHECKPOINT.x } },
   { label: 'Jail', scene: 'jail' },
   { label: 'Wildlands', scene: 'outside' },
   { label: 'Wildlands · Antler Regent', scene: 'outside', data: { checkpoint: 22 * SECTION_WIDTH + 120 } },

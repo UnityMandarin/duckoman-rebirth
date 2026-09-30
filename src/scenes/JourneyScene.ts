@@ -8,6 +8,7 @@ import {BreakableWall} from '../entities/BreakableWall';
 import {SolidDashable} from '../entities/SolidDashable';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
+import {spreadEnemies} from '../systems/EnemySeparation';
 import {ChapterHud} from '../systems/ChapterHud';
 import {ChapterTraps} from '../systems/ChapterTraps';
 import {ChapterDepth} from '../systems/ChapterDepth';
@@ -90,7 +91,7 @@ export class JourneyScene extends Phaser.Scene {
   this.shadow=this.add.ellipse(spawn,358,54,9,0x000000,.35).setDepth(3);
   this.physics.add.collider(this.player.sprite,this.terrain);
   this.cake=new ThrowableObject(this,spawn+70,325);this.physics.add.collider(this.cake.sprite,this.terrain);
-  this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.isIdle)this.cake.carry(this.player);});
+  this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.catchable)this.cake.carry(this.player);});
   this.controls=new InputController(this);this.hud=new ChapterHud(this,this.player);
   this.story=this.add.text(320,100,'',{fontFamily:'Georgia',fontSize:'14px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:520}}).setOrigin(.5,0).setScrollFactor(0).setDepth(52);
   this.label=this.add.text(625,365,'',{fontSize:'10px',color:'#ded4b7'}).setOrigin(1).setScrollFactor(0).setDepth(52);
@@ -225,6 +226,7 @@ export class JourneyScene extends Phaser.Scene {
   if(input.throwPressed&&!interacted&&this.player.canAct&&this.cake.state==='CARRIED')this.cake.throw(this.player);
   this.cake.follow(this.player);this.cake.update(delta);
   for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake){enemy.update();enemy.body.setVelocityX(enemy.body.velocity.x*CHAPTER_DIFFICULTY[this.kind]);}}
+  spreadEnemies(this.enemies);
   this.traps.update();
   for(const h of this.hazards){
    const zone={left:h.x-h.width/2,right:h.x+h.width/2,top:h.y-15,bottom:h.y};

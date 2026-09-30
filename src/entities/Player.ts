@@ -11,11 +11,6 @@ import { debugToggle } from '../systems/debug/debugSettings';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
-/** Crescent is drawn along +x; rotate it to travel. Screen y grows down, so a jump (negative y) tilts up. */
-export function dashEffectRotation(velocity: { x: number; y: number }, facing: -1 | 1): number {
-  return velocity.x === 0 && velocity.y === 0 ? (facing < 0 ? Math.PI : 0) : Math.atan2(velocity.y, velocity.x);
-}
-
 export class Player {
   readonly sprite: Phaser.GameObjects.Rectangle;
   readonly visual: Phaser.GameObjects.Image;
@@ -77,7 +72,6 @@ export class Player {
   get dashDisabled(): boolean { return this.abilities.airDashSpent; }
   get dashCharge(): number { return this.abilities.dashCharge(this.sprite.scene.time.now); }
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
-  get dashEffectActive(): boolean { return this.canAct && this.isDashing; }
   get sprinting(): boolean { return this.abilities.sprinting; }
   /** Objects that enemy overlaps should be registered against. */
   get enemyContactTargets(): Phaser.GameObjects.GameObject[] { return [this.sprite, this.dashHitboxZone]; }
@@ -126,12 +120,12 @@ export class Player {
     }
 
     const canJump = !this.abilities.slamming && (debugToggle('infiniteJumps') || this.jumpAssist.canJump(now, TUNING.player.coyoteTime));
-    if (this.abilities.isDashLocked(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
-      this.abilities.releaseDashLock();
+    if (this.abilities.isDashing(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
+      this.abilities.endDash();
       this.dashMomentum = this.facing;
     }
     if (this.dashMomentum !== 0 && input.horizontal === -this.dashMomentum) this.dashMomentum = 0;
-    if (this.abilities.isDashLocked(now)) {
+    if (this.abilities.isDashing(now)) {
       const { x, y } = this.dashVelocity;
       this.body.setAllowGravity(false).setVelocity(x, y);
       this.jumpCutAvailable=false;
@@ -214,7 +208,8 @@ export class Player {
   private drawDashEffect(dashing: boolean, now: number): void {
     const g = this.dashEffect.clear().setVisible(dashing);
     if (!dashing) return;
-    g.setPosition(this.body.center.x, this.body.center.y).setRotation(dashEffectRotation(this.body.velocity, this.facing));
+    // Drawn along +x, then rotated to the dash direction.
+    g.setPosition(this.body.center.x, this.body.center.y).setRotation(this.facing < 0 ? Math.PI : 0);
     const linear = Phaser.Math.Clamp((now - this.dashStartedAt) / (TUNING.player.dashDuration * 0.5), 0, 1);
     const grow = 1 - (1 - linear) ** 3;
     const width = 0.4 + 0.6 * grow;
@@ -265,11 +260,11 @@ export class Player {
 
   private syncVisual(): void {
     const now = this.sprite.scene.time.now;
-    if(!this.dashEffectActive){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
+    if(!this.isDashing){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
     const dashing = this.isDashing && this.canAct;
     this.dashHitboxZone.setPosition(this.body.center.x, this.body.center.y);
     this.dashHitboxBody.enable = dashing;
-    this.drawDashEffect(this.dashEffectActive, now);
+    this.drawDashEffect(dashing, now);
     if (this.grounded && !this.wasGrounded) this.landedAt = now;
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
@@ -292,7 +287,7 @@ export class Player {
     }
     if (this.lifeState === 'HURT') this.visual.setTint(0xffb6a0); else this.visual.clearTint();
     if (this.lifeState === 'DEAD') this.visual.setRotation(this.facing * 1.25);
-    if (this.dashEffectActive && now - this.lastGhostAt >= 35) {
+    if (this.isDashing && this.canAct && now - this.lastGhostAt >= 35) {
       this.lastGhostAt = now;
       const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
         .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)

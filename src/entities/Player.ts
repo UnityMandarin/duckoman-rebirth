@@ -72,6 +72,8 @@ export class Player {
   get dashDisabled(): boolean { return this.abilities.airDashSpent; }
   get dashCharge(): number { return this.abilities.dashCharge(this.sprite.scene.time.now); }
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
+  /** Dashing, or still bouncing off a dash hit: enemies piled up with the one that was hit break too instead of hurting. */
+  get dashStriking(): boolean { return this.isDashing || (this.canAct && this.sprite.scene.time.now < this.recoilUntil); }
   get sprinting(): boolean { return this.abilities.sprinting; }
   /** Objects that enemy overlaps should be registered against. */
   get enemyContactTargets(): Phaser.GameObjects.GameObject[] { return [this.sprite, this.dashHitboxZone]; }

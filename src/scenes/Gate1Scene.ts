@@ -8,6 +8,7 @@ import { Player } from '../entities/Player';
 import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
+import { spreadEnemies } from '../systems/EnemySeparation';
 import { DashMeter } from '../systems/DashMeter';
 import { FallingPillar } from '../entities/FallingPillar';
 import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
@@ -197,6 +198,7 @@ export class Gate1Scene extends Phaser.Scene {
     if (this.player.canAct && input.throwPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
+    spreadEnemies([this.enemy,...this.extraEnemies]);
     this.pillar.update();
     this.mechanisms.update();
     this.boss.update(!!input.throwPressed);

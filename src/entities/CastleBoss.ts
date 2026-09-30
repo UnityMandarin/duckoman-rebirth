@@ -12,6 +12,7 @@ import {showHitbox} from '../systems/DebugHitboxes';
 import {renderScale} from '../systems/renderScale';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
+import {spreadEnemies} from '../systems/EnemySeparation';
 import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
@@ -235,6 +236,7 @@ export class CastleBoss extends Dashable {
       }
       return true;
     });
+    spreadEnemies(this.minions.map(m=>m.enemy));
   }
   private finish():void {
     this.player.chargeUltimate(50);

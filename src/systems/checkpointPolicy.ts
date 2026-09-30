@@ -1,5 +1,7 @@
 export const JAIL_CHECKPOINT_SECTION = 6;
 export const CASTLE_CHECKPOINT = { x: 5725, surfaceTop: 183 } as const;
+/** Debug-only start on the corridor floor just short of IronWing's trigger line (x 9080) and past the last corridor robot. */
+export const CASTLE_BOSS_CHECKPOINT = { x: 8940, surfaceTop: 360 } as const;
 
 export function shouldCheckpoint(kind: 'jail' | 'outside' | 'crimson', index: number): boolean {
   return kind === 'crimson' ? index > 0 && (index % 3 === 0 || index === 10) : kind === 'jail' ? index === JAIL_CHECKPOINT_SECTION : index > 0 && (index % 3 === 0 || index === 22);

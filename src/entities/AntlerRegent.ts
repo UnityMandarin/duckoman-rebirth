@@ -5,6 +5,7 @@ import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 /** Telegraph, committed charge, recovery: readable attacks without teleportation. */
 export class AntlerRegent extends Dashable {
@@ -24,7 +25,7 @@ export class AntlerRegent extends Dashable {
   this.bar=scene.add.graphics().setScrollFactor(0).setDepth(51);
   this.name=scene.add.text(520,19,'THE BROKEN REGENT',{fontSize:'10px',color:'#dcc398'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
   this.warning=scene.add.graphics().setDepth(8);
-  const strike=()=>{if(this.engaged&&Math.abs(player.sprite.x-this.image.x)<230&&player.sprite.y>140)this.damage(4);};
+  const strike=(s:UltimateStrike)=>{if(this.engaged&&this.hp>0&&s.tryHit(this,this.hittable))this.damage(4);};
   scene.events.on('ultimate-strike',strike);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
  }

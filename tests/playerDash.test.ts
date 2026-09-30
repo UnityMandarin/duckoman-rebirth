@@ -1,6 +1,6 @@
 import {describe,it,expect,vi} from 'vitest';
 vi.mock('phaser',()=>({default:{}}));
-import {Player} from '../src/entities/Player';
+import {dashEffectRotation,Player} from '../src/entities/Player';
 import {PlayerAbilities} from '../src/systems/PlayerAbilities';
 import {JumpAssist} from '../src/systems/JumpAssist';
 import {TUNING} from '../src/config/tuning';
@@ -35,13 +35,20 @@ describe('horizontal dash integration',()=>{
   player.sprite.scene.time.now=2000;player.update(input,16);player.takeDamage(200);
   expect(body.allowGravity).toBe(true);expect(player.isDashing).toBe(false);
  });
- it('jumping cancels the dash and carries dash speed until reversed',()=>{
+  it('jumping cancels the dash lock but keeps the hitbox for the dash duration',()=>{
   const {player,body}=playerFixture();
   Object.assign(player,{jumpAssist:new JumpAssist()});body.blocked.down=true;
+  Object.assign(body,{center:{x:100,y:200}});
   player.update({...input,jumpPressed:false},16);
   player.sprite.scene.time.now=1100;player.update({...input,dashPressed:false},16);
-  expect(player.isDashing).toBe(false);expect(body.allowGravity).toBe(true);
+  expect(player.isDashing).toBe(true);expect(player.dashEffectActive).toBe(true);
+  expect(player.dashHits({left:100,right:140,top:180,bottom:220})).toBe(true);
+  expect(body.allowGravity).toBe(true);
   expect(body.velocity).toEqual({x:TUNING.player.dashSpeed,y:TUNING.player.jumpVelocity});
+  expect(dashEffectRotation(body.velocity,1)).toBeLessThan(0);
+  player.sprite.scene.time.now=1000+TUNING.player.dashDuration;
+  expect(player.isDashing).toBe(false);expect(player.dashEffectActive).toBe(false);
+  expect(player.dashHits({left:100,right:140,top:180,bottom:220})).toBe(false);
   body.blocked.down=false;
   player.sprite.scene.time.now=1500;player.update({...input,horizontal:0 as never,dashPressed:false,jumpPressed:false},16);
   expect(body.velocity.x).toBe(TUNING.player.dashSpeed);
@@ -56,6 +63,14 @@ describe('horizontal dash integration',()=>{
   player.update({...input,jumpPressed:false},16);
   expect(player.dashHits(target)).toBe(true);
   expect(player.dashHits({...target,left:100+reach+5})).toBe(false);
+ });
+ it('aims the dash crescent along travel, steeper on a boosted jump',()=>{
+  expect(dashEffectRotation({x:TUNING.player.dashSpeed,y:0},1)).toBe(0);
+  expect(dashEffectRotation({x:-TUNING.player.dashSpeed,y:0},-1)).toBe(Math.PI);
+  const jump=dashEffectRotation({x:TUNING.player.dashSpeed,y:TUNING.player.jumpVelocity},1);
+  const boost=dashEffectRotation({x:TUNING.player.dashSpeed,y:TUNING.player.boostedJumpVelocity},1);
+  expect(jump).toBeLessThan(0);
+  expect(boost).toBeLessThan(jump);
  });
  it('refuses a second dash in the same airborne period',()=>{
   const {player}=playerFixture();player.update(input,16);

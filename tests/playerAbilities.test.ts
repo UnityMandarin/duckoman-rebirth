@@ -37,6 +37,15 @@ describe('PlayerAbilities', () => {
     expect(abilities.tryStartDash(2000, 170, false)).toBe(true);
   });
 
+  it('keeps the dash attack through a jump-cancel until the dash duration ends', () => {
+    const abilities = createAbilities();
+    expect(abilities.tryStartDash(1000, 255, true)).toBe(true);
+    abilities.releaseDashLock();
+    expect(abilities.isDashLocked(1100)).toBe(false);
+    expect(abilities.isDashing(1100)).toBe(true);
+    expect(abilities.isDashing(1255)).toBe(false);
+  });
+
   it('ignores cooldown and the air limit with unlimited dashes', () => {
     const abilities = createAbilities();
     abilities.unlimitedDashes = true;

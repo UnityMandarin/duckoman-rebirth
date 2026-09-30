@@ -8,6 +8,7 @@ import {BreakableWall} from '../entities/BreakableWall';
 import {SolidDashable} from '../entities/SolidDashable';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
+import {spreadEnemies} from '../systems/EnemySeparation';
 import {ChapterHud} from '../systems/ChapterHud';
 import {ChapterTraps} from '../systems/ChapterTraps';
 import {ChapterDepth} from '../systems/ChapterDepth';
@@ -225,6 +226,7 @@ export class JourneyScene extends Phaser.Scene {
   if(input.throwPressed&&!interacted&&this.player.canAct&&this.cake.state==='CARRIED')this.cake.throw(this.player);
   this.cake.follow(this.player);this.cake.update(delta);
   for(const enemy of this.enemies){if(enemy.defeated)continue;const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<850;enemy.setAwake(awake);if(awake){enemy.update();enemy.body.setVelocityX(enemy.body.velocity.x*CHAPTER_DIFFICULTY[this.kind]);}}
+  spreadEnemies(this.enemies);
   this.traps.update();
   for(const h of this.hazards){
    const zone={left:h.x-h.width/2,right:h.x+h.width/2,top:h.y-15,bottom:h.y};

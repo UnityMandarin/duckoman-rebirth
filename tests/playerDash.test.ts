@@ -57,6 +57,13 @@ describe('horizontal dash integration',()=>{
   expect(player.dashHits(target)).toBe(true);
   expect(player.dashHits({...target,left:100+reach+5})).toBe(false);
  });
+ it('keeps striking through the dash-hit bounce so piled-up enemies break instead of hurting',()=>{
+  const {player}=playerFixture();player.update({...input,jumpPressed:false},16);
+  player.bounceFromDash();
+  expect(player.isDashing).toBe(false);expect(player.dashStriking).toBe(true);
+  player.sprite.scene.time.now+=TUNING.player.dashBounce.lockTime;
+  expect(player.dashStriking).toBe(false);
+ });
  it('refuses a second dash in the same airborne period',()=>{
   const {player}=playerFixture();player.update(input,16);
   player.sprite.scene.time.now=3000;player.update(input,16);

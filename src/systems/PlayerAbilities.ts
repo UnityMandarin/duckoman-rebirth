@@ -4,8 +4,6 @@ export interface PlayerAbilityConfig {
 
 export class PlayerAbilities {
   private dashUntil = 0;
-  /** False after a jump-cancel: the dash still hits, but gravity and steering return. */
-  private dashLocked = false;
   private nextDashAt = 0;
   private boostUntil = 0;
   private airDashUsed = false;
@@ -36,7 +34,6 @@ export class PlayerAbilities {
       this.nextDashAt = now + this.config.dashCooldown;
     }
     this.dashUntil = now + duration;
-    this.dashLocked = true;
     this.slamming = false;
     return true;
   }
@@ -47,12 +44,10 @@ export class PlayerAbilities {
   }
 
   isDashing(now: number): boolean { return now < this.dashUntil; }
-  isDashLocked(now: number): boolean { return this.dashLocked && now < this.dashUntil; }
-  releaseDashLock(): void { this.dashLocked = false; }
+  endDash(): void { this.dashUntil = 0; }
   startSlam(): void {
     this.slamming = true;
     this.dashUntil = 0;
-    this.dashLocked = false;
   }
 
   landSlam(now: number, boostWindow: number): boolean {
@@ -72,7 +67,6 @@ export class PlayerAbilities {
 
   cancelTransient(): void {
     this.dashUntil = 0;
-    this.dashLocked = false;
     this.slamming = false;
     this.boostUntil = 0;
   }

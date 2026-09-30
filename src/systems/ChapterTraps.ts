@@ -16,7 +16,8 @@ export class ChapterTraps {
   for(let i=1;i<sections;i++){
    const encounter=encounterFor(kind,i)!;
    const ledges=surfaces.filter(s=>Math.floor(s.ledge.x/1440)===i).sort((a,b)=>a.ledge.x-b.ledge.x);
-   if(['ferry','lift','conveyor','shutters'].includes(encounter.type))ledges.slice(1,-1).forEach((surface,j)=>this.specials.push({surface,type:encounter.type,x:surface.ledge.x,y:surface.ledge.y,phase:j*Math.PI}));
+   if(encounter.belts)ledges.forEach((surface,j)=>{const push=encounter.belts![j];if(push)this.specials.push({surface,type:'conveyor',x:surface.ledge.x,y:surface.ledge.y,phase:push>0?0:Math.PI});});
+   else if(['ferry','lift','conveyor','shutters'].includes(encounter.type))ledges.slice(1,-1).forEach((surface,j)=>this.specials.push({surface,type:encounter.type,x:surface.ledge.x,y:surface.ledge.y,phase:j*Math.PI}));
    if(encounter.type==='crumble'||encounter.type==='relay')for(const surface of ledges.slice(1,-1))this.crumbles.push({surface,at:0,broken:false});
    if(['presses','crossfire','relay'].includes(encounter.type)){
     const targets=encounter.type==='presses'||encounter.type==='crossfire'?[ledges[1],ledges[ledges.length-2]]:[ledges[2]];
@@ -50,17 +51,18 @@ export class ChapterTraps {
     continue;
    }
    if(special.type==='conveyor'){
-    const dx=Math.cos(special.phase)*70*this.scene.game.loop.delta/1000;
-    if(standing&&!this.player.usingUltimate){p.position.x+=dx;p.prev.x+=dx;this.player.sprite.x+=dx;}
+    const speed=Math.cos(special.phase)*140,dx=speed*this.scene.game.loop.delta/1000;
+    if(standing&&!this.player.usingUltimate)this.player.sprite.x+=dx;
     this.wind.lineStyle(2,0xc5b079,.65);
-    for(let j=0;j<4;j++){const x=body.left+(now*.05+j*40)%ledge.width;this.wind.lineBetween(x,body.top+7,x+Math.sign(dx)*10,body.top+7);}
+    for(let j=0;j<4;j++){const x=body.left+Phaser.Math.Wrap(now*speed/1000+j*40,0,ledge.width);this.wind.lineBetween(x,body.top+7,x+Math.sign(dx)*10,body.top+7);}
     continue;
    }
    const wave=Math.sin(now/950+special.phase);
    const nx=special.x+(special.type==='ferry'?wave*65:0),ny=special.y+(special.type==='lift'?wave*65:0);
    const dx=nx-shape.x,dy=ny-shape.y;
    shape.setPosition(nx,ny);body.updateFromGameObject();art.setPosition(nx,ny-16);ledge.x=nx;ledge.y=ny;
-   if(standing){p.position.x+=dx;p.position.y+=dy;p.prev.x+=dx;p.prev.y+=dy;this.player.sprite.x+=dx;this.player.sprite.y+=dy;}
+   // Carry the sprite, not the body: on frames without a fixed physics step, Phaser discards body moves and re-syncs from the sprite.
+   if(standing){this.player.sprite.x+=dx;this.player.sprite.y+=dy;}
   }
   for(const trap of this.presses){
    trap.warning.clear();

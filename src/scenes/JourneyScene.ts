@@ -91,7 +91,7 @@ export class JourneyScene extends Phaser.Scene {
   this.shadow=this.add.ellipse(spawn,358,54,9,0x000000,.35).setDepth(3);
   this.physics.add.collider(this.player.sprite,this.terrain);
   this.cake=new ThrowableObject(this,spawn+70,325);this.physics.add.collider(this.cake.sprite,this.terrain);
-  this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.isIdle)this.cake.carry(this.player);});
+  this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.catchable)this.cake.carry(this.player);});
   this.controls=new InputController(this);this.hud=new ChapterHud(this,this.player);
   this.story=this.add.text(320,100,'',{fontFamily:'Georgia',fontSize:'14px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:520}}).setOrigin(.5,0).setScrollFactor(0).setDepth(52);
   this.label=this.add.text(625,365,'',{fontSize:'10px',color:'#ded4b7'}).setOrigin(1).setScrollFactor(0).setDepth(52);

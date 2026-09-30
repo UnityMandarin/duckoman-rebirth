@@ -18,7 +18,7 @@ export class InteractionSystem {
     }
     this.player.takeDamage(this.enemy.sprite.x);
   }
-  tryPickup(): void { if (this.player.active && this.player.grounded && this.throwable.isIdle) this.throwable.carry(this.player); }
+  tryPickup(): void { if (this.player.active && this.player.grounded && this.throwable.catchable) this.throwable.carry(this.player); }
   resolveThrownEnemy(): void {
     const v={x:this.throwable.body.velocity.x,y:this.throwable.body.velocity.y};
     if (!this.enemy.defeated && this.throwable.registerEnemyHit()){if(this.enemy.hit(1,v))this.player.chargeUltimate(10);}

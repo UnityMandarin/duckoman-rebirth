@@ -201,7 +201,7 @@ export class JourneyScene extends Phaser.Scene {
  }
  private say(message:string):void {this.story.setText(message).setAlpha(1);this.storyUntil=this.time.now+6500;}
  update(_time:number,delta:number):void {
-  if(!this.player||this.leaving)return;
+  if(!this.player||this.leaving||this.player.usingUltimate)return;
   const input=this.controls.read();
   if(input.godModePressed){this.player.infiniteHealth=!this.player.infiniteHealth;if(this.player.infiniteHealth)this.player.health=3;}
   this.hud.update();

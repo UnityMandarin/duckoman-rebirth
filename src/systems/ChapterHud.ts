@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
 import {DashMeter} from './DashMeter';
-import {renderScale} from './renderScale';
-import {alignSwordMeterFill,createUltimateSwordVisual,setSwordMeterCharge,SWORD_METER} from './SwordMeterArt';
+import {alignSwordMeterFill,setSwordMeterCharge,SWORD_METER} from './SwordMeterArt';
+import {playUltimateSwing} from './UltimateSwing';
 /** Shares the kingdom's hand-built HUD and ultimate choreography in the new chapters. */
 export class ChapterHud {
  private hud:Phaser.GameObjects.Graphics;
@@ -12,6 +12,7 @@ export class ChapterHud {
  private healthChangedAt=0;
  private dashMeter:DashMeter;
  private swordFill:Phaser.GameObjects.Image;
+ private swordFrame:Phaser.GameObjects.Image;
  constructor(private scene:Phaser.Scene,private player:Player){
   this.hud=scene.add.graphics().setScrollFactor(0).setDepth(48);
   scene.add.image(43,40,'duckoman').setDisplaySize(45,42).setScrollFactor(0).setDepth(51);
@@ -20,7 +21,7 @@ export class ChapterHud {
   this.dashMeter=new DashMeter(scene,51);
   this.swordFill=scene.add.image(0,0,'ultimate-sword-fill').setScrollFactor(0).setDepth(49);
   alignSwordMeterFill(this.swordFill);
-  scene.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(52);
+  this.swordFrame=scene.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(52);
  }
   update(): void {
     if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.scene.time.now; }
@@ -56,23 +57,5 @@ export class ChapterHud {
   private updateAbilityHud(): void {
     this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');
   }
-  useUltimate():void {
-    const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.scene.time.now+900;
-    p.abilities.setSprint(false);
-    p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
-    // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
-    const start=this.scene.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
-    const sword=createUltimateSwordVisual(this.scene,start.x,start.y);
-    this.scene.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,scaleX:130/220,scaleY:20/25,duration:280,ease:'Cubic.InOut',onComplete:()=>{
-      sword.setScale((p.facing<0?-1:1)*130/220,20/25).setAngle(p.facing*-100);
-      this.scene.tweens.add({targets:sword,angle:p.facing*70,duration:360,ease:'Cubic.InOut'});
-      this.scene.time.delayedCall(160,()=>{
-        this.scene.events.emit('ultimate-strike',p);
-        const arc=this.scene.add.graphics().setPosition(p.sprite.x,p.sprite.y).setDepth(44).lineStyle(14,0xffda70,.75);
-        arc.beginPath().arc(0,0,125,-1.5,1.5).strokePath();
-        arc.setScale(p.facing,1);this.scene.tweens.add({targets:arc,alpha:0,duration:250,onComplete:()=>arc.destroy()});
-      });
-    }});
-    this.scene.time.delayedCall(900,()=>{sword.destroy();p.body.setAllowGravity(true);});
-  }
+  useUltimate():void {playUltimateSwing(this.scene,this.player,{frame:this.swordFrame,fill:this.swordFill});}
 }

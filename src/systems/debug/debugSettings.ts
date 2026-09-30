@@ -4,7 +4,8 @@ export const DEBUG_TOGGLES = {
   invincible: { label: 'Invincible' },
   infiniteUltimate: { label: 'Infinite ultimate' },
   infiniteJumps: { label: 'Infinite jumps' },
-  infiniteDashes: { label: 'Infinite dashes' }
+  infiniteDashes: { label: 'Infinite dashes' },
+  doubleSpeed: { label: 'Double speed' }
 } as const;
 export type DebugToggle = keyof typeof DEBUG_TOGGLES;
 

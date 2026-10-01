@@ -18,14 +18,11 @@ main > h1, main > p { display:none; }
 .entry.playing .entry-actions { display:none; }
 .entry .skip { position:absolute; bottom:20px; right:20px; font-size:13px; background:#050a11b0; }
 .entry.finished { opacity:0; pointer-events:none; }
-.debug-panel { position:fixed; top:6px; right:6px; z-index:90; max-height:calc(100dvh - 12px); overflow-y:auto; padding:3px 8px; background:#0d1520e6; border:2px solid #ff3b3b; border-radius:5px; box-shadow:0 0 8px #ff3b3b66; color:#c9d4e0; font:10px ui-monospace,Menlo,monospace; }
+.debug-panel { position:fixed; top:6px; right:6px; z-index:90; max-height:calc(100dvh - 12px); overflow-y:auto; padding:3px 8px; background:#0d1520d9; border:1px solid #4a5a6e; border-radius:5px; color:#c9d4e0; font:10px ui-monospace,Menlo,monospace; }
 .debug-panel[open] { width:190px; padding-bottom:6px; }
 .debug-panel[hidden] { display:none; }
 .debug-panel summary { cursor:pointer; color:#f4c875; text-transform:uppercase; letter-spacing:.06em; padding:2px 0; user-select:none; }
-.debug-panel > summary { color:#ff3b3b; font-weight:bold; font-size:11px; }
-.debug-panel > summary::marker { color:#ff3b3b; }
-.debug-off { float:right; display:flex; margin:0 0 0 10px; padding:1px; background:none; border:0; border-radius:3px; color:#ff3b3b; cursor:pointer; }
-.debug-off:hover { color:#fff; background:#ff3b3b; }
+.debug-panel > summary { color:#7f90a4; }
 .debug-content { display:grid; gap:3px; margin-top:3px; }
 .debug-content details > div { margin:2px 0 4px 10px; }
 .debug-link { color:#e8eef5; background:none; border:0; padding:1px 0; font:inherit; text-align:left; cursor:pointer; }

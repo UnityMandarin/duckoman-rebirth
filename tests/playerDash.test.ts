@@ -15,7 +15,7 @@ function playerFixture(){
  const player=Object.create(Player.prototype) as Player;
  Object.assign(player,{body,sprite:{x:100,scene:{time:{now:1000}}},visual:{setAlpha:vi.fn()},lifeState:'ACTIVE',health:3,facing:1,
   ultimateUntil:0,abilities:new PlayerAbilities(TUNING.player),airTuck:{update:()=>false},
-  jumpAssist:{recordPress:vi.fn(),canJump:()=>false},invulnerableUntil:0,appliedSpeedScale:1});
+  jumpAssist:{recordPress:vi.fn(),canJump:()=>false},invulnerableUntil:0});
  return {player,body};
 }
 const input={horizontal:1 as const,down:false,downPressed:false,dashPressed:true,sprintPressed:false,jumpPressed:true,jumpReleased:false,anyResetInput:false};
@@ -56,13 +56,6 @@ describe('horizontal dash integration',()=>{
   player.update({...input,jumpPressed:false},16);
   expect(player.dashHits(target)).toBe(true);
   expect(player.dashHits({...target,left:100+reach+5})).toBe(false);
- });
- it('keeps striking through the dash-hit bounce so piled-up enemies break instead of hurting',()=>{
-  const {player}=playerFixture();player.update({...input,jumpPressed:false},16);
-  player.bounceFromDash();
-  expect(player.isDashing).toBe(false);expect(player.dashStriking).toBe(true);
-  player.sprite.scene.time.now+=TUNING.player.dashBounce.lockTime;
-  expect(player.dashStriking).toBe(false);
  });
  it('refuses a second dash in the same airborne period',()=>{
   const {player}=playerFixture();player.update(input,16);

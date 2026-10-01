@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CASTLE_PLATFORMS } from '../src/data/castle';
-import { CASTLE_CHECKPOINT, JAIL_CHECKPOINT_SECTION, checkpointSpawnY, isCheckpointContact, shouldCheckpoint } from '../src/systems/checkpointPolicy';
+import { CASTLE_CHECKPOINT, JAIL_CHECKPOINT_SECTIONS, checkpointSpawnY, isCheckpointContact, shouldCheckpoint } from '../src/systems/checkpointPolicy';
 
 describe('chapter checkpoint policy', () => {
-  it('keeps jail to one midpoint checkpoint section', () => {
-    expect(Array.from({ length: 12 }, (_, index) => index).filter((index) => shouldCheckpoint('jail', index))).toEqual([JAIL_CHECKPOINT_SECTION]);
+  it('keeps the three authored jail rests', () => {
+    expect(Array.from({ length: 12 }, (_, index) => index).filter((index) => shouldCheckpoint('jail', index))).toEqual([...JAIL_CHECKPOINT_SECTIONS]);
     expect(Array.from({ length: 24 }, (_, index) => index).filter((index) => shouldCheckpoint('outside', index))).toEqual([3, 6, 9, 12, 15, 18, 21, 22]);
   });
   it('spawns castle Duckoman flush on the midpoint support', () => {

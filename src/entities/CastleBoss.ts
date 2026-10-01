@@ -12,8 +12,6 @@ import {showHitbox} from '../systems/DebugHitboxes';
 import {renderScale} from '../systems/renderScale';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
-import {spreadEnemies} from '../systems/EnemySeparation';
-import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -44,7 +42,7 @@ export class CastleBoss extends Dashable {
   private nextSummon=0;
   private summonArt:Phaser.GameObjects.Graphics;
   get transitioning():boolean{return this.aftermath?.transitioning??false;}
-  constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void) {
+  constructor(private scene:Phaser.Scene,private player:Player,private throwable:ThrowableObject,private terrain:Phaser.Physics.Arcade.StaticGroup,private say:(text:string)=>void,private onBossDefeated:()=>void=()=>{},alreadyDefeated=false) {
     super();
     this.image=scene.add.image(this.bossX,-120,'robot').setDisplaySize(210,210).setTint(0xc7c8db).setDepth(7);
     this.core=scene.add.image(this.bossX,-180,'ironwing-button').setDisplaySize(42,36).setDepth(16);
@@ -53,8 +51,8 @@ export class CastleBoss extends Dashable {
     this.summonArt=scene.add.graphics().setDepth(17);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
-    const strike=(s:UltimateStrike)=>{
-      if(!this.finished&&this.started!==undefined&&s.tryHit(this,this.bodyBounds)){
+    const strike=(p:Player)=>{
+      if(!this.finished&&this.started!==undefined&&Math.abs(p.sprite.x-this.image.x)<200&&Math.abs(p.sprite.y-this.image.y)<140){
         this.health.damage(4);this.retreatUntil=scene.time.now+1400;hitSpark(scene,this.image.x,this.image.y,1.4);
         if(this.health.hp===0)this.finish();
       }
@@ -64,6 +62,7 @@ export class CastleBoss extends Dashable {
     this.gate=scene.add.rectangle(8990,-200,80,1200,0,0).setAlpha(0).setDepth(4);
     scene.physics.add.existing(this.gate,true);(this.gate.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.gate);
+    if(alreadyDefeated){this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.sealPillars=[];this.image.destroy();this.core.destroy();this.wings.destroy();this.hud.clear();this.label.destroy();this.aftermath=new IronWingAftermath(scene,player,this.bossX,180,terrain);}
   }
   update(usePressed=false):void {
     const now=this.scene.time.now;
@@ -236,10 +235,10 @@ export class CastleBoss extends Dashable {
       }
       return true;
     });
-    spreadEnemies(this.minions.map(m=>m.enemy));
   }
   private finish():void {
     this.player.chargeUltimate(50);
+    this.onBossDefeated();
     this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.scene.cameras.main.zoomTo(renderScale(),700,'Sine.easeInOut');this.hud.clear();this.label.setText('');this.summonArt.clear();
     this.bombs.forEach(b=>{b.art.destroy();b.mark.destroy();});this.bombs=[];
     this.minions.forEach(m=>{m.enemy.defeat();m.colliders.forEach(c=>c.destroy());});this.minions=[];

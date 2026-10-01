@@ -33,7 +33,6 @@ export class Player {
   private recoilUntil = 0;
   private jumpCutAvailable = false;
   private dashMomentum: -1 | 0 | 1 = 0;
-  private appliedSpeedScale = 1;
   private dashStartedAt = -1000;
   private crouching = false;
   private readonly airTuck = new AirTuck();
@@ -72,13 +71,10 @@ export class Player {
   get dashDisabled(): boolean { return this.abilities.airDashSpent; }
   get dashCharge(): number { return this.abilities.dashCharge(this.sprite.scene.time.now); }
   get isDashing(): boolean { return this.abilities.isDashing(this.sprite.scene.time.now); }
-  /** Dashing, or still bouncing off a dash hit: enemies piled up with the one that was hit break too instead of hurting. */
-  get dashStriking(): boolean { return this.isDashing || (this.canAct && this.sprite.scene.time.now < this.recoilUntil); }
   get sprinting(): boolean { return this.abilities.sprinting; }
   /** Objects that enemy overlaps should be registered against. */
   get enemyContactTargets(): Phaser.GameObjects.GameObject[] { return [this.sprite, this.dashHitboxZone]; }
-  private get speedScale(): number { return debugToggle('doubleSpeed') ? 2 : 1; }
-  get dashVelocity(): { x: number; y: number } { return { x: this.facing * TUNING.player.dashSpeed * this.speedScale, y: 0 }; }
+  get dashVelocity(): { x: number; y: number } { return { x: this.facing * TUNING.player.dashSpeed, y: 0 }; }
   get dashHitbox(): Circle { return { x: this.body.center.x, y: this.body.center.y, radius: TUNING.player.dashHitboxRadius }; }
   dashHits(target: Rect): boolean { return this.isDashing && circleIntersectsRect(this.dashHitbox, target); }
   private get dashHitboxBody(): Phaser.Physics.Arcade.Body { return this.dashHitboxZone.body as Phaser.Physics.Arcade.Body; }
@@ -86,10 +82,6 @@ export class Player {
   update(input: InputSnapshot, _deltaMs: number): void {
     if (debugToggle('infiniteUltimate')) this.ultimateCharge = 100;
     this.abilities.unlimitedDashes = debugToggle('infiniteDashes');
-    if (this.speedScale !== this.appliedSpeedScale) {
-      this.appliedSpeedScale = this.speedScale;
-      this.body.setMaxVelocity(TUNING.player.dashSpeed * this.speedScale, TUNING.player.maxFallVelocity);
-    }
     if(this.usingUltimate){this.body.setVelocity(0,0);return;}
     const now = this.sprite.scene.time.now;
     this.body.setAllowGravity(true);
@@ -135,12 +127,12 @@ export class Player {
     } else if (now < this.recoilUntil) {
       // Keep the dash bounce velocity instead of steering out of it.
     } else if (this.dashMomentum !== 0) {
-      this.body.setVelocityX(this.dashMomentum * TUNING.player.dashSpeed * this.speedScale);
+      this.body.setVelocityX(this.dashMomentum * TUNING.player.dashSpeed);
     } else if (this.crouching && this.grounded) {
       this.body.setVelocityX(0);
     } else {
       const moveSpeed = this.abilities.sprinting ? TUNING.player.sprintSpeed : TUNING.player.maxRunSpeed;
-      this.body.setVelocityX(input.horizontal * moveSpeed * this.speedScale);
+      this.body.setVelocityX(input.horizontal * moveSpeed);
     }
 
     if (canJump && this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime)) {
@@ -196,6 +188,7 @@ export class Player {
       this.body.setVelocity(0, 0).setEnable(false);
       this.visual.setAlpha(0.35);
     }
+    this.sprite.scene.events?.emit('player-damaged', amount);
     return true;
   }
 

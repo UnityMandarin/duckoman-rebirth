@@ -14,7 +14,6 @@ export class ThrowableObject {
   private readonly spawn: Phaser.Math.Vector2;
   private hasHitEnemyThisThrow = false;
   private settledSince: number | undefined;
-  private thrownAt = -Infinity;
   private readonly actionHint:Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -36,13 +35,9 @@ export class ThrowableObject {
 
   get isIdle(): boolean { return this.state === 'IDLE'; }
   get isThrown(): boolean { return this.state === 'THROWN'; }
-  private get sinceThrow(): number { return this.sprite.scene.time.now - this.thrownAt; }
-  /** Resting cake, or one thrown long enough ago to catch before it lands. */
-  get catchable(): boolean { return this.isIdle || (this.isThrown && this.sinceThrow >= TUNING.throwable.catchDelay); }
-  get throwReady(): boolean { return this.sinceThrow >= TUNING.throwable.throwCooldown; }
 
   carry(player: Player): void {
-    if (!this.catchable) return;
+    if (!this.isIdle) return;
     this.state = 'CARRIED';
     this.body.setVelocity(0, 0).setEnable(false);
     this.follow(player);
@@ -54,8 +49,7 @@ export class ThrowableObject {
   }
 
   throw(player: Player): void {
-    if (this.state !== 'CARRIED' || !this.throwReady) return;
-    this.thrownAt = this.sprite.scene.time.now;
+    if (this.state !== 'CARRIED') return;
     const component = Math.cos(Phaser.Math.DegToRad(TUNING.throwable.launchAngleDegrees)) * TUNING.throwable.launchSpeed;
     this.state = 'THROWN';
     this.hasHitEnemyThisThrow = false;
@@ -98,7 +92,7 @@ export class ThrowableObject {
   }
 
   private syncVisual(): void {
-    this.actionHint.setVisible(this.state==='CARRIED'&&this.throwReady).setPosition(this.sprite.x,this.sprite.y-42);
+    this.actionHint.setVisible(this.state==='CARRIED').setPosition(this.sprite.x,this.sprite.y-42);
     this.visual.setPosition(this.sprite.x, this.sprite.y);
     if (this.state === 'THROWN') this.visual.rotation += this.body.velocity.x * 0.0048 * this.sprite.scene.game.loop.delta / 1000;
     else this.visual.rotation = 0;

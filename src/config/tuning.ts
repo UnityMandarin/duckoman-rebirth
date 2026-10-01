@@ -58,11 +58,7 @@ export const TUNING = {
     settleSpeed: 35,
     settleDuration: 150,
     carryOffset: { x: 10, y: -10 },
-    enemyHitVelocityMultiplier: 0.35,
-    /** After a throw, the cake can be caught this long later even if it's still flying or rolling. */
-    catchDelay: 1000,
-    /** Minimum time between throws, counted from the previous throw. */
-    throwCooldown: 1000
+    enemyHitVelocityMultiplier: 0.35
   },
   contacts: { stompTopTolerance: 8 }
 } as const;

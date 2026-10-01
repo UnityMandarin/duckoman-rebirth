@@ -9,6 +9,7 @@ import { showHitbox, tagBody } from './DebugHitboxes';
 interface SpikeTrap {kind:'spikes';x:number;groundY:number;art:Phaser.GameObjects.Image;}
 interface CrusherTrap {kind:'crusher';x:number;groundY:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;nextStrike:number;warnAt:number;activeUntil:number;}
 type Trap=SpikeTrap|CrusherTrap;
+export const CASTLE_BREAKABLE_SIZE={width:42,height:130} as const;
 
 export class CastleMechanisms {
   private traps:Trap[]=[];
@@ -16,25 +17,27 @@ export class CastleMechanisms {
   private storyIndex=0;
   private caption:Phaser.GameObjects.Text;
   private captionUntil=0;
-  constructor(private scene:Phaser.Scene,private player:Player,throwable:ThrowableObject,_terrain:Phaser.Physics.Arcade.StaticGroup) {
+  private readonly onGateOpen:(id:number)=>void;private readonly onSecret:(id:number)=>void;
+  constructor(private scene:Phaser.Scene,private player:Player,throwable:ThrowableObject,_terrain:Phaser.Physics.Arcade.StaticGroup,onGateOpen:(id:number)=>void=()=>{},onSecret:(id:number)=>void=()=>{},opened:number[] = [],secrets:number[] = []) {
+    this.onGateOpen=onGateOpen;this.onSecret=onSecret;
     this.caption=scene.add.text(320,350,'',{fontFamily:'Georgia',fontSize:'15px',color:'#ffe5ab',stroke:'#030811',strokeThickness:5,align:'center',wordWrap:{width:530}}).setOrigin(.5).setScrollFactor(0).setDepth(25);
 
     // The only second-layer spaces are small, trapped dead ends behind these walls.
-    for(const [x,y] of [[3370,300],[6380,300],[7980,300]] as const) {
-      const wall=scene.add.image(x,y,'masonry','trimmed').setDisplaySize(42,130).setDepth(3).setTint(0xb49a73);
-      scene.physics.add.existing(wall,true);tagBody(wall,'target');
-      const crack=scene.add.graphics().setDepth(4).lineStyle(2,0xffcb73,.9)
-        .lineBetween(x-5,y-55,x+9,y-20).lineBetween(x+9,y-20,x-8,y+12).lineBetween(x-8,y+12,x+4,y+55);
-      const breakable=new BreakableWall(scene,wall,[crack]);
+    for(const [i,[x,y]] of ([[3370,300],[6380,300],[7980,300]] as const).entries()) {
+      const solid=scene.add.rectangle(x,y,CASTLE_BREAKABLE_SIZE.width,CASTLE_BREAKABLE_SIZE.height,0,0);
+      scene.physics.add.existing(solid,true);tagBody(solid,'target');
+      const wall=scene.add.image(x,y,'cracked-stone-wall').setDisplaySize(CASTLE_BREAKABLE_SIZE.width,CASTLE_BREAKABLE_SIZE.height).setDepth(3);
+      const breakable=new BreakableWall(scene,solid,[wall]);
+      if(secrets.includes(i))breakable.break(undefined,false);
       this.walls.push(breakable);
-      scene.physics.add.collider(player.sprite,wall);
-      scene.physics.add.collider(throwable.sprite,wall,()=>{
-        if(throwable.registerEnemyHit())breakable.break({x:throwable.body.velocity.x,y:throwable.body.velocity.y});
+      scene.physics.add.collider(player.sprite,solid);
+      scene.physics.add.collider(throwable.sprite,solid,()=>{
+        if(throwable.registerEnemyHit()&&!breakable.isBroken){breakable.break({x:throwable.body.velocity.x,y:throwable.body.velocity.y});this.onSecret(i);}
       });
     }
 
     // Full-height locks make every button mandatory; the generated art explains the pairing.
-    for(const [buttonX,gateX,groundY] of [[4020,4225,360],[7070,7310,360],[8740,8940,360]] as const) {
+    for(const [index,[buttonX,gateX,groundY]] of ([[4020,4225,360],[7070,7310,360],[8740,8940,360]] as const).entries()) {
       const gateBody=scene.add.rectangle(gateX,(CASTLE.top+groundY)/2,26,groundY-CASTLE.top,0,0);
       scene.physics.add.existing(gateBody,true);scene.physics.add.collider(player.sprite,gateBody);
       const gate=scene.add.image(gateX,groundY,'lock-kit','door').setOrigin(.5,1).setDisplaySize(116,230).setDepth(4);
@@ -42,9 +45,10 @@ export class CastleMechanisms {
       const button=scene.add.image(buttonX,groundY,'lock-kit','button').setOrigin(.5,1).setDisplaySize(54,16).setDepth(5);
       const trigger=scene.add.rectangle(buttonX,groundY-5,54,10,0,0);
       scene.physics.add.existing(trigger,true);tagBody(trigger,'interact');
-      let opened=false;
+      let isOpen=opened.includes(index);
+      if(isOpen){(gateBody.body as Phaser.Physics.Arcade.StaticBody).enable=false;gate.setVisible(false);button.setTint(0x77ffff);}
       scene.physics.add.overlap(player.sprite,trigger,()=>{
-        if(opened)return;opened=true;
+        if(isOpen)return;isOpen=true;this.onGateOpen(index);
         (gateBody.body as Phaser.Physics.Arcade.StaticBody).enable=false;
         button.setTint(0x77ffff);
         scene.tweens.add({targets:[gate,gateBody],y:CASTLE.top+40,alpha:.12,duration:650});
@@ -70,7 +74,7 @@ export class CastleMechanisms {
     const now=this.scene.time.now,p=this.player.body;
     if(this.storyIndex<STORY.length&&this.player.sprite.x>=STORY[this.storyIndex].x)this.say(STORY[this.storyIndex++].text);
     this.caption.setAlpha(Math.min(1,Math.max(0,(this.captionUntil-now)/600)));
-    for(const wall of this.walls)wall.checkDash(this.player);
+    this.walls.forEach((wall,i)=>{const wasBroken=wall.isBroken;wall.checkDash(this.player);if(!wasBroken&&wall.isBroken)this.onSecret(i);});
     for(const t of this.traps) {
       if(t.kind==='spikes') {
         const pulse=.7+Math.sin(now*.012+t.x)*.3;

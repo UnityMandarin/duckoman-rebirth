@@ -7,7 +7,6 @@ import type {KillImpulse} from '../systems/debrisMath';
 import {scatterDebris} from '../systems/DebrisBurst';
 import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
-import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 const SPIKE={bodyWidth:46,bodyHeight:84,spikeWidth:10,spikeHeight:22,displayHeight:84,displayWidth:59};
 
@@ -27,8 +26,9 @@ export class BasicEnemy extends Dashable {
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
   private jumpAt=0;
+  private awake?:boolean;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, private readonly patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string) {
+  constructor(scene: Phaser.Scene, x: number, y: number, private patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string) {
     super();
     this.pointed=pointed;
     this.jumper=jumper;
@@ -53,19 +53,22 @@ export class BasicEnemy extends Dashable {
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.cleanup=()=>scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
-    const strike=(s:UltimateStrike)=>{
-      const bounds=this.dashBounds();
-      if(bounds&&s.tryHit(this,bounds)){
-        const dx=this.sprite.x-s.hand.x,dy=this.sprite.y-s.hand.y,len=Math.hypot(dx,dy)||1;
-        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))s.player.chargeUltimate(10);
+    const strike=(player:Player)=>{
+      if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
+        const dx=this.sprite.x-player.sprite.x,dy=this.sprite.y-player.sprite.y,len=Math.hypot(dx,dy)||1;
+        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))player.chargeUltimate(10);
       }
     };
     scene.events.on('ultimate-strike',strike);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
   }
 
+  setPatrolBounds(bounds:{left:number;right:number}):void { this.patrol={...bounds}; }
+
   setAwake(awake:boolean):void {
     if(this.defeated)return;
+    if(this.awake===awake)return;
+    this.awake=awake;
     this.body.setEnable(awake);this.visual.setVisible(awake);
     this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
   }

@@ -1,8 +1,8 @@
 import type Phaser from 'phaser';
 import { SECTION_WIDTH } from '../../data/chapters';
 import { HITBOX_LEGEND } from '../DebugHitboxes';
-import { CASTLE_BOSS_CHECKPOINT } from '../checkpointPolicy';
 import { DEBUG_TOGGLES, debugToggleSetting, setDebugToggle, type DebugToggle } from './debugSettings';
+import {markCampaignRunIneligible} from './debugSettings';
 
 export interface DebugSection { title: string; body: HTMLElement; refresh?: () => void; }
 export type DebugSectionFactory = (game: Phaser.Game) => DebugSection;
@@ -32,7 +32,6 @@ function toggleList(title: string, toggles: DebugToggle[]): DebugSection {
 
 const LEVELS: { label: string; scene: string; data?: object }[] = [
   { label: 'Castle', scene: 'gate-1' },
-  { label: 'Castle · IronWing', scene: 'gate-1', data: { checkpoint: CASTLE_BOSS_CHECKPOINT.x } },
   { label: 'Jail', scene: 'jail' },
   { label: 'Wildlands', scene: 'outside' },
   { label: 'Wildlands · Antler Regent', scene: 'outside', data: { checkpoint: 22 * SECTION_WIDTH + 120 } },
@@ -45,8 +44,9 @@ const levelSelect: DebugSectionFactory = game => {
   for (const level of LEVELS) {
     const button = element('button', 'debug-link', level.label);
     button.onclick = () => {
+      markCampaignRunIneligible();
       // Phaser keeps a scene's previous start data unless new data is passed, which would reuse old checkpoints.
-      const data = { ...level.data };
+      const data = { ...level.data, devPreview:true };
       const current = game.scene.getScenes(true)[0];
       if (current) current.scene.start(level.scene, data);
       else game.scene.start(level.scene, data);
@@ -56,7 +56,7 @@ const levelSelect: DebugSectionFactory = game => {
   return { title: 'Level select', body };
 };
 
-const cheats: DebugSectionFactory = () => toggleList('Cheats', ['invincible', 'infiniteUltimate', 'infiniteJumps', 'infiniteDashes', 'doubleSpeed']);
+const cheats: DebugSectionFactory = () => toggleList('Cheats', ['invincible', 'infiniteUltimate', 'infiniteJumps', 'infiniteDashes']);
 
 const view: DebugSectionFactory = () => {
   const { row, refresh } = toggleRow('hitboxes');

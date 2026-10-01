@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {damp} from './atmosphereMath';
 import type { Player } from '../entities/Player';
 import type { ChapterKind } from '../data/chapters';
+import {projectedInView} from './performancePolicy';
 
 type SceneryKind = ChapterKind | 'castle';
 type AtlasFrame = 'arch' | 'pillar' | 'banner' | 'scrap';
@@ -31,8 +32,10 @@ export class ChapterScenery {
   update(player: Player): void {
     if (!this.banners.length) return;
     const now = this.scene.time.now, camera = this.scene.cameras.main;
+    for(const banner of this.banners)banner.image.setVisible(projectedInView(banner.homeX,banner.homeY+banner.image.displayHeight/2,banner.image.displayWidth,banner.image.displayHeight,camera.scrollX,camera.scrollY,banner.image.scrollFactorX,banner.image.scrollFactorY,camera.displayWidth,camera.displayHeight,120));
     if (!this.motion?.matches) {
       for (const banner of this.banners) {
+        if(!banner.image.visible)continue;
         const projected = banner.homeX - camera.scrollX * 0.8;
         const playerProjected = player.sprite.x - camera.scrollX;
         const influence = Math.max(0, 1 - Math.abs(projected - playerProjected) / 120);
@@ -43,10 +46,12 @@ export class ChapterScenery {
       else this.updateFalling(this.scrolls, player, Math.min(40, this.scene.game.loop.delta), now, 4000, 500);
     }
     if(this.motion?.matches){
-      for(const banner of this.banners)banner.image.setAngle(0);
+      for(const banner of this.banners)if(banner.image.visible)banner.image.setAngle(0);
       for(const item of [...this.cloth,...this.scrolls]){item.active=false;item.image.setVisible(false);}
     }
     for (const pillar of this.nearPillars) {
+      const visible=projectedInView(pillar.x,pillar.y-pillar.displayHeight/2,pillar.displayWidth,pillar.displayHeight,camera.scrollX,camera.scrollY,pillar.scrollFactorX,pillar.scrollFactorY,camera.displayWidth,camera.displayHeight,120);
+      pillar.setVisible(visible);if(!visible)continue;
       const renderedX = pillar.x - camera.scrollX * 0.12;
       const distance = Math.abs(renderedX - player.sprite.x);
       pillar.setAlpha(damp(pillar.alpha,0.12 + 0.16 * Phaser.Math.Clamp((distance - 65) / 100, 0, 1),7,this.scene.game.loop.delta));

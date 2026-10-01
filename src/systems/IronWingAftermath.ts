@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
+import {loadProgress,saveProgress,updateChapter,unlockAfter,sceneDataFromProgress,canPersistCampaign} from './progress';
+import {campaignRunEligible} from './debug/debugSettings';
 
 export function gearExplosion(scene:Phaser.Scene,x:number,y:number,count=20):void {
   const flash=scene.add.circle(x,y,12,0xffedb0).setDepth(40);
@@ -45,6 +47,7 @@ export class IronWingAftermath {
   }
   private activate():void {
     if(this.activated||!this.player.active)return;
+    if(canPersistCampaign({devPreview:!!this.scene.registry.get('devPreview'),infiniteHealth:this.player.infiniteHealth,runEligible:campaignRunEligible()})){let p=loadProgress();p=updateChapter(p,'gate-1',{bossDefeated:true,charge:this.player.ultimateCharge});p=unlockAfter('gate-1',p);p.currentScene='jail';saveProgress(p);}
     this.activated=true;this.hint.destroy();
     this.scene.cameras.getCamera('hud')?.setVisible(false);
     gearExplosion(this.scene,this.eye.x,this.eye.y,10);this.eye.destroy();
@@ -54,7 +57,7 @@ export class IronWingAftermath {
       const camera=this.scene.cameras.main;
       camera.fadeOut(120,0,0,0);
       this.scene.time.delayedCall(120,()=>this.scene.time.delayedCall(2000,()=>{
-        this.scene.scene.start('jail',{infiniteHealth:this.player.infiniteHealth});
+        const p=loadProgress();this.scene.scene.start('jail',{...sceneDataFromProgress(p,'jail'),infiniteHealth:this.player.infiniteHealth,devPreview:!!this.scene.registry.get('devPreview')});
       }));
     });
   }

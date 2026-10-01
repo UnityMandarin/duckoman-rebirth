@@ -1,0 +1,9 @@
+import Phaser from 'phaser';
+const images:[string,string][]=[
+ ['castle-background','assets/gate3/royal-hall.png'],['castle-depth','assets/gate3/royal-hall.png'],['ironwing-button','assets/gate3/ironwing-button.png'],['ironwing-bomb','assets/gate3/ironwing-bomb.png'],['ironwing-eye','assets/gate3/ironwing-eye.png'],['duckoman','assets/gate3/duckoman.png'],['robot-health','assets/tutorial/robot-health.png'],['dash-arrows-wind','assets/tutorial/dash-arrows-wind.png'],['robot','assets/gate3/robot.png'],['cake','assets/gate3/cake.png'],['masonry','assets/gate3/masonry.png'],['spike-robot','assets/gate3/spike-robot.png'],['jumper-robot','assets/gate3/jumper-robot.png'],['spike-platform','assets/gate3/spike-platform.png'],['lock-kit','assets/gate3/lock-kit.png'],['rock-pillar-kit','assets/gate3/rock-pillar-kit.png'],['rest-lantern','assets/chapters/rest-lantern.png'],['prison-atlas','assets/depth/prison-atlas.png'],['royal-scroll','assets/depth/royal-scroll.png'],['royal-archive','assets/depth/royal-archive.png'],['ultimate-sword-frame','assets/hud/ultimate-sword-frame.png'],['ultimate-sword-fill','assets/hud/ultimate-sword-fill.png'],['chained-lock','assets/menu/chained-lock.png'],['cracked-stone-wall','assets/environment/cracked-stone-wall.png']
+];
+export function preloadCommon(scene:Phaser.Scene):void {for(const [key,path] of images)if(!scene.textures.exists(key))scene.load.image(key,`${import.meta.env.BASE_URL}${path}`);}
+export function registerCommonFrames(scene:Phaser.Scene):void {
+ const add=(key:string,name:string,x:number,y:number,w:number,h:number)=>{const texture=scene.textures.get(key);if(texture&&!texture.has(name))texture.add(name,0,x,y,w,h);};
+ add('masonry','trimmed',28,112,1980,456);add('lock-kit','door',10,10,915,990);add('lock-kit','button',1015,790,510,210);add('rock-pillar-kit','pillar',1100,10,435,1000);add('spike-platform','hazard',16,175,1740,505);
+}

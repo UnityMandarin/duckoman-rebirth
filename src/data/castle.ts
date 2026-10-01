@@ -46,8 +46,7 @@ export const CASTLE_PLATFORMS = PLATFORM_LAYOUT.filter(p =>
   p.height===40 || p.x>=8960 || (p.y>=195 && p.width>=130)
 );
 // A raised 320px gap: sprint + full jump + extended dash; floor catches misses.
-// The far side is split so its low first step can be reached with one jump from the floor.
-CASTLE_PLATFORMS.push({x:4790,y:230,width:220,height:24},{x:5270,y:275,width:100,height:24},{x:5390,y:230,width:100,height:24});
+CASTLE_PLATFORMS.push({x:4790,y:230,width:220,height:24},{x:5330,y:230,width:220,height:24});
 CASTLE_PLATFORMS.push({x:4610,y:300,width:140,height:24});
 
 export type CastleEnemySpawn={x:number;y:number;left:number;right:number;pointed:boolean;jumper:boolean};

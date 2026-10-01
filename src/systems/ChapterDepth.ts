@@ -4,22 +4,22 @@ import type { ChapterKind, Ledge } from '../data/chapters';
 import { Atmosphere } from './Atmosphere';
 import { ChapterScenery } from './ChapterScenery';
 import { findSurfaceBelow, surfaceTop, type DepthSurfaceGeometry } from './chapterDepthMath';
+import {nearbySectionIndexes} from './performancePolicy';
 
 /** Keeps live contact shadowing beside the painted chapter composition. */
 export class ChapterDepth {
-  private readonly scenery: ChapterScenery;
+  private readonly scenery?: ChapterScenery;
   private readonly atmosphere: Atmosphere;
-  private geometryCache:DepthSurfaceGeometry[]=[];
-  private surfaces: readonly ChapterDepthSurface[] = [];
+  private readonly geometryBuckets=new Map<number,{surface:ChapterDepthSurface;geometry:DepthSurfaceGeometry}[]>();
   private shadow?: Phaser.GameObjects.Ellipse;
   private player?: Player;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind | 'castle', private readonly width: number) {
-    this.scenery = new ChapterScenery(scene, kind, width);
+  constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind | 'castle', private readonly width: number, decorate=true) {
+    if(decorate)this.scenery = new ChapterScenery(scene, kind, width);
     this.atmosphere=new Atmosphere(scene,kind);
   }
 
-  setSurfaces(surfaces: readonly ChapterDepthSurface[]): void { this.surfaces = surfaces;this.geometryCache=surfaces.map((surface,id)=>this.geometry(surface,id)); }
+  setSurfaces(surfaces: readonly ChapterDepthSurface[]): void {this.geometryBuckets.clear();surfaces.forEach((surface,id)=>{const geometry=this.geometry(surface,id),section=Math.floor(geometry.x/1440),bucket=this.geometryBuckets.get(section)??[];bucket.push({surface,geometry});this.geometryBuckets.set(section,bucket);});}
   setPlayer(player: Player): void {
     this.player = player;
     // The painted near plane is in front; the actor remains above gameplay art and below HUD.
@@ -29,7 +29,7 @@ export class ChapterDepth {
 
   update(): void {
     if (!this.player) return;
-    this.scenery.update(this.player);
+    this.scenery?.update(this.player);
     this.atmosphere.update(this.player,this.scene.game.loop.delta);
     this.updateShadow();
   }
@@ -42,11 +42,8 @@ export class ChapterDepth {
   private updateShadow(): void {
     if (!this.shadow || !this.player) return;
     const body = this.player.body;
-    const surfaces=this.geometryCache;
-    for(let i=0;i<this.surfaces.length;i++){
-      const body=this.surfaces[i].shape.body as Phaser.Physics.Arcade.StaticBody;
-      const geometry=surfaces[i];geometry.x=body.center.x;geometry.y=body.center.y;geometry.width=body.width;geometry.height=body.height;geometry.enabled=body.enable;
-    }
+    const section=Math.floor(this.player.sprite.x/1440),surfaces:DepthSurfaceGeometry[]=[];
+    for(const index of nearbySectionIndexes(section,Math.ceil(this.width/1440),1))for(const {surface,geometry} of this.geometryBuckets.get(index)??[]){const shape=surface.shape.body as Phaser.Physics.Arcade.StaticBody;geometry.x=shape.center.x;geometry.y=shape.center.y;geometry.width=shape.width;geometry.height=shape.height;geometry.enabled=shape.enable;surfaces.push(geometry);}
     const floor = findSurfaceBelow({ left: body.left, right: body.right, bottom: body.bottom }, surfaces);
     if (!floor) { this.shadow.setVisible(false); return; }
     const distance = Math.max(0, surfaceTop(floor) - body.bottom);

@@ -56,9 +56,13 @@ export class InputController {
     const clearShift=()=>{this.leftShiftDown=false;};
     keyboard.on('keydown',shiftDown);keyboard.on('keyup',shiftUp);
     scene.game.events.on(Phaser.Core.Events.BLUR,clearShift);
+    scene.events.on(Phaser.Scenes.Events.PAUSE,clearShift);
+    scene.events.on(Phaser.Scenes.Events.SLEEP,clearShift);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{
       keyboard.off('keydown',shiftDown);keyboard.off('keyup',shiftUp);
       scene.game.events.off(Phaser.Core.Events.BLUR,clearShift);
+      scene.events.off(Phaser.Scenes.Events.PAUSE,clearShift);
+      scene.events.off(Phaser.Scenes.Events.SLEEP,clearShift);
     });
     this.reset = [...this.left, ...this.right, keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W), keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP), ...this.down, ...this.dash, ...this.sprint, ...this.jump];
     const queueReset=()=>{this.resetQueued=true;};

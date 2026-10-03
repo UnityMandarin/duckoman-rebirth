@@ -3,6 +3,7 @@ import type {Player} from './Player';
 import {Dashable} from './Dashable';
 import type {KillImpulse} from '../systems/debrisMath';
 import {WARDEN_RULES,chooseWardenPortal,createWardenController,damageWarden,recheckWardenPortal,tickWarden,wardenAcceptedDamage,wardenCanAct,wardenClawShape,wardenDashTouchesRibs,wardenLineHitsRect,wardenRibBounds,wardenSonicLine,wardenVulnerable,type WardenController,type WardenPhase} from '../systems/HollowWardenRules';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 export class HollowWarden extends Dashable {
  readonly image:Phaser.GameObjects.Image;
@@ -24,7 +25,7 @@ export class HollowWarden extends Dashable {
  private hitThisPhase=false;
  private alive=true;
  private revealUntil:number;
- private readonly strikeListener:(player:Player)=>void;
+ private readonly strikeListener:(strike:UltimateStrike)=>void;
  private readonly shutdownListener:()=>void;
  constructor(private readonly scene:Phaser.Scene,private readonly player:Player,onDefeated:()=>void,x=790,revealMs=2000){
   super();this.controller=createWardenController();this.revealUntil=scene.time.now+revealMs;
@@ -35,7 +36,12 @@ export class HollowWarden extends Dashable {
   this.noiseStatus=scene.add.text(414,10,'QUIET',{fontFamily:'Georgia',fontSize:'9px',color:'#99b4ba'}).setScrollFactor(0).setDepth(62);
   this.healthText=scene.add.text(414,30,'WARDEN · 32 / 32',{fontFamily:'Georgia',fontSize:'9px',color:'#e4c18a'}).setScrollFactor(0).setDepth(62);
   this.directionText=scene.add.text(414,49,'→ LISTEN',{fontFamily:'Georgia',fontSize:'9px',color:'#a9c4c8'}).setScrollFactor(0).setDepth(62);
-  this.strikeListener=(source)=>{if(source!==this.player||!this.alive||!source.usingUltimate)return;this.accept('ultimate');};
+  this.strikeListener=(strike)=>{
+    if(strike.player!==this.player||!this.alive||!strike.player.usingUltimate)return;
+    const r=wardenRibBounds(this.image.x);
+    if(!strike.tryHit(this,{left:r.x,right:r.x+r.width,top:r.y,bottom:r.y+r.height}))return;
+    this.accept('ultimate');
+  };
   this.shutdownListener=()=>this.shutdown();scene.events.on('ultimate-strike',this.strikeListener);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.shutdownListener);
   this.onDefeated=onDefeated;
  }

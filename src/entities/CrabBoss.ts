@@ -6,6 +6,7 @@ import {rectsOverlap,type Rect} from '../systems/contactRules';
 import {showHitbox} from '../systems/DebugHitboxes';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 /** A single, readable attack schedule: claw, charge, then pillars, repeated. */
 export class CrabBoss extends Dashable {
@@ -37,7 +38,7 @@ export class CrabBoss extends Dashable {
   this.warnings=scene.add.graphics().setDepth(9);this.bar=scene.add.graphics().setScrollFactor(0).setDepth(51);
   this.name=scene.add.text(518,18,'CRIMSON CLAW · 20 / 20',{fontSize:'10px',color:'#ffc5b4'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
   for(let i=0;i<CRAB_RULES.pillarCount;i++)this.pillars.push(scene.add.image(0,-400,'rock-pillar-kit','pillar').setDisplaySize(62,260).setTint(0xf06169).setDepth(13).setVisible(false));
-  const strike=()=>{if(this.engaged&&Math.abs(player.sprite.x-this.image.x)<230&&Math.abs(player.sprite.y-290)<140)this.damage('ultimate');};
+  const strike=(s:UltimateStrike)=>{if(this.engaged&&this.hp>0&&s.tryHit(this,this.shellBounds))this.damage('ultimate');};
   scene.events.on('ultimate-strike',strike);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
   this.draw(0);
  }

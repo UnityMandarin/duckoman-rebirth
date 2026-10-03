@@ -7,6 +7,7 @@ import type {KillImpulse} from '../systems/debrisMath';
 import {scatterDebris} from '../systems/DebrisBurst';
 import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 const SPIKE={bodyWidth:46,bodyHeight:84,spikeWidth:10,spikeHeight:22,displayHeight:84,displayWidth:59};
 
@@ -25,7 +26,7 @@ export class BasicEnemy extends Dashable {
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
-  private readonly strike:(player:Player)=>void;
+  private readonly strike:(strike:UltimateStrike)=>void;
   private jumpAt=0;
   private awake?:boolean;
 
@@ -52,10 +53,11 @@ export class BasicEnemy extends Dashable {
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
-    this.strike=(player:Player)=>{
-      if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
-        const dx=this.sprite.x-player.sprite.x,dy=this.sprite.y-player.sprite.y,len=Math.hypot(dx,dy)||1;
-        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))player.chargeUltimate(10);
+    this.strike=(s:UltimateStrike)=>{
+      const bounds=this.dashBounds();
+      if(bounds&&s.tryHit(this,bounds)){
+        const dx=this.sprite.x-s.hand.x,dy=this.sprite.y-s.hand.y,len=Math.hypot(dx,dy)||1;
+        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))s.player.chargeUltimate(10);
       }
     };
     this.cleanup=()=>{scene.events.off(Phaser.Scenes.Events.POST_UPDATE,this.syncVisual,this);scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);};

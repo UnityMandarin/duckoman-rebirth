@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
-import { PlayerAbilities } from '../systems/PlayerAbilities';
+import { PlayerAbilities, dashBounceVelocity } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
 import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
@@ -41,6 +41,7 @@ export class Player {
   private landedAt = -1000;
   private ghosts:Phaser.GameObjects.Image[]=[];
   private lastSweatAt=0;
+  private holdingDown = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
@@ -99,6 +100,7 @@ export class Player {
     if (!this.canAct) return;
 
     if (input.horizontal !== 0) this.facing = input.horizontal;
+    this.holdingDown = !!input.down;
     this.setCrouching(input.down);
 
 
@@ -156,11 +158,12 @@ export class Player {
   }
 
   bounceFromDash(): void {
-    const { x, y, lockTime } = TUNING.player.dashBounce;
+    const { x, y } = dashBounceVelocity(TUNING.player.dashBounce, this.holdingDown);
     this.abilities.cancelTransient();
     this.dashMomentum = 0;
     this.body.setAllowGravity(true);
     this.body.setVelocity(-this.facing * x, y);
+    const { lockTime } = TUNING.player.dashBounce;
     this.recoilUntil = this.sprite.scene.time.now + lockTime;
     this.jumpCutAvailable = false;
   }

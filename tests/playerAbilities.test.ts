@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { PlayerAbilities } from '../src/systems/PlayerAbilities';
+import { PlayerAbilities, dashBounceVelocity } from '../src/systems/PlayerAbilities';
+import { TUNING } from '../src/config/tuning';
 
 const createAbilities = () => new PlayerAbilities({ dashCooldown: 1000 });
 
 describe('PlayerAbilities', () => {
+  it('holding down halves the dash bounce angle at the same speed', () => {
+    const bounce = TUNING.player.dashBounce;
+    expect(dashBounceVelocity(bounce, false)).toEqual({ x: bounce.x, y: bounce.y });
+    const flat = dashBounceVelocity(bounce, true), angle = (v: { x: number; y: number }) => Math.atan2(-v.y, v.x);
+    expect(angle(flat)).toBeCloseTo(angle(bounce) * .5);
+    expect(Math.hypot(flat.x, flat.y)).toBeCloseTo(Math.hypot(bounce.x, bounce.y));
+    expect(flat.y).toBeLessThan(0);
+  });
+
   it('enforces the one-second dash cooldown', () => {
     const abilities = createAbilities();
     expect(abilities.tryStartDash(1000, 170, true)).toBe(true);

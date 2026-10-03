@@ -1,13 +1,12 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
-import {alignSwordMeterFill,createUltimateSwordVisual,setSwordMeterCharge,SWORD_METER} from '../systems/SwordMeterArt';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import { BasicEnemy } from '../entities/BasicEnemy';
 import { Player } from '../entities/Player';
 import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
-import { DashMeter } from '../systems/DashMeter';
+import { ChapterHud } from '../systems/ChapterHud';
 import { FallingPillar } from '../entities/FallingPillar';
 import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
 import { CastleMechanisms } from '../systems/CastleMechanisms';
@@ -16,7 +15,7 @@ import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
 import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
-import { renderScale, setupRenderScale } from '../systems/renderScale';
+import { setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
 import {preloadCommon,registerCommonFrames} from './CommonAssets';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
@@ -25,12 +24,9 @@ import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/de
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
   private inputController!: InputController; private interactions!: InteractionSystem;
-  private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
+  private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
-  private hud!: Phaser.GameObjects.Graphics;
-  private swordFill!: Phaser.GameObjects.Image;
-  private displayedHealth = 3;
-  private healthChangedAt = -1000;
+  private hud!: ChapterHud;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
   private extraEnemies: BasicEnemy[] = [];
   private pillar!: FallingPillar;
@@ -38,7 +34,6 @@ export class Gate1Scene extends Phaser.Scene {
   private boss!: CastleBoss;
   private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
   private hudCamera!:Phaser.Cameras.Scene2D.Camera;
-  private dashMeter!:DashMeter;
   private depthPresentation!:ChapterDepth;
   private castleCheckpoint!:Phaser.GameObjects.Image;
   private checkpointX?:number;
@@ -104,14 +99,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.roundPixels=true;
     this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
     this.cameras.main.setDeadzone(96,150);
-    this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
-    this.swordFill=this.add.image(0,0,'ultimate-sword-fill').setScrollFactor(0).setDepth(19.5);
-    alignSwordMeterFill(this.swordFill);
-    this.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(20);
-    this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
-    this.dashMeter = new DashMeter(this, 20);
-    this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    this.updateHealthHud();
+    this.hud = new ChapterHud(this, this.player);
     this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
@@ -120,8 +108,6 @@ export class Gate1Scene extends Phaser.Scene {
       this.add.image(x,y,'dash-arrows-wind').setDisplaySize(100,70).setDepth(9);
       this.add.text(x,y+36,'K · DASH',{fontFamily:'Arial',fontSize:'10px',color:'#a6f8ff',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,0).setDepth(9);
     }
-    this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
     this.resetText.setDepth(30);
     this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
@@ -147,7 +133,7 @@ export class Gate1Scene extends Phaser.Scene {
       this.player.infiniteHealth=!this.player.infiniteHealth;
       if(this.player.infiniteHealth)this.player.health=TUNING.player.maxHealth;
     }
-    this.updateHealthHud();
+    this.hud.update();
     if (this.player.lifeState === 'DEAD') {
       // Finish the falling pillar instead of freezing it midair after a lethal hit.
       this.pillar.update();
@@ -164,69 +150,17 @@ export class Gate1Scene extends Phaser.Scene {
       this.saveCampaign();
     }
     this.depthPresentation.update();
-    if(input.ultimatePressed&&this.player.canAct&&this.player.ultimateCharge>=100&&!this.player.usingUltimate)this.useUltimate();
+    if(input.ultimatePressed&&this.player.canAct&&this.player.ultimateCharge>=100&&!this.player.usingUltimate)this.hud.useUltimate();
     if (this.player.canAct && input.throwPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
     this.pillar.update();
     this.mechanisms.update();
     this.boss.update(!!input.throwPressed);
-    this.updateAbilityHud();
+    this.hud.update();
   }
   private saveCampaign():void {if(this.boss?.transitioning||!canPersistCampaign({devPreview:this.devPreview,infiniteHealth:this.player?.infiniteHealth,runEligible:campaignRunEligible()}))return;let p=loadProgress();p=updateChapter(p,'gate-1',{checkpoint:this.checkpointX??0,charge:Math.max(0,Math.min(100,this.player?.ultimateCharge??0)),opened:this.opened,secrets:this.secrets,bossDefeated:this.bossDefeated});p.currentScene='gate-1';saveProgress(p);}
   private openMenu():void {this.saveCampaign();this.scene.pause();this.scene.launch('menu',{pausedScene:'gate-1'});}
-  private updateHealthHud(): void {
-    if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.time.now; }
-    this.healthText.setText('DUCKOMAN');
-    const g = this.hud.clear();
-    g.fillStyle(0x03070d, 0.7).fillRoundedRect(7, 4, 360, 72, 18);
-    g.fillStyle(0x090c10).fillCircle(43, 40, 31);
-    g.lineStyle(4, 0x70441a).strokeCircle(43, 40, 32);
-    g.lineStyle(1, 0xf9ce71).strokeCircle(43, 40, 29).strokeCircle(43, 40, 35);
-    for (let i=0;i<8;i++) { const a=i*Math.PI/4; g.fillStyle(0xe5aa42).fillCircle(43+Math.cos(a)*32,40+Math.sin(a)*32,2); }
-    const charge=this.player.usingUltimate?0:this.player.ultimateCharge/100;
-    setSwordMeterCharge(this.swordFill,charge);
-    for(let i=0;i<3;i++) {
-      const pulse=Math.max(0,1-(this.time.now-this.healthChangedAt)/420);
-      const x=221+i*32, y=17-Math.sin(pulse*Math.PI)*2;
-      const amount=Phaser.Math.Clamp(this.player.health-i,0,1);
-      g.fillStyle(0x190c17).fillCircle(x-4,y-2,6).fillCircle(x+4,y-2,6).fillTriangle(x-10,y-1,x+10,y-1,x,y+11);
-      // Each lobe and half-triangle is independent so 0.5 health is a true half heart.
-      for(let side=0;side<2;side++) {
-        const lit=amount>side*0.5;
-        const dir=side===0?-1:1;
-        g.fillStyle(lit?0xa90824:0x39232d).fillCircle(x+dir*4,y-2,5).fillTriangle(x,y-1,x+dir*9,y-1,x,y+9);
-        if(lit) {
-          g.fillStyle(0xf82c42).fillCircle(x+dir*4,y-3,4).fillTriangle(x,y-2,x+dir*7,y-2,x,y+6);
-          g.fillStyle(0xff8c92).fillEllipse(x+dir*4-1,y-5,4,2);
-          g.fillStyle(0xffded8,0.8).fillCircle(x+dir*4-2,y-5,0.9);
-        }
-      }
-    }
-    this.dashMeter.draw(g,this.player.dashCharge,this.player.dashDisabled);
-  }
-  private updateAbilityHud(): void {
-    this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');
-  }
-  private useUltimate():void {
-    const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.time.now+900;
-    p.abilities.setSprint(false);
-    p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
-    // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
-    const start=this.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
-    const sword=createUltimateSwordVisual(this,start.x,start.y);
-    this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,scaleX:130/220,scaleY:20/25,duration:280,ease:'Cubic.InOut',onComplete:()=>{
-      sword.setScale((p.facing<0?-1:1)*130/220,20/25).setAngle(p.facing*-100);
-      this.tweens.add({targets:sword,angle:p.facing*70,duration:360,ease:'Cubic.InOut'});
-      this.time.delayedCall(160,()=>{
-        this.events.emit('ultimate-strike',p);
-        const arc=this.add.graphics().setPosition(p.sprite.x,p.sprite.y).setDepth(44).lineStyle(14,0xffda70,.75);
-        arc.beginPath().arc(0,0,125,-1.5,1.5).strokePath();
-        arc.setScale(p.facing,1);this.tweens.add({targets:arc,alpha:0,duration:250,onComplete:()=>arc.destroy()});
-      });
-    }});
-    this.time.delayedCall(900,()=>{sword.destroy();p.body.setAllowGravity(true);});
-  }
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {

@@ -30,7 +30,8 @@ export const TUNING = {
     dashCooldown: 1000,
     dashHitboxRadius: 44,
     stompBounceVelocity: -450,
-    dashBounce: { x: 280, y: -320, lockTime: 220 },
+    /** `heldDownAngle` scales the bounce's launch angle while down is held, keeping its speed. */
+    dashBounce: { x: 280, y: -320, lockTime: 220, heldDownAngle: 0.5 },
     maxHealth: 3,
     contactDamage: 0.5,
     damageKnockback: { x: 100, y: -300 },

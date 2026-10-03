@@ -2,6 +2,16 @@ export interface PlayerAbilityConfig {
   dashCooldown: number;
 }
 
+/**
+ * Bounce velocity off a dash hit, moving away horizontally as positive `x`. Holding down flattens the launch
+ * angle by `heldDownAngle` while keeping the same speed.
+ */
+export function dashBounceVelocity(bounce: { x: number; y: number; heldDownAngle: number }, holdingDown: boolean): { x: number; y: number } {
+  if (!holdingDown) return { x: bounce.x, y: bounce.y };
+  const speed = Math.hypot(bounce.x, bounce.y), angle = Math.atan2(-bounce.y, bounce.x) * bounce.heldDownAngle;
+  return { x: Math.cos(angle) * speed, y: -Math.sin(angle) * speed };
+}
+
 export class PlayerAbilities {
   private dashUntil = 0;
   private nextDashAt = 0;

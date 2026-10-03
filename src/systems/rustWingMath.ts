@@ -1,8 +1,9 @@
+import type { Attack } from './attack';
 import { polygonIntersectsRect, type Point, type Rect } from './contactRules';
 
 export const RUSTWING_CYCLE = ['lurch', 'fire', 'swipe'] as const;
-/** Second form: the dome erupts between every other attack. */
-export const RUSTWING_MOLTEN_CYCLE = ['erupt', 'lurch', 'erupt', 'swipe', 'fire'] as const;
+/** Second form: the dome erupts between every other attack. No mouth fireballs. */
+export const RUSTWING_MOLTEN_CYCLE = ['erupt', 'lurch', 'erupt', 'swipe'] as const;
 export type RustAttack = (typeof RUSTWING_CYCLE)[number] | (typeof RUSTWING_MOLTEN_CYCLE)[number];
 export type RustForm = 1 | 2;
 export type RustPhase =
@@ -21,6 +22,8 @@ export const RUSTWING_RULES = {
   transformMs: 2400,
   hitLock: 650,
   contactDamage: 0.5,
+  /** Multiplier on Duckoman's usual hit shove. The charge throws him much harder than a touch. */
+  knockback: { contact: 1, swipe: 1, fireball: 1, magma: 1 },
   fireballDamage: 0.5,
   fireballRadius: 18,
   fireballSpeed: 150,
@@ -38,10 +41,15 @@ export const RUSTWING_RULES = {
   lurchMs: 420,
   lungeWindupMs: 780,
   lungeMs: 1400,
-  /** The lunge is a coin flip between dashing along the floor and leaping the same distance. */
+  /** How far the dash box sticks past the body's top and front. Back and bottom stay on the body. */
+  chargeLead: 16,
+  /** Used only when the duck is behind him on the third dash: chance the third move is a jump. */
   leapChance: 0.5,
   leapWindupMs: 780,
+  /** The jump always lasts this long. A nearer wall ends it early. */
   leapMs: 1000,
+  /** Horizontal speed of the leap, as a fraction of the floor dash. */
+  leapSpeed: 0.75,
   /** Takeoff downstroke: wings slam from fully raised to below level, then settle over twice this. */
   leapFlapMs: 140,
   /** Apex height of the leap's feet; the duck can run underneath for most of it. */
@@ -62,8 +70,10 @@ export const RUSTWING_RULES = {
   wingHitRadius: 16,
   /** Wing angles in screen degrees for a right-facing boss (0 = straight ahead, negative = up). */
   wingRestAngle: -20,
-  wingWindupAngle: -145,
-  wingSlashAngle: 32,
+  /** Raised start of the sweep. The arc is about two thirds of the old overhead swing and still finishes at wingSlashAngle. */
+  wingWindupAngle: -91,
+  /** End of the slash: low in front, but still above a crouching duck. */
+  wingSlashAngle: 17,
   wingRecoverMs: 280,
   restMs: 900,
   fireWindupMs: 640,
@@ -75,6 +85,8 @@ export const RUSTWING_RULES = {
   eruptGravity: 720,
   /** Horizontal launch speeds per volley, forward-positive; volleys alternate so the safe gaps move. */
   eruptVolleys: [[-150, -60, 30, 120, 210], [-200, -105, -15, 75, 165]] as const,
+  /** Dome shots that become magma globs once this much of the current bar is gone. */
+  magmaVolley: [{ lost: 0.25, count: 1 }, { lost: 0.5, count: 3 }, { lost: 0.75, count: 5 }] as const,
   /** Launch point: top of the dome, above the body's feet line. */
   eruptLaunchHeight: 116,
   /** Molten form lobs a magma glob from the dome on its own clock, regardless of the current attack. */
@@ -132,6 +144,13 @@ export function rustPhaseDuration(phase: RustPhase): number {
   return r.fireMs;
 }
 
+/** Phase 1 only: the facing map edge is inside half his full forward dash, so a spit cannot be dodged. */
+export function rustFireBlocked(x: number, facing: number, form: RustForm): boolean {
+  if (form !== 1) return false;
+  const ahead = facing < 0 ? x : RUSTWING_RULES.roomWidth - x;
+  return ahead <= (RUSTWING_RULES.right - RUSTWING_RULES.left) * 0.5;
+}
+
 export function nextRustAttack(cycle: number, form: RustForm = 1): RustAttack {
   const order: readonly RustAttack[] = form === 2 ? RUSTWING_MOLTEN_CYCLE : RUSTWING_CYCLE;
   return order[((cycle % order.length) + order.length) % order.length];
@@ -180,14 +199,69 @@ export function lurchTarget(x: number, facing: number): number {
   return clampRustX(x + facing * RUSTWING_RULES.lurchDistance);
 }
 
+/** Floor charge runs to the wall he is facing. */
 export function lungeTarget(facing: number): number {
   return facing > 0 ? RUSTWING_RULES.right : RUSTWING_RULES.left;
+}
+
+/** Where the jump lands: 75% dash speed for the fixed jump time, or the facing wall if that is closer. */
+export function leapTravelTarget(x: number, facing: number): number {
+  const dist = rustDashSpeed('leap') * RUSTWING_RULES.leapMs / 1000;
+  return clampRustX(x + facing * dist);
+}
+
+/**
+ * Third move, decided on that frame. In front and above his head: jump. In front and below: floor charge.
+ * Behind him: `roll` (0..1) against leapChance.
+ */
+export function rustThirdMove(bossX: number, bossY: number, facing: number, duckX: number, duckY: number, roll: number): 'leap' | 'lunge' {
+  if ((duckX - bossX) * facing < 0) return roll < RUSTWING_RULES.leapChance ? 'leap' : 'lunge';
+  const headY = bossY - RUSTWING_RULES.bodyHalfH;
+  return duckY < headY ? 'leap' : 'lunge';
 }
 
 /** Leap position at progress `t` (0..1): straight across horizontally, a parabola up and back down. */
 export function leapAt(fromX: number, toX: number, t: number): { x: number; height: number } {
   const c = Math.min(1, Math.max(0, t));
   return { x: clampRustX(fromX + (toX - fromX) * c), height: RUSTWING_RULES.leapHeight * 4 * c * (1 - c) };
+}
+
+/** Horizontal speed for a dash, so a full-length one still lasts its phase time and a short one finishes early. */
+export function rustDashSpeed(phase: 'lurch' | 'lunge' | 'leap'): number {
+  const r = RUSTWING_RULES;
+  if (phase === 'lurch') return r.lurchDistance / r.lurchMs * 1000;
+  const dash = (r.right - r.left) / r.lungeMs * 1000;
+  return phase === 'leap' ? dash * r.leapSpeed : dash;
+}
+
+/** Step toward `toX`. Stops on arrival or when the room wall clamps the move. */
+export function rustDashStep(x: number, toX: number, speed: number, dtMs: number): { x: number; stopped: boolean } {
+  const dir = Math.sign(toX - x);
+  if (dir === 0) return { x, stopped: true };
+  const next = x + dir * speed * Math.min(Math.max(dtMs, 0), 50) / 1000;
+  const arrived = dir > 0 ? next >= toX : next <= toX;
+  const unclamped = arrived ? toX : next;
+  const clamped = clampRustX(unclamped);
+  return { x: clamped, stopped: arrived || clamped !== unclamped };
+}
+
+/** Height of the leap arc at horizontal position `x`, from `fromX` toward `toX`. */
+export function leapHeightAt(fromX: number, toX: number, x: number): number {
+  const span = toX - fromX;
+  if (span === 0) return 0;
+  const c = Math.min(1, Math.max(0, (x - fromX) / span));
+  return RUSTWING_RULES.leapHeight * 4 * c * (1 - c);
+}
+
+/** Dash hurt box: the body, plus a little past the top and the facing side. */
+export function rustChargeRect(x: number, y: number, facing: number): Rect {
+  const body = rustBody(x, y), lead = RUSTWING_RULES.chargeLead;
+  return {
+    left: facing < 0 ? body.left - lead : body.left,
+    right: facing > 0 ? body.right + lead : body.right,
+    top: body.top - lead,
+    bottom: body.bottom
+  };
 }
 
 export function rustBody(x: number, y: number): Rect {
@@ -322,21 +396,62 @@ export function rustSwipeOutline(pivot: Point, facing: number, shift: number, ra
   return [pivot, ...rim, { x: pivot.x + shift, y: pivot.y }];
 }
 
-/** True if the full-size slash wing touched `rect` anywhere along its sweep from `from` to `to` degrees. */
-export function rustWingSweepHits(rect: Rect, pivot: Point, facing: number, from: number, to: number): boolean {
-  const reach = RUSTWING_RULES.swipeReach;
-  // Small enough that the tip never skips more than ~8px between samples.
-  const maxStep = 8 / reach * 180 / Math.PI;
-  const steps = Math.max(1, Math.ceil(Math.abs(to - from) / maxStep));
-  for (let i = 0; i <= steps; i++) {
-    if (wingTouches(wingHitPolygons(slashWing(pivot, facing, from + (to - from) * i / steps, reach)), rect)) return true;
-  }
-  return false;
+/** The painted slash: a crescent this many degrees behind the tip, this thick at the head, just past the wing's reach. */
+export const SLASH_TRAIL = { arc: 130, thick: 78, outerPad: 8 } as const;
+
+/** Crescent matching the slash trail. Empty when the arc has closed. */
+export function rustSlashCrescent(pivot: Point, facing: number, head: number, thick = SLASH_TRAIL.thick, arc = SLASH_TRAIL.arc, steps = 24): Point[] {
+  const outer = RUSTWING_RULES.swipeReach + SLASH_TRAIL.outerPad;
+  const tail = Math.max(RUSTWING_RULES.wingWindupAngle, head - arc);
+  if (head - tail < 1) return [];
+  const at = (deg: number, radius: number): Point => {
+    const a = deg * Math.PI / 180;
+    return { x: pivot.x + facing * Math.cos(a) * radius, y: pivot.y + Math.sin(a) * radius };
+  };
+  const outerEdge = Array.from({ length: steps + 1 }, (_, i) => at(tail + (head - tail) * i / steps, outer));
+  const innerEdge = Array.from({ length: steps + 1 }, (_, i) => {
+    const t = (steps - i) / steps;
+    return at(tail + (head - tail) * t, outer - thick * t ** 1.4);
+  });
+  return [...outerEdge, ...innerEdge];
+}
+
+export function rustSlashCrescentHits(rect: Rect, pivot: Point, facing: number, head: number): boolean {
+  const crescent = rustSlashCrescent(pivot, facing, head);
+  return crescent.length > 0 && polygonIntersectsRect(crescent, rect);
+}
+
+/**
+ * Thick band over every angle the slash has already reached, from the windup through `head`.
+ * `pivot` is the shoulder where the swing started; `shift` is how far it has glided forward since, in step with the arc.
+ */
+export function rustSlashArc(pivot: Point, facing: number, head: number, shift = 0, steps = 24): Point[] {
+  const outer = RUSTWING_RULES.swipeReach + SLASH_TRAIL.outerPad;
+  const inner = outer - SLASH_TRAIL.thick;
+  const tail = RUSTWING_RULES.wingWindupAngle;
+  if (head - tail < 1) return [];
+  const at = (e: number, radius: number): Point => {
+    const a = (tail + (head - tail) * e) * Math.PI / 180;
+    return { x: pivot.x + shift * e + facing * Math.cos(a) * radius, y: pivot.y + Math.sin(a) * radius };
+  };
+  const outerEdge = Array.from({ length: steps + 1 }, (_, i) => at(i / steps, outer));
+  const innerEdge = Array.from({ length: steps + 1 }, (_, i) => at((steps - i) / steps, inner));
+  return [...outerEdge, ...innerEdge];
+}
+
+export function rustSlashArcHits(rect: Rect, pivot: Point, facing: number, head: number, shift = 0): boolean {
+  const arc = rustSlashArc(pivot, facing, head, shift);
+  return arc.length > 0 && polygonIntersectsRect(arc, rect);
+}
+
+/** Mouth-shot speed. The first form fires them twice as fast as the second. */
+export function rustFireballSpeed(form: RustForm): number {
+  return RUSTWING_RULES.fireballSpeed * (form === 1 ? 2 : 1);
 }
 
 /** Fixed muzzle spray for the `volley`th fire attack; never tracks the player. */
-export function fireballVelocities(facing: number, volley = 0): { vx: number; vy: number }[] {
-  const speed = RUSTWING_RULES.fireballSpeed, patterns = RUSTWING_RULES.fireballPatterns;
+export function fireballVelocities(facing: number, volley = 0, speed = RUSTWING_RULES.fireballSpeed): { vx: number; vy: number }[] {
+  const patterns = RUSTWING_RULES.fireballPatterns;
   return patterns[((volley % patterns.length) + patterns.length) % patterns.length].map(angle => ({
     vx: facing * Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed
@@ -357,6 +472,26 @@ export function rustStepFrame(phase: RustPhase, elapsedMs: number, lurchesDone: 
     return cycle[Math.floor(Math.max(0, elapsedMs) / RUST_STEP.lungeFrameMs) % cycle.length];
   }
   return RUST_STEP.stand;
+}
+
+/** How many shots in a dome volley are magma, from how much of the current health bar is gone. */
+export function magmaVolleyCount(hp: number, max: number): number {
+  const lost = max <= 0 ? 0 : (max - hp) / max;
+  let count = 0;
+  for (const step of RUSTWING_RULES.magmaVolley) if (lost >= step.lost) count = step.count;
+  return count;
+}
+
+/** `count` distinct indexes in `0..total-1`. Each roll is 0..1 and picks among the indexes still left. */
+export function magmaVolleySlots(total: number, count: number, rolls: readonly number[]): number[] {
+  const bag = Array.from({ length: Math.max(0, total) }, (_, i) => i);
+  const picked: number[] = [];
+  const n = Math.max(0, Math.min(bag.length, count));
+  for (let i = 0; i < n; i++) {
+    const at = Math.min(bag.length - 1, Math.floor((rolls[i] ?? 0) * bag.length));
+    picked.push(bag.splice(at, 1)[0]);
+  }
+  return picked;
 }
 
 /** Straight-up dome volley; fixed per volley index, never aimed at the player. */
@@ -432,6 +567,13 @@ export function rustDeathAt(ms: number, fallDir: -1 | 1): { stage: RustDeathStag
   if (fallT < 1) return { stage: 'fall', shift: staggered, tilt: lean + (r.deathFallAngle * fallDir - lean) * fallT * fallT, frame: RUST_STEP.stand };
   const down = t - r.deathStumbleMs - r.deathFallMs;
   return { stage: down < r.deathDownMs ? 'down' : 'burst', shift: staggered, tilt: r.deathFallAngle * fallDir, frame: RUST_STEP.stand };
+}
+
+/** One of Rustwing's hits. `velocity` is added to the knockback; the charge passes his own speed. */
+export function rustHit(kind: keyof typeof RUSTWING_RULES.knockback, velocity?: { x: number; y: number }): Attack {
+  const rules = RUSTWING_RULES;
+  const damage = kind === 'fireball' ? rules.fireballDamage : kind === 'magma' ? rules.magmaDamage : rules.contactDamage;
+  return { damage, knockback: rules.knockback[kind], velocity };
 }
 
 export function rustDamage(attack: 'dash' | 'stomp' | 'ultimate'): number {

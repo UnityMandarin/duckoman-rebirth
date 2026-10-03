@@ -17,7 +17,8 @@ const toggleKey = (toggle: DebugToggle): string => `${MODE_KEY}-${toggle}`;
 export const load = (key: string): boolean => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
 export const save = (key: string, on: boolean): void => { try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* storage blocked */ } };
 
-let mode = load(MODE_KEY);
+/** Debug mode always starts off; only the switches persist. */
+let mode = false;
 const values = Object.fromEntries(
   (Object.keys(DEBUG_TOGGLES) as DebugToggle[]).map(toggle => [toggle, load(toggleKey(toggle))])
 ) as Record<DebugToggle, boolean>;
@@ -25,7 +26,7 @@ const listeners = new Set<() => void>();
 const notify = (): void => listeners.forEach(listener => listener());
 
 export function debugModeOn(): boolean { return mode; }
-export function setDebugMode(on: boolean): void { mode = on; save(MODE_KEY, on); notify(); }
+export function setDebugMode(on: boolean): void { mode = on; notify(); }
 
 /** Whether a switch is active right now (requires debug mode). */
 export function debugToggle(toggle: DebugToggle): boolean { return mode && values[toggle]; }

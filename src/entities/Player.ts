@@ -4,6 +4,7 @@ import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities, dashBounceVelocity } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
+import { attackVelocity, type Attack } from '../systems/attack';
 import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
 import { hitSpark } from '../systems/HitSpark';
@@ -187,10 +188,11 @@ export class Player {
     hitSpark(this.sprite.scene, target ? Phaser.Math.Clamp(x, target.left, target.right) : x, target ? Phaser.Math.Clamp(y, target.top, target.bottom) : y);
   }
 
-  takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
+  takeDamage(attackerX: number, amount: number | Attack = TUNING.player.contactDamage, knockback = 1): boolean {
+    const hit: Attack = typeof amount === 'number' ? { damage: amount, knockback } : amount;
     const now = this.sprite.scene.time.now;
     if (!this.active || this.infiniteHealth || debugToggle('invincible') || this.usingUltimate || this.invulnerable) return false;
-    this.health = Math.max(0, this.health - amount);
+    this.health = Math.max(0, this.health - hit.damage);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;
     this.lifeState = this.health === 0 ? 'DEAD' : 'HURT';
@@ -198,13 +200,13 @@ export class Player {
     this.dashMomentum = 0;
     this.body.setAllowGravity(true);
     this.setCrouching(false);
-    const direction = this.sprite.x < attackerX ? -1 : 1;
-    this.body.setAcceleration(0, 0).setVelocity(direction * TUNING.player.damageKnockback.x, TUNING.player.damageKnockback.y);
+    const shove = attackVelocity(this.sprite.x, attackerX, hit);
+    this.body.setAcceleration(0, 0).setVelocity(shove.x, shove.y);
     if (this.lifeState === 'DEAD') {
       this.body.setVelocity(0, 0).setEnable(false);
       this.visual.setAlpha(0.35);
     }
-    this.sprite.scene.events?.emit('player-damaged', amount);
+    this.sprite.scene.events?.emit('player-damaged', hit.damage);
     return true;
   }
 

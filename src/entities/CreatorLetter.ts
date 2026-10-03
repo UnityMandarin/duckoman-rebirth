@@ -5,8 +5,9 @@ import { showHitbox } from '../systems/DebugHitboxes';
 
 const PAGE: { text: string; italic: boolean }[] = [
   { text: 'You find a charred page of a notebook. Notes are hastily jotted down in messy lines.', italic: false },
-  { text: 'This iteration is... imperfect. Completely out of my control. Like it has a mind of its own.', italic: true },
-  { text: 'Unacceptable. My only choice is to leave it to rust and rebuild it entirely. My next creations MUST OBEY', italic: true },
+  { text: 'This machine is... imperfect.', italic: true },
+  { text: 'Completely out of control. Unacceptable.', italic: true },
+  { text: 'I will leave this useless heap to rot. This will not happen again.', italic: true },
 ];
 const LINE_MS = 3000, FADE_MS = 300;
 export const LETTER_TEXTURE = 'sealed-dispatch';

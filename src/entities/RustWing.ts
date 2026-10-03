@@ -7,8 +7,8 @@ import { hitSpark } from '../systems/HitSpark';
 import { gearExplosion } from '../systems/IronWingAftermath';
 import {
   RUSTWING_RULES, RustHealth, advanceRustPhase, clampRustX, eruptionLandingX, eruptionVelocities, fireballVelocities, leapAt, lungeTarget, lurchTarget,
-  magmaGlobLaunch, magmaPoolHalfWidth, pickRustAttack, RUST_STEP, rustBody, rustDamage, rustDeathAt, rustPhaseDuration, rustSlashAngle, rustStepFrame, rustWingPivot, rustWingPose, rustWingRaise,
-  rustIntroAt, rustWingSweepHits, rustSwipeOutline, rustwingFacing, stalkStep, swipeTarget, foldedWing, slashWing, wingHitPolygons, wingTouches,
+  magmaGlobLaunch, magmaPoolHalfWidth, magmaVolleyCount, magmaVolleySlots, pickRustAttack, RUST_STEP, rustBody, rustChargeRect, rustDashSpeed, rustDashStep, rustDamage, rustDeathAt, rustFireBlocked, rustFireballSpeed, rustHit, rustPhaseDuration, rustSlashAngle, rustStepFrame, rustThirdMove, rustWingPivot, rustWingPose, rustWingRaise, leapHeightAt, leapTravelTarget,
+  rustIntroAt, rustSlashArc, rustSlashArcHits, rustSlashCrescent, rustSwipeOutline, rustwingFacing, stalkStep, swipeTarget, foldedWing, slashWing, wingHitPolygons, wingTouches, SLASH_TRAIL,
   type RustAttack, type RustForm, type RustPhase, type WingShape
 } from '../systems/rustWingMath';
 import type { UltimateStrike } from '../systems/ultimateSwingMath';
@@ -40,13 +40,15 @@ export class RustWing extends Dashable {
   private attack: RustAttack = 'lurch';
   private cycle = 0;
   private countsCycle = true;
-  private slashAngle = 0;
   private slashHit = false;
   private recoverFrom = -Infinity;
   private lurchesDone = 0;
   private until = 0;
   private fromX = 0;
   private toX = 0;
+  private dashVx = 0;
+  private dashVy = 0;
+  private leapLanded = false;
   private engaged = false;
   private finished = false;
   private contactGrace = 0;
@@ -145,31 +147,43 @@ export class RustWing extends Dashable {
   }
   private advance(now: number): void {
     if (this.phase === 'rest') {
-      const pick = pickRustAttack(this.cycle, this.health.form, this.player.sprite.x - this.x, this.attack);
+      let pick = pickRustAttack(this.cycle, this.health.form, this.player.sprite.x - this.x, this.attack);
+      const facing = rustwingFacing(this.x, this.player.sprite.x);
+      if (pick.attack === 'fire' && rustFireBlocked(this.x, facing, this.health.form)) {
+        this.cycle += 1;
+        pick = pickRustAttack(this.cycle, this.health.form, this.player.sprite.x - this.x, this.attack);
+      }
       this.attack = pick.attack;
       this.countsCycle = pick.advancesCycle;
       this.facing = rustwingFacing(this.x, this.player.sprite.x);
     }
-    const next = advanceRustPhase(this.phase, this.lurchesDone, this.attack, Math.random() < RUSTWING_RULES.leapChance);
+    const third = this.phase === 'lurch' && this.lurchesDone + 1 >= RUSTWING_RULES.lurchCount;
+    const duck = this.player.body.center;
+    const leap = third && rustThirdMove(this.x, this.y, this.facing, duck.x, duck.y, Math.random()) === 'leap';
+    const next = advanceRustPhase(this.phase, this.lurchesDone, this.attack, leap);
     if (next.phase === 'rest' && this.phase !== 'rest' && this.countsCycle) this.cycle += 1;
     if (next.phase === 'rest' && this.phase === 'swipe') this.recoverFrom = now;
     if (this.phase === 'leap') this.land();
     this.phase = next.phase;
     this.lurchesDone = next.lurchesDone;
     this.until = now + rustPhaseDuration(this.phase);
+    // Each dash locks onto the duck on the first windup frame, then keeps that direction.
+    if (this.phase === 'lurchWindup' || this.phase === 'lungeWindup' || this.phase === 'leapWindup') {
+      this.facing = rustwingFacing(this.x, duck.x);
+    }
     if (this.phase === 'lurch') {
       this.fromX = this.x;
       this.toX = lurchTarget(this.x, this.facing);
     }
     if (this.phase === 'lunge' || this.phase === 'leap') {
       this.fromX = this.x;
-      this.toX = lungeTarget(this.facing);
+      this.toX = this.phase === 'leap' ? leapTravelTarget(this.x, this.facing) : lungeTarget(this.facing);
+      this.leapLanded = false;
     }
     if (this.phase === 'swipeWindup') this.facing = rustwingFacing(this.x, this.player.sprite.x);
     if (this.phase === 'swipe') {
       this.fromX = this.x;
       this.toX = swipeTarget(this.x, this.facing);
-      this.slashAngle = RUSTWING_RULES.wingWindupAngle;
       this.slashHit = false;
       this.scene.cameras.main.shake(140, .004);
     }
@@ -184,24 +198,31 @@ export class RustWing extends Dashable {
       if (step.arrived) this.until = now;
       return;
     }
-    if (this.phase === 'leap') {
-      const leap = leapAt(this.fromX, this.toX, (rustPhaseDuration('leap') - (this.until - now)) / RUSTWING_RULES.leapMs);
-      this.x = leap.x;
-      this.y = RUSTWING_RULES.floorTop - RUSTWING_RULES.bodyHalfH - leap.height;
+    if (this.phase === 'lurch' || this.phase === 'lunge' || this.phase === 'leap') {
+      const prevX = this.x, prevY = this.y;
+      const step = rustDashStep(this.x, this.toX, rustDashSpeed(this.phase), delta);
+      this.x = step.x;
+      if (this.phase === 'leap') this.y = RUSTWING_RULES.floorTop - RUSTWING_RULES.bodyHalfH - leapHeightAt(this.fromX, this.toX, this.x);
+      const dt = Math.min(Math.max(delta, 0), 50) / 1000;
+      this.dashVx = dt > 0 ? (this.x - prevX) / dt : 0;
+      this.dashVy = dt > 0 ? (this.y - prevY) / dt : 0;
+      if (step.stopped) {
+        if (this.phase === 'leap') this.land();
+        this.until = now;
+      }
       return;
     }
+    this.dashVx = 0;
+    this.dashVy = 0;
     if (this.phase === 'swipe') {
       const t = Phaser.Math.Clamp((rustPhaseDuration('swipe') - (this.until - now)) / (RUSTWING_RULES.swipeMs * .6), 0, 1);
       this.x = clampRustX(Phaser.Math.Linear(this.fromX, this.toX, 1 - (1 - t) ** 3));
       return;
     }
-    if (this.phase !== 'lurch' && this.phase !== 'lunge') return;
-    const duration = rustPhaseDuration(this.phase);
-    const t = Phaser.Math.Clamp(1 - (this.until - now) / duration, 0, 1);
-    const eased = this.phase === 'lunge' ? t * t * (3 - 2 * t) : 1 - (1 - t) * (1 - t);
-    this.x = clampRustX(Phaser.Math.Linear(this.fromX, this.toX, eased));
   }
   private land(): void {
+    if (this.leapLanded) return;
+    this.leapLanded = true;
     this.x = this.toX;
     this.y = RUSTWING_RULES.floorTop - RUSTWING_RULES.bodyHalfH;
     hitSpark(this.scene, this.x - 30, RUSTWING_RULES.floorTop - 4, .9);
@@ -209,13 +230,17 @@ export class RustWing extends Dashable {
     this.scene.cameras.main.shake(180, .006);
   }
   private spit(): void {
-    for (const { vx, vy } of fireballVelocities(this.facing, this.spits++)) this.launch(this.x + this.facing * 40, this.y - 20, vx, vy, RUSTWING_RULES.fireballRadius, 0);
+    for (const { vx, vy } of fireballVelocities(this.facing, this.spits++, rustFireballSpeed(this.health.form))) this.launch(this.x + this.facing * 40, this.y - 20, vx, vy, RUSTWING_RULES.fireballRadius, 0);
   }
   private erupt(): void {
     const x = this.x, y = RUSTWING_RULES.floorTop - RUSTWING_RULES.eruptLaunchHeight;
-    for (const { vx, vy } of eruptionVelocities(this.volleys, this.facing)) {
-      this.launch(x, y, vx, vy, RUSTWING_RULES.eruptRadius, RUSTWING_RULES.eruptGravity).landX = eruptionLandingX(x, y, vx, vy);
-    }
+    const shots = eruptionVelocities(this.volleys, this.facing);
+    const magma = new Set(magmaVolleySlots(shots.length, magmaVolleyCount(this.health.hp, this.health.max), shots.map(() => Math.random())));
+    shots.forEach(({ vx, vy }, i) => {
+      const landX = eruptionLandingX(x, y, vx, vy);
+      if (magma.has(i)) this.spawnGlob(x, y, vx, vy, landX);
+      else this.launch(x, y, vx, vy, RUSTWING_RULES.eruptRadius, RUSTWING_RULES.eruptGravity).landX = landX;
+    });
     this.volleys += 1;
     hitSpark(this.scene, x, y, .9);
     this.scene.cameras.main.shake(120, .004);
@@ -238,7 +263,7 @@ export class RustWing extends Dashable {
       this.drawEmber(ember, now, dt);
       showHitbox(this.scene, 'danger', { x: ember.x, y: ember.y, radius: r });
       const p = this.player.body, dx = Math.max(p.left - ember.x, 0, ember.x - p.right), dy = Math.max(p.top - ember.y, 0, ember.y - p.bottom);
-      if (dx * dx + dy * dy <= r * r) this.player.takeDamage(ember.x, RUSTWING_RULES.fireballDamage);
+      if (dx * dx + dy * dy <= r * r) this.player.takeDamage(ember.x, rustHit('fireball'));
       const spent = now - ember.born > RUSTWING_RULES.fireballLifeMs || ember.y > RUSTWING_RULES.floorTop - 4 || ember.x < -20 || ember.x > 660 || ember.y < -40;
       if (spent) {
         if (ember.y > RUSTWING_RULES.floorTop - 4) hitSpark(this.scene, ember.x, RUSTWING_RULES.floorTop - 4, .8);
@@ -252,6 +277,9 @@ export class RustWing extends Dashable {
     this.nextGlob = now + RUSTWING_RULES.magmaGlobMs;
     const x = this.x, y = this.y + RUSTWING_RULES.bodyHalfH - RUSTWING_RULES.eruptLaunchHeight;
     const { vx, vy, landX } = magmaGlobLaunch(x, y, Math.random(), Math.random());
+    this.spawnGlob(x, y, vx, vy, landX);
+  }
+  private spawnGlob(x: number, y: number, vx: number, vy: number, landX: number): void {
     const art = this.scene.add.graphics().setDepth(14.9);
     this.globs.push({ art, x, y, vx, vy, landX });
   }
@@ -263,7 +291,7 @@ export class RustWing extends Dashable {
       glob.y += glob.vy * dt;
       showHitbox(this.scene, 'danger', { x: glob.x, y: glob.y, radius: r });
       const dx = Math.max(p.left - glob.x, 0, glob.x - p.right), dy = Math.max(p.top - glob.y, 0, glob.y - p.bottom);
-      if (dx * dx + dy * dy <= r * r) this.player.takeDamage(glob.x, RUSTWING_RULES.magmaDamage);
+      if (dx * dx + dy * dy <= r * r) this.player.takeDamage(glob.x, rustHit('magma'));
       const landed = glob.y > floor - 4;
       if (landed) {
         glob.art.destroy();
@@ -279,7 +307,7 @@ export class RustWing extends Dashable {
       if (w <= 0) { pool.art.destroy(); return false; }
       const bounds = { left: pool.x - w, right: pool.x + w, top: floor - 6, bottom: floor + 2 };
       showHitbox(this.scene, 'danger', bounds);
-      if (rectsOverlap(p, bounds)) this.player.takeDamage(pool.x, RUSTWING_RULES.magmaDamage);
+      if (rectsOverlap(p, bounds)) this.player.takeDamage(pool.x, rustHit('magma'));
       this.drawPool(pool, w, now);
       return true;
     });
@@ -327,6 +355,7 @@ export class RustWing extends Dashable {
     fire.fillStyle(0xff3a10, .32 * flicker).fillCircle(ember.x, ember.y, r * 1.45);
     fire.fillStyle(0xffa040, .3 * flicker).fillCircle(ember.x, ember.y, r * 1.1);
   }
+  private get charging(): boolean { return this.phase === 'lunge'; }
   private hitPlayer(now: number): void {
     const p = this.player.body;
     const bounds = this.bodyBounds;
@@ -336,32 +365,38 @@ export class RustWing extends Dashable {
     const duck = { left: p.left, right: p.right, top: p.top, bottom: p.bottom };
     const armed = now >= this.contactGrace;
     for (const points of this.wingPolygons) showHitbox(this.scene, armed ? 'danger' : 'target', { points });
+    if (this.charging) {
+      const hit = rustChargeRect(this.x, this.y, this.facing);
+      showHitbox(this.scene, 'danger', hit);
+      if (armed && rectsOverlap(hit, duck)) this.player.takeDamage(this.x, rustHit('contact', { x: this.dashVx, y: this.dashVy }));
+    }
     if (!this.checkDash(this.player)) {
       if (this.health.touch(now, overlap && vulnerable, stomp)) { hitSpark(this.scene, p.center.x, bounds.top); this.flinch(now); this.player.bounceFromStomp(); }
-      else if ((overlap || wingTouches(this.wingPolygons, duck)) && armed && !this.player.isDashing && !stomp) this.player.takeDamage(this.x, RUSTWING_RULES.contactDamage);
+      else if ((overlap || wingTouches(this.wingPolygons, duck)) && armed && !this.player.isDashing && !stomp) this.player.takeDamage(this.x, rustHit('contact'));
     }
     if (this.health.hp === 0) { this.depleted(now); return; }
     if (this.phase === 'swipe') {
-      const pivot = rustWingPivot(this.x, this.y, this.facing);
-      const from = this.slashAngle, to = rustSlashAngle(rustPhaseDuration('swipe') - (this.until - now));
-      this.slashAngle = to;
-      if (!this.slashHit && rustWingSweepHits(duck, pivot, this.facing, from, to) && this.player.takeDamage(this.x, RUSTWING_RULES.contactDamage)) {
+      const pivot = rustWingPivot(this.fromX, this.y, this.facing);
+      const head = rustSlashAngle(rustPhaseDuration('swipe') - (this.until - now));
+      const arc = rustSlashArc(pivot, this.facing, head, this.x - this.fromX);
+      if (arc.length) showHitbox(this.scene, 'danger', { points: arc });
+      if (!this.slashHit && rustSlashArcHits(duck, pivot, this.facing, head, this.x - this.fromX) && this.player.takeDamage(this.x, rustHit('swipe'))) {
         this.slashHit = true;
         hitSpark(this.scene, p.center.x, p.center.y, 1.1);
       }
     }
   }
   private get bodyBounds(): Rect { return rustBody(this.x, this.y); }
-  protected dashBounds(): Rect | null { return this.finished || !this.engaged || this.dyingFrom !== undefined ? null : this.bodyBounds; }
+  protected dashBounds(): Rect | null { return this.finished || !this.engaged || this.dyingFrom !== undefined || this.charging ? null : this.bodyBounds; }
   protected onDash(): void {
     const now = this.scene.time.now;
-    if (this.transforming(now)) return;
+    if (this.transforming(now) || this.charging) return;
     if (this.health.touch(now, true, true)) this.flinch(now);
     if (this.health.hp === 0) this.depleted(now);
   }
   private hurt(attack: 'dash' | 'stomp' | 'ultimate'): void {
     const now = this.scene.time.now;
-    if (now < this.contactGrace || this.health.hp <= 0 || this.dyingFrom !== undefined) return;
+    if (this.charging || now < this.contactGrace || this.health.hp <= 0 || this.dyingFrom !== undefined) return;
     this.health.damage(rustDamage(attack));
     this.flinch(now);
     hitSpark(this.scene, this.x, this.y, 1.3);
@@ -528,7 +563,7 @@ export class RustWing extends Dashable {
         const tremble = this.phase === 'swipeWindup' && elapsed > RUSTWING_RULES.swipeWindupMs * .6 ? Math.sin(now * 0.08) * 2.5 : 0;
         const wing = slashWing(rustWingPivot(x, y, d), d, pose.angle + tremble, pose.length);
         this.drawSlashWing(this.phase === 'swipeWindup' ? g : this.slashArt, wing, this.phase === 'swipe' ? 1 : this.phase === 'rest' ? .4 : 0);
-        this.wingPolygons.push(...wingHitPolygons(wing));
+        if (this.phase !== 'swipe') this.wingPolygons.push(...wingHitPolygons(wing));
         continue;
       }
       const lift = (side === d ? beat : beat * .5) * (1 - Math.min(1, Math.abs(raise)));
@@ -653,16 +688,11 @@ export class RustWing extends Dashable {
   }
   /** Rust-red crescent behind the wing tip, thick at the head and tapering back along the arc. */
   private drawSlashTrail(glow: Phaser.GameObjects.Graphics, pivot: { x: number; y: number }, d: number, head: number, length: number, alpha: number): void {
-    const rules = RUSTWING_RULES, tail = Math.max(rules.wingWindupAngle, head - 130 * Math.max(0, length));
-    if (alpha <= 0 || head - tail < 1) return;
-    const outer = rules.swipeReach + 8, steps = 24;
-    for (const [thick, color, a] of [[78, 0x8a1a08, .4], [48, 0xff4a12, .5], [18, 0xffc080, .8]] as const) {
-      const points = arcPoints(pivot, d, tail, head, outer, steps);
-      for (let i = steps; i >= 0; i--) {
-        const t = i / steps, deg = Phaser.Math.DegToRad(tail + (head - tail) * t), r = outer - thick * t ** 1.4;
-        points.push(new Phaser.Math.Vector2(pivot.x + d * Math.cos(deg) * r, pivot.y + Math.sin(deg) * r));
-      }
-      glow.fillStyle(color, a * alpha).fillPoints(points, true);
+    if (alpha <= 0) return;
+    const arc = SLASH_TRAIL.arc * Math.max(0, length);
+    for (const [thick, color, a] of [[SLASH_TRAIL.thick, 0x8a1a08, .4], [48, 0xff4a12, .5], [18, 0xffc080, .8]] as const) {
+      const points = vec(rustSlashCrescent(pivot, d, head, thick, arc));
+      if (points.length) glow.fillStyle(color, a * alpha).fillPoints(points, true);
     }
   }
   private drawLandingMark(x: number, alpha: number): void {
@@ -674,13 +704,6 @@ export class RustWing extends Dashable {
 
 function vec(points: readonly Point[]): Phaser.Math.Vector2[] {
   return points.map(p => new Phaser.Math.Vector2(p.x, p.y));
-}
-
-function arcPoints(pivot: { x: number; y: number }, facing: number, from: number, to: number, radius: number, steps = 24): Phaser.Math.Vector2[] {
-  return Array.from({ length: steps + 1 }, (_, i) => {
-    const a = Phaser.Math.DegToRad(from + (to - from) * i / steps);
-    return new Phaser.Math.Vector2(pivot.x + facing * Math.cos(a) * radius, pivot.y + Math.sin(a) * radius);
-  });
 }
 
 /** Rust-orange to molten red as the second-form transformation completes. */

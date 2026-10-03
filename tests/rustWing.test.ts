@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { attackVelocity } from '../src/systems/attack';
 import { TUNING } from '../src/config/tuning';
 import {
   RUSTWING_RULES, RUSTWING_CYCLE, RustHealth, advanceRustPhase, fireballVelocities, lungeTarget,
   lurchTarget, nextRustAttack, RUST_STEP, RUSTWING_MOLTEN_CYCLE, eruptionLandingX, eruptionVelocities, rustDamage, rustPhaseDuration, rustStepFrame, rustwingFacing,
-  leapAt, magmaGlobLaunch, magmaPoolHalfWidth, pickRustAttack, rustDeathAt, rustIntroAt, rustSlashAngle, rustWingPivot, rustWingPose, rustWingRaise, rustWingSweepHits, rustSwipeOutline, foldedWing, slashWing, wingHitPolygons, wingTouches, stalkStep, swipeTarget
+  leapAt, leapTravelTarget, magmaGlobLaunch, magmaPoolHalfWidth, magmaVolleyCount, magmaVolleySlots, pickRustAttack, rustBody, rustChargeRect, rustDashSpeed, rustDeathAt, rustFireBlocked, rustFireballSpeed, rustHit, rustIntroAt, rustSlashAngle, rustSlashArc, rustSlashArcHits, rustSlashCrescentHits, rustThirdMove, rustWingPivot, rustWingPose, rustWingRaise, rustSwipeOutline, foldedWing, slashWing, wingHitPolygons, wingTouches, stalkStep, swipeTarget, SLASH_TRAIL
 } from '../src/systems/rustWingMath';
 
 describe('RustWing prototype', () => {
@@ -13,6 +14,11 @@ describe('RustWing prototype', () => {
     expect(rustDamage('dash')).toBe(1);
     expect(rustDamage('stomp')).toBe(1);
     expect(rustDamage('ultimate')).toBe(4);
+    const charge = rustHit('contact', { x: 380, y: 0 });
+    const shove = attackVelocity(0, 10, charge);
+    expect(shove.x).toBe(-TUNING.player.damageKnockback.x + 380);
+    expect(shove.y).toBe(TUNING.player.damageKnockback.y);
+    expect(rustHit('swipe').velocity).toBeUndefined();
     const h = new RustHealth();
     expect(h.touch(0, true, false)).toBe(false);
     for (let i = 0; i < RUSTWING_RULES.hp; i++) {
@@ -37,6 +43,17 @@ describe('RustWing prototype', () => {
     expect(lurchTarget(400, -1)).toBe(400 - RUSTWING_RULES.lurchDistance);
     expect(lungeTarget(-1)).toBe(RUSTWING_RULES.left);
     expect(lungeTarget(1)).toBe(RUSTWING_RULES.right);
+    const body = rustBody(200, 300), lead = RUSTWING_RULES.chargeLead;
+    const facingRight = rustChargeRect(200, 300, 1);
+    expect(facingRight.left).toBe(body.left);
+    expect(facingRight.bottom).toBe(body.bottom);
+    expect(facingRight.right).toBe(body.right + lead);
+    expect(facingRight.top).toBe(body.top - lead);
+    const facingLeft = rustChargeRect(200, 300, -1);
+    expect(facingLeft.right).toBe(body.right);
+    expect(facingLeft.left).toBe(body.left - lead);
+    expect(facingLeft.bottom).toBe(body.bottom);
+    expect(facingLeft.top).toBe(body.top - lead);
     const { left, right, bodyHalfW } = RUSTWING_RULES;
     expect(left - bodyHalfW).toBeLessThan(TUNING.player.bodyWidth);
     expect(TUNING.simulation.width - (right + bodyHalfW)).toBeLessThan(TUNING.player.bodyWidth);
@@ -54,6 +71,15 @@ describe('RustWing prototype', () => {
     expect(leapAt(500, 100, 1)).toEqual({ x: 100, height: 0 });
     expect(leapAt(500, 100, .5)).toEqual({ x: 300, height: RUSTWING_RULES.leapHeight });
     expect(RUSTWING_RULES.leapHeight).toBeGreaterThan(TUNING.player.bodyHeight * 3);
+    expect(rustDashSpeed('leap')).toBeCloseTo(rustDashSpeed('lunge') * 0.75);
+    expect(rustPhaseDuration('leap')).toBe(RUSTWING_RULES.leapMs);
+    const head = 300 - RUSTWING_RULES.bodyHalfH;
+    expect(rustThirdMove(200, 300, 1, 400, head + 10, 0)).toBe('lunge');
+    expect(rustThirdMove(200, 300, 1, 400, head - 10, 1)).toBe('leap');
+    expect(rustThirdMove(200, 300, 1, 100, head - 40, 0)).toBe('leap');
+    expect(rustThirdMove(200, 300, 1, 100, head + 40, 0.9)).toBe('lunge');
+    expect(leapTravelTarget(200, 1)).toBeCloseTo(200 + rustDashSpeed('leap') * RUSTWING_RULES.leapMs / 1000);
+    expect(lungeTarget(1)).toBe(RUSTWING_RULES.right);
   });
 
   it('walks to the duck, telegraphs, then slashes', () => {
@@ -75,6 +101,13 @@ describe('RustWing prototype', () => {
     expect(pickRustAttack(0, 1, 100, 'lurch')).toEqual({ attack: 'swipe', advancesCycle: false });
     expect(pickRustAttack(0, 1, -100, 'swipe')).toEqual({ attack: 'lurch', advancesCycle: true });
     expect(pickRustAttack(1, 1, RUSTWING_RULES.slashTrigger + 1, 'lurch')).toEqual({ attack: 'fire', advancesCycle: true });
+    const span = RUSTWING_RULES.right - RUSTWING_RULES.left;
+    const nearRight = RUSTWING_RULES.roomWidth - span * 0.5;
+    expect(rustFireBlocked(nearRight, 1, 1)).toBe(true);
+    expect(rustFireBlocked(nearRight - 1, 1, 1)).toBe(false);
+    expect(rustFireBlocked(nearRight, -1, 1)).toBe(false);
+    expect(rustFireBlocked(span * 0.5, -1, 1)).toBe(true);
+    expect(rustFireBlocked(nearRight, 1, 2)).toBe(false);
   });
 
   it('sweeps the wing in an arc from overhead to low in front, and the arc is the hitbox', () => {
@@ -82,17 +115,34 @@ describe('RustWing prototype', () => {
     expect(rustWingPose('swipeWindup', r.swipeWindupMs)).toEqual({ angle: r.wingWindupAngle, length: r.swipeReach });
     expect(rustSlashAngle(0)).toBe(r.wingWindupAngle);
     expect(rustSlashAngle(r.swipeMs)).toBe(r.wingSlashAngle);
+    expect(r.wingSlashAngle - r.wingWindupAngle).toBe(108);
     expect(rustWingPose('rest', 0)).toBeNull();
     expect(rustWingPose('rest', 0, r.wingRecoverMs)).toBeNull();
     expect(rustWingPose('rest', 0, 0)?.angle).toBe(r.wingSlashAngle);
     const pivot = rustWingPivot(300, 304, 1);
-    const ahead = { left: 420, right: 440, top: 300, bottom: 340 }, behind = { left: 160, right: 180, top: 300, bottom: 340 };
-    expect(rustWingSweepHits(ahead, pivot, 1, r.wingWindupAngle, r.wingSlashAngle)).toBe(true);
-    expect(rustWingSweepHits(behind, pivot, 1, r.wingWindupAngle, r.wingSlashAngle)).toBe(false);
-    expect(rustWingSweepHits(ahead, pivot, 1, r.wingWindupAngle, -100)).toBe(false);
+    const outer = r.swipeReach + SLASH_TRAIL.outerPad, a = r.wingSlashAngle * Math.PI / 180, early = r.wingWindupAngle * Math.PI / 180;
+    const box = (x: number, y: number) => ({ left: x - 8, right: x + 8, top: y - 8, bottom: y + 8 });
+    const tip = box(pivot.x + Math.cos(a) * (outer - 20), pivot.y + Math.sin(a) * (outer - 20));
+    const overhead = box(pivot.x + Math.cos(early) * (outer - 20), pivot.y + Math.sin(early) * (outer - 20));
+    const shoulder = box(pivot.x, pivot.y);
+    expect(rustSlashArcHits(tip, pivot, 1, r.wingSlashAngle)).toBe(true);
+    expect(rustSlashArcHits(overhead, pivot, 1, r.wingSlashAngle)).toBe(true);
+    expect(rustSlashArcHits(overhead, pivot, 1, -40)).toBe(true);
+    expect(rustSlashCrescentHits(overhead, pivot, 1, -40)).toBe(false);
+    expect(rustSlashArcHits(tip, pivot, 1, -40)).toBe(false);
+    expect(rustSlashArcHits(shoulder, pivot, 1, r.wingSlashAngle)).toBe(false);
+    const arc = rustSlashArc(pivot, 1, r.wingSlashAngle, 40);
+    expect(Math.max(...arc.map(p => p.x))).toBeGreaterThan(pivot.x + outer);
     const leftmost = Math.min(...wingHitPolygons(slashWing(pivot, -1, 0, r.swipeReach)).flat().map(p => p.x));
     expect(leftmost).toBeCloseTo(pivot.x - r.swipeReach, 0);
     expect(wingHitPolygons(slashWing(pivot, 1, r.wingSlashAngle, r.swipeReach)).flat().every(p => p.y < r.floorTop)).toBe(true);
+    const grounded = rustWingPivot(300, r.floorTop - r.bodyHalfH, 1);
+    const crouchTop = r.floorTop - TUNING.player.crouchHeight;
+    const wingLow = Math.max(...wingHitPolygons(slashWing(grounded, 1, r.wingSlashAngle, r.swipeReach)).flat().map(p => p.y));
+    const arcLow = Math.max(...rustSlashArc(grounded, 1, r.wingSlashAngle).map(p => p.y));
+    expect(wingLow).toBeLessThan(crouchTop);
+    expect(arcLow).toBeLessThan(crouchTop);
+    expect(arcLow).toBeGreaterThan(r.floorTop - TUNING.player.bodyHeight);
   });
 
   it('previews the slash area including the forward step', () => {
@@ -150,6 +200,11 @@ describe('RustWing prototype', () => {
     expect(low[2]).toBeGreaterThan(high[2]);
     expect(fireballVelocities(1, 1)).not.toEqual(fireballVelocities(1, 0));
     expect(fireballVelocities(1, 2)).toEqual(fireballVelocities(1, 0));
+    expect(rustFireballSpeed(1)).toBe(RUSTWING_RULES.fireballSpeed * 2);
+    expect(rustFireballSpeed(2)).toBe(RUSTWING_RULES.fireballSpeed);
+    const fast = fireballVelocities(1, 0, rustFireballSpeed(1)), slow = fireballVelocities(1, 0);
+    expect(fast[0].vx).toBeCloseTo(slow[0].vx * 2);
+    expect(fast[0].vy).toBeCloseTo(slow[0].vy * 2);
     expect(RUSTWING_RULES.fireballSpeed * RUSTWING_RULES.fireballLifeMs / 1000).toBeGreaterThan(TUNING.simulation.width);
   });
 
@@ -183,7 +238,8 @@ describe('RustWing prototype', () => {
   });
 
   it('erupts from the dome between every other molten attack', () => {
-    expect(RUSTWING_MOLTEN_CYCLE.map((_, i) => nextRustAttack(i, 2))).toEqual(['erupt', 'lurch', 'erupt', 'swipe', 'fire']);
+    expect(RUSTWING_MOLTEN_CYCLE.map((_, i) => nextRustAttack(i, 2))).toEqual(['erupt', 'lurch', 'erupt', 'swipe']);
+    expect(RUSTWING_MOLTEN_CYCLE).not.toContain('fire');
     expect(nextRustAttack(0)).toBe('lurch');
     expect(advanceRustPhase('rest', 0, 'erupt').phase).toBe('eruptWindup');
     expect(advanceRustPhase('eruptWindup', 0, 'erupt').phase).toBe('erupt');
@@ -204,6 +260,23 @@ describe('RustWing prototype', () => {
       while (y <= RUSTWING_RULES.floorTop - 4) { v += g * dt; x += vx * dt; y += v * dt; }
       expect(Math.abs(x - eruptionLandingX(320, y0, vx, vy))).toBeLessThan(2);
     }
+  });
+
+  it('turns random dome shots into magma as the current bar empties', () => {
+    const max = RUSTWING_RULES.moltenHp, shots = eruptionVelocities(0, 1).length;
+    expect(magmaVolleyCount(max, max)).toBe(0);
+    expect(magmaVolleyCount(max * 0.76, max)).toBe(0);
+    expect(magmaVolleyCount(max * 0.75, max)).toBe(1);
+    expect(magmaVolleyCount(max * 0.5, max)).toBe(3);
+    expect(magmaVolleyCount(max * 0.25, max)).toBe(5);
+    expect(magmaVolleyCount(0, max)).toBe(5);
+    expect(magmaVolleySlots(shots, 0, [])).toEqual([]);
+    expect(magmaVolleySlots(shots, 1, [0])).toEqual([0]);
+    expect(magmaVolleySlots(shots, 1, [0.99])).toEqual([shots - 1]);
+    const three = magmaVolleySlots(shots, 3, [0.2, 0.5, 0.8]);
+    expect(new Set(three).size).toBe(3);
+    expect(three.every(i => i >= 0 && i < shots)).toBe(true);
+    expect(magmaVolleySlots(shots, 5, [0, 0, 0, 0, 0]).sort()).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('lobs magma globs on random arcs that land where telegraphed, inside the room', () => {

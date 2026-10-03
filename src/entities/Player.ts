@@ -8,6 +8,8 @@ import { circleIntersectsRect, type Circle, type Rect } from '../systems/contact
 import { tagBody } from '../systems/DebugHitboxes';
 import { hitSpark } from '../systems/HitSpark';
 import { debugToggle } from '../systems/debug/debugSettings';
+import { ownedRelics, relicAirJumps } from '../systems/relics';
+import { airJumpShockwave } from '../systems/AirJumpShockwave';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -42,6 +44,7 @@ export class Player {
   private landedAt = -1000;
   private ghosts:Phaser.GameObjects.Image[]=[];
   private lastSweatAt=0;
+  private airJumpsUsed = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
@@ -97,6 +100,7 @@ export class Player {
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
       this.abilities.land();
+      this.airJumpsUsed = 0;
       this.dashMomentum = 0;
       this.abilities.landSlam(now, TUNING.player.slamBoostWindow);
     }
@@ -122,7 +126,9 @@ export class Player {
     }
 
     const canJump = !this.abilities.slamming && (debugToggle('infiniteJumps') || this.jumpAssist.canJump(now, TUNING.player.coyoteTime));
-    if (this.abilities.isDashing(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
+    const airJump = !canJump && !this.abilities.slamming && !!input.jumpPressed
+      && this.airJumpsUsed < relicAirJumps(ownedRelics(this.sprite.scene.registry));
+    if (this.abilities.isDashing(now) && (airJump || canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime))) {
       this.abilities.endDash();
       this.dashMomentum = this.facing;
     }
@@ -148,6 +154,13 @@ export class Player {
       this.body.setVelocityY(this.abilities.consumeBoost(now) ? TUNING.player.boostedJumpVelocity : TUNING.player.jumpVelocity);
       this.setCrouching(false);
       this.jumpCutAvailable = true;
+    } else if (airJump) {
+      this.airJumpsUsed += 1;
+      this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime);
+      this.body.setVelocityY(TUNING.player.airJumpVelocity);
+      this.setCrouching(false);
+      this.jumpCutAvailable = true;
+      airJumpShockwave(this.sprite.scene, this.body.center.x, this.sprite.y + TUNING.player.bodyHeight / 2);
     }
     if (input.jumpReleased && this.jumpCutAvailable && this.body.velocity.y < 0) {
       this.body.setVelocityY(this.body.velocity.y * TUNING.player.jumpCutMultiplier);

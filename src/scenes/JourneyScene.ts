@@ -10,6 +10,7 @@ import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {spreadEnemies} from '../systems/EnemySeparation';
 import {ChapterHud} from '../systems/ChapterHud';
+import {preloadRelicArt} from '../systems/RelicArt';
 import {ChapterTraps} from '../systems/ChapterTraps';
 import {ChapterDepth} from '../systems/ChapterDepth';
 import type {ChapterDepthSurface} from '../systems/ChapterDepth';
@@ -52,6 +53,7 @@ export class JourneyScene extends Phaser.Scene {
  private solids:SolidDashable[]=[];
  constructor(private readonly kind:ChapterKind){super(kind);}
  preload():void {
+  preloadRelicArt(this);
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
   for(const key of needed)if(!this.textures.exists(key))this.load.image(key,`${import.meta.env.BASE_URL}assets/chapters/${key}.png`);
   if(this.kind==='jail'&&!this.textures.exists('jail-distance'))this.load.image('jail-distance',`${import.meta.env.BASE_URL}assets/depth/jail-distance.png`);

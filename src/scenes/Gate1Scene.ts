@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
-import {alignSwordMeterFill,setSwordMeterCharge,SWORD_METER} from '../systems/SwordMeterArt';
-import {playUltimateSwing} from '../systems/UltimateSwing';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import { BasicEnemy } from '../entities/BasicEnemy';
 import { Player } from '../entities/Player';
@@ -9,9 +7,11 @@ import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
 import { spreadEnemies } from '../systems/EnemySeparation';
-import { DashMeter } from '../systems/DashMeter';
+import { ChapterHud } from '../systems/ChapterHud';
 import { FallingPillar } from '../entities/FallingPillar';
-import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
+import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES, CASTLE_SECRET, SECRET_RETURN_X, reachedSecretPortal, secretHoleSolids, secretSeal, secretShaftWalls } from '../data/castle';
+import { rustwingDefeated } from '../systems/relics';
+import { preloadRelicArt } from '../systems/RelicArt';
 import { CastleMechanisms } from '../systems/CastleMechanisms';
 import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
@@ -23,13 +23,9 @@ import { setupRenderScale } from '../systems/renderScale';
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
   private inputController!: InputController; private interactions!: InteractionSystem;
-  private healthText!: Phaser.GameObjects.Text; private abilityText!: Phaser.GameObjects.Text; private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
+  private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
-  private hud!: Phaser.GameObjects.Graphics;
-  private swordFill!: Phaser.GameObjects.Image;
-  private swordFrame!: Phaser.GameObjects.Image;
-  private displayedHealth = 3;
-  private healthChangedAt = -1000;
+  private hud!: ChapterHud;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
   private extraEnemies: BasicEnemy[] = [];
   private pillar!: FallingPillar;
@@ -37,11 +33,12 @@ export class Gate1Scene extends Phaser.Scene {
   private boss!: CastleBoss;
   private allPlatforms = [...GATE_1_ROOM.platforms,...CASTLE_PLATFORMS];
   private hudCamera!:Phaser.Cameras.Scene2D.Camera;
-  private dashMeter!:DashMeter;
   private depthPresentation!:ChapterDepth;
   private castleCheckpoint!:Phaser.GameObjects.Image;
   private checkpointX?:number;
+  private enteredSecret=false;
   preload(): void {
+    preloadRelicArt(this);
     this.load.image('castle-background', 'assets/gate3/royal-hall.png');
     this.load.image('castle-depth', 'assets/gate3/royal-hall.png');
     this.load.image('ironwing-button','assets/gate3/ironwing-button.png');
@@ -65,17 +62,20 @@ export class Gate1Scene extends Phaser.Scene {
     this.load.image('ultimate-sword-frame','assets/hud/ultimate-sword-frame.png');
     this.load.image('ultimate-sword-fill','assets/hud/ultimate-sword-fill.png');
   }
-  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number} = {}): void {
+  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;fromSecret?:boolean} = {}): void {
     this.deathAt=undefined;
     this.checkpointX=data.checkpoint;
+    const sealed=rustwingDefeated(this.registry);
+    this.enteredSecret=sealed;
     this.physics.world.resume();
     this.textures.get('masonry').add('trimmed', 0, 28, 112, 1980, 456);
+    this.textures.get('masonry').add('column', 0, 40, 132, 1960, 180);
     this.textures.get('lock-kit').add('door',0,10,10,915,990);
     this.textures.get('lock-kit').add('button',0,1015,790,510,210);
     this.textures.get('rock-pillar-kit').add('pillar',0,1100,10,435,1000);
     this.textures.get('spike-platform').add('hazard',0,16,175,1740,505);
     this.cameras.main.setBackgroundColor(0x07111f);
-    this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
+    this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE_SECRET.hole.portalY-CASTLE.top);
     // Backdrop floor stays at the collision floor height through vertical traversal.
     for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-depth').setOrigin(0).setDisplaySize(5100,1700)
       .setFlipX(i%2===1).setScrollFactor(.72,1).setDepth(-21);
@@ -96,14 +96,21 @@ export class Gate1Scene extends Phaser.Scene {
     const terrain = this.physics.add.staticGroup();
     for (const platform of this.allPlatforms) {
       this.createPlatformVisual(platform.x, platform.y, platform.width, platform.height);
-      const rectangle = this.add.rectangle(platform.x, platform.y, platform.width, platform.height, 0x000000, 0);
+    }
+    for (const solid of [...secretHoleSolids(this.allPlatforms), ...secretShaftWalls()]) {
+      const rectangle = this.add.rectangle(solid.x, solid.y, solid.width, solid.height, 0x000000, 0);
       this.physics.add.existing(rectangle, true); terrain.add(rectangle);
+    }
+    if(sealed){
+      const seal=secretSeal();
+      const rectangle=this.add.rectangle(seal.x,seal.y,seal.width,seal.height,0x000000,0);
+      this.physics.add.existing(rectangle,true); terrain.add(rectangle);
     }
     this.castleCheckpoint=this.add.image(CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop,'rest-lantern').setOrigin(.5,1).setDisplaySize(30,54).setDepth(4);
     if(data.checkpoint===CASTLE_CHECKPOINT.x)this.castleCheckpoint.setTint(0xffe2a3);
     const start=[CASTLE_CHECKPOINT,CASTLE_BOSS_CHECKPOINT].find(c=>c.x===data.checkpoint);
-    const spawnY=start?checkpointSpawnY(start.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
-    this.player = new Player(this, start?start.x:GATE_1_ROOM.playerSpawn.x, spawnY);
+    const spawnY=data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):start?checkpointSpawnY(start.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
+    this.player = new Player(this, data.fromSecret?SECRET_RETURN_X:start?start.x:GATE_1_ROOM.playerSpawn.x, spawnY);
     this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
     this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width); this.depthPresentation.setPlayer(this.player);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
@@ -129,17 +136,8 @@ export class Gate1Scene extends Phaser.Scene {
     this.boss=new CastleBoss(this,this.player,this.throwable,terrain,text=>this.mechanisms.say(text));
     this.cameras.main.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
     this.cameras.main.roundPixels=true;
-    this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
-    this.cameras.main.setDeadzone(96,150);
-    this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
-    this.swordFill=this.add.image(0,0,'ultimate-sword-fill').setScrollFactor(0).setDepth(19.5);
-    alignSwordMeterFill(this.swordFill);
-    this.swordFrame=this.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(20);
-    this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
-    this.dashMeter = new DashMeter(this, 20);
-    this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    this.updateHealthHud();
-    this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
+    this.hud=new ChapterHud(this,this.player);
+    this.add.text(13,382,'A/D · Hold Left Shift sprint · L jump · K dash · S tuck/slam · J interact/throw · U',{fontSize:'9px',color:'#bec9cc',stroke:'#061019',strokeThickness:3}).setScrollFactor(0).setDepth(51);
     for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
     // First-half dash cues: first robot, cracked wall, spike robot, and gap's airborne dash point.
@@ -147,8 +145,6 @@ export class Gate1Scene extends Phaser.Scene {
       this.add.image(x,y,'dash-arrows-wind').setDisplaySize(100,70).setDepth(9);
       this.add.text(x,y+36,'K · DASH',{fontFamily:'Arial',fontSize:'10px',color:'#a6f8ff',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,0).setDepth(9);
     }
-    this.abilityText = this.add.text(82, 58, '', { fontFamily: 'Arial', fontSize: '11px', color: '#e1edf4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
-    this.updateAbilityHud();
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
     this.resetText.setDepth(30);
     this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
@@ -159,6 +155,10 @@ export class Gate1Scene extends Phaser.Scene {
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');
+    this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
+    this.cameras.main.setDeadzone(96,150);
+    this.cameras.main.setScroll(this.player.sprite.x-TUNING.simulation.width/2,this.player.sprite.y-TUNING.simulation.height/2);
+    if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
     const splitLayers=()=>{
       for(const child of this.children.list){
         const item=child as Phaser.GameObjects.Image;
@@ -180,7 +180,7 @@ export class Gate1Scene extends Phaser.Scene {
       this.player.infiniteHealth=!this.player.infiniteHealth;
       if(this.player.infiniteHealth)this.player.health=TUNING.player.maxHealth;
     }
-    this.updateHealthHud();
+    this.hud.update();
     if (this.player.lifeState === 'DEAD') {
       // Finish the falling pillar instead of freezing it midair after a lethal hit.
       this.pillar.update();
@@ -192,11 +192,19 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     this.player.update(input, delta);
+    if(!this.enteredSecret&&this.player.active&&reachedSecretPortal(this.player.body.center.x,this.player.body.bottom)){
+      this.enteredSecret=true;
+      this.scene.start(CASTLE_SECRET.scene,{
+        infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge,checkpoint:this.checkpointX,
+        vx:this.player.body.velocity.x,vy:this.player.body.velocity.y
+      });
+      return;
+    }
     if(this.checkpointX===undefined&&this.player.grounded&&isCheckpointContact(this.player.sprite.x,this.player.body.bottom,CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop)){
       this.checkpointX=CASTLE_CHECKPOINT.x; this.castleCheckpoint.setTint(0xffe2a3); this.mechanisms.say('Checkpoint · The royal hall holds.');
     }
     this.depthPresentation.update();
-    if(input.ultimatePressed&&this.player.canAct&&this.player.ultimateCharge>=100&&!this.player.usingUltimate)this.useUltimate();
+    if(input.ultimatePressed&&this.player.canAct&&this.player.ultimateCharge>=100&&!this.player.usingUltimate)this.hud.useUltimate();
     if (this.player.canAct && input.throwPressed && this.throwable.state === 'CARRIED') this.throwable.throw(this.player);
     this.throwable.follow(this.player); this.throwable.update(delta); this.enemy.update();
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
@@ -204,46 +212,11 @@ export class Gate1Scene extends Phaser.Scene {
     this.pillar.update();
     this.mechanisms.update();
     this.boss.update(!!input.throwPressed);
-    this.updateAbilityHud();
   }
-  private updateHealthHud(): void {
-    if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.time.now; }
-    this.healthText.setText('DUCKOMAN');
-    const g = this.hud.clear();
-    g.fillStyle(0x03070d, 0.7).fillRoundedRect(7, 4, 360, 72, 18);
-    g.fillStyle(0x090c10).fillCircle(43, 40, 31);
-    g.lineStyle(4, 0x70441a).strokeCircle(43, 40, 32);
-    g.lineStyle(1, 0xf9ce71).strokeCircle(43, 40, 29).strokeCircle(43, 40, 35);
-    for (let i=0;i<8;i++) { const a=i*Math.PI/4; g.fillStyle(0xe5aa42).fillCircle(43+Math.cos(a)*32,40+Math.sin(a)*32,2); }
-    const charge=this.player.usingUltimate?0:this.player.ultimateCharge/100;
-    setSwordMeterCharge(this.swordFill,charge);
-    for(let i=0;i<3;i++) {
-      const pulse=Math.max(0,1-(this.time.now-this.healthChangedAt)/420);
-      const x=221+i*32, y=17-Math.sin(pulse*Math.PI)*2;
-      const amount=Phaser.Math.Clamp(this.player.health-i,0,1);
-      g.fillStyle(0x190c17).fillCircle(x-4,y-2,6).fillCircle(x+4,y-2,6).fillTriangle(x-10,y-1,x+10,y-1,x,y+11);
-      // Each lobe and half-triangle is independent so 0.5 health is a true half heart.
-      for(let side=0;side<2;side++) {
-        const lit=amount>side*0.5;
-        const dir=side===0?-1:1;
-        g.fillStyle(lit?0xa90824:0x39232d).fillCircle(x+dir*4,y-2,5).fillTriangle(x,y-1,x+dir*9,y-1,x,y+9);
-        if(lit) {
-          g.fillStyle(0xf82c42).fillCircle(x+dir*4,y-3,4).fillTriangle(x,y-2,x+dir*7,y-2,x,y+6);
-          g.fillStyle(0xff8c92).fillEllipse(x+dir*4-1,y-5,4,2);
-          g.fillStyle(0xffded8,0.8).fillCircle(x+dir*4-2,y-5,0.9);
-        }
-      }
-    }
-    this.dashMeter.draw(g,this.player.dashCharge,this.player.dashDisabled);
-  }
-  private updateAbilityHud(): void {
-    this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');
-  }
-  private useUltimate():void {playUltimateSwing(this,this.player,{frame:this.swordFrame,fill:this.swordFill});}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {
-      for(let dy=0;dy<height;dy+=30)this.add.image(x,top+dy,'masonry','trimmed').setOrigin(.5,0).setDisplaySize(width,Math.min(30,height-dy)).setDepth(2);
+      for(let dy=0;dy<height;dy+=18)this.add.image(x,top+dy,'masonry','column').setOrigin(.5,0).setDisplaySize(width,Math.min(20,height-dy)).setDepth(2);
     } else if(width>600) {
       for(let left=x-width/2;left<x+width/2;left+=160) this.add.image(left,top,'masonry','trimmed').setOrigin(0).setDisplaySize(160,56).setDepth(2);
     } else this.add.image(x,top,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(width,Math.max(height, width/4)).setDepth(2);

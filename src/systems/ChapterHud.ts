@@ -3,6 +3,7 @@ import type {Player} from '../entities/Player';
 import {DashMeter} from './DashMeter';
 import {alignSwordMeterFill,setSwordMeterCharge,SWORD_METER} from './SwordMeterArt';
 import {playUltimateSwing} from './UltimateSwing';
+import {RelicHud} from './RelicArt';
 /** Shares the kingdom's hand-built HUD and ultimate choreography in the new chapters. */
 export class ChapterHud {
  private hud:Phaser.GameObjects.Graphics;
@@ -13,7 +14,9 @@ export class ChapterHud {
  private dashMeter:DashMeter;
  private swordFill:Phaser.GameObjects.Image;
  private swordFrame:Phaser.GameObjects.Image;
+ private relics:RelicHud;
  constructor(private scene:Phaser.Scene,private player:Player){
+  this.relics=new RelicHud(scene,50);
   this.hud=scene.add.graphics().setScrollFactor(0).setDepth(48);
   scene.add.image(43,40,'duckoman').setDisplaySize(45,42).setScrollFactor(0).setDepth(51);
   this.healthText=scene.add.text(82,10,'DUCKOMAN',{fontSize:'11px',color:'#e8d8b7'}).setScrollFactor(0).setDepth(51);
@@ -27,6 +30,7 @@ export class ChapterHud {
     if (this.displayedHealth !== this.player.health) { this.displayedHealth = this.player.health; this.healthChangedAt = this.scene.time.now; }
     this.healthText.setText('DUCKOMAN');
     this.updateAbilityHud();
+    this.relics.update();
     const g = this.hud.clear();
     g.fillStyle(0x03070d, 0.7).fillRoundedRect(7, 4, 360, 72, 18);
     g.fillStyle(0x090c10).fillCircle(43, 40, 31);

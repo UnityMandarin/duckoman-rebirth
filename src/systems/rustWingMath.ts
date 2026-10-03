@@ -400,7 +400,7 @@ export function rustSwipeOutline(pivot: Point, facing: number, shift: number, ra
 export const SLASH_TRAIL = { arc: 130, thick: 78, outerPad: 8 } as const;
 
 /** Crescent matching the slash trail. Empty when the arc has closed. */
-export function rustSlashCrescent(pivot: Point, facing: number, head: number, thick = SLASH_TRAIL.thick, arc = SLASH_TRAIL.arc, steps = 24): Point[] {
+export function rustSlashCrescent(pivot: Point, facing: number, head: number, thick: number = SLASH_TRAIL.thick, arc: number = SLASH_TRAIL.arc, steps = 24): Point[] {
   const outer = RUSTWING_RULES.swipeReach + SLASH_TRAIL.outerPad;
   const tail = Math.max(RUSTWING_RULES.wingWindupAngle, head - arc);
   if (head - tail < 1) return [];
@@ -450,7 +450,7 @@ export function rustFireballSpeed(form: RustForm): number {
 }
 
 /** Fixed muzzle spray for the `volley`th fire attack; never tracks the player. */
-export function fireballVelocities(facing: number, volley = 0, speed = RUSTWING_RULES.fireballSpeed): { vx: number; vy: number }[] {
+export function fireballVelocities(facing: number, volley = 0, speed: number = RUSTWING_RULES.fireballSpeed): { vx: number; vy: number }[] {
   const patterns = RUSTWING_RULES.fireballPatterns;
   return patterns[((volley % patterns.length) + patterns.length) % patterns.length].map(angle => ({
     vx: facing * Math.cos(angle) * speed,

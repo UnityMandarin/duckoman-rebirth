@@ -8,7 +8,9 @@ import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
 import { ChapterHud } from '../systems/ChapterHud';
 import { FallingPillar } from '../entities/FallingPillar';
-import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES } from '../data/castle';
+import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES, CASTLE_SECRET, SECRET_RETURN_X, reachedSecretPortal, secretHoleSolids, secretSeal, secretShaftWalls } from '../data/castle';
+import { rustwingDefeated } from '../systems/relics';
+import { preloadRelicArt } from '../systems/RelicArt';
 import { CastleMechanisms } from '../systems/CastleMechanisms';
 import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
@@ -37,15 +39,20 @@ export class Gate1Scene extends Phaser.Scene {
   private depthPresentation!:ChapterDepth;
   private castleCheckpoint!:Phaser.GameObjects.Image;
   private checkpointX?:number;
+  private enteredSecret=false;
   private devPreview=false; private opened:number[]=[]; private secrets:number[]=[];private bossDefeated=false;
-  preload(): void {preloadCommon(this);}
-  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;devPreview?:boolean} = {}): void {
+  preload(): void {preloadCommon(this);preloadRelicArt(this);}
+  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;devPreview?:boolean;fromSecret?:boolean} = {}): void {
     this.deathAt=undefined;
     registerCommonFrames(this);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;
     this.checkpointX=data.checkpoint;this.opened=[...(data.opened??[])];this.secrets=[...(data.secrets??[])];this.bossDefeated=!!(data.bossDefeated??loadProgress().chapters['gate-1'].bossDefeated);
     this.physics.world.resume();
+    const sealed=rustwingDefeated(this.registry);
+    this.enteredSecret=sealed;
+    const masonry=this.textures.get('masonry');
+    if(!masonry.has('column'))masonry.add('column',0,40,132,1960,180);
     this.cameras.main.setBackgroundColor(0x07111f);
-    this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE.bottom-CASTLE.top);
+    this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE_SECRET.hole.portalY-CASTLE.top);
     // Backdrop floor stays at the collision floor height through vertical traversal.
     for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-depth').setOrigin(0).setDisplaySize(5100,1700)
       .setFlipX(i%2===1).setScrollFactor(.72,1).setDepth(-21);
@@ -66,13 +73,20 @@ export class Gate1Scene extends Phaser.Scene {
     const terrain = this.physics.add.staticGroup();
     for (const platform of this.allPlatforms) {
       this.createPlatformVisual(platform.x, platform.y, platform.width, platform.height);
-      const rectangle = this.add.rectangle(platform.x, platform.y, platform.width, platform.height, 0x000000, 0);
+    }
+    for (const solid of [...secretHoleSolids(this.allPlatforms), ...secretShaftWalls()]) {
+      const rectangle = this.add.rectangle(solid.x, solid.y, solid.width, solid.height, 0x000000, 0);
       this.physics.add.existing(rectangle, true); terrain.add(rectangle);
+    }
+    if(sealed){
+      const seal=secretSeal();
+      const rectangle=this.add.rectangle(seal.x,seal.y,seal.width,seal.height,0x000000,0);
+      this.physics.add.existing(rectangle,true); terrain.add(rectangle);
     }
     this.castleCheckpoint=this.add.image(CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop,'rest-lantern').setOrigin(.5,1).setDisplaySize(30,54).setDepth(4);
     if(data.checkpoint===CASTLE_CHECKPOINT.x)this.castleCheckpoint.setTint(0xffe2a3);
-    const spawnY=data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
-    this.player = new Player(this, data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
+    const spawnY=data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
+    this.player = new Player(this, data.fromSecret?SECRET_RETURN_X:data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
     this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
     this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width); this.depthPresentation.setPlayer(this.player);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
@@ -99,6 +113,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.roundPixels=true;
     this.cameras.main.startFollow(this.player.sprite,false,.18,.12);
     this.cameras.main.setDeadzone(96,150);
+    if(data.fromSecret)this.cameras.main.setScroll(this.player.sprite.x-TUNING.simulation.width/2,this.player.sprite.y-TUNING.simulation.height/2);
     this.hud = new ChapterHud(this, this.player);
     this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
@@ -119,6 +134,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');
     new SceneLayerRouter(this,this.hudCamera);
+    if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
     this.add.text(605,16,'MENU',{fontFamily:'Georgia',fontSize:'9px',color:'#ffedc4',backgroundColor:'#352716',padding:{x:8,y:5}}).setOrigin(1,0).setScrollFactor(0).setDepth(60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.openMenu());
     const escape=()=>this.openMenu();this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
     const pagehide=()=>this.saveCampaign();window.addEventListener('pagehide',pagehide);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>window.removeEventListener('pagehide',pagehide));
@@ -145,6 +161,16 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     this.player.update(input, delta);
+    if(!this.enteredSecret&&this.player.active&&reachedSecretPortal(this.player.body.center.x,this.player.body.bottom)){
+      this.enteredSecret=true;
+      this.saveCampaign();
+      this.scene.start(CASTLE_SECRET.scene,{
+        infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge,checkpoint:this.checkpointX,
+        opened:this.opened,secrets:this.secrets,bossDefeated:this.bossDefeated,devPreview:this.devPreview,
+        vx:this.player.body.velocity.x,vy:this.player.body.velocity.y
+      });
+      return;
+    }
     if(this.checkpointX===undefined&&this.player.grounded&&isCheckpointContact(this.player.sprite.x,this.player.body.bottom,CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop)){
       this.checkpointX=CASTLE_CHECKPOINT.x; this.castleCheckpoint.setTint(0xffe2a3); this.mechanisms.say('Checkpoint · The royal hall holds.');
       this.saveCampaign();
@@ -164,7 +190,7 @@ export class Gate1Scene extends Phaser.Scene {
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {
-      for(let dy=0;dy<height;dy+=30)this.add.image(x,top+dy,'masonry','trimmed').setOrigin(.5,0).setDisplaySize(width,Math.min(30,height-dy)).setDepth(2);
+      for(let dy=0;dy<height;dy+=18)this.add.image(x,top+dy,'masonry','column').setOrigin(.5,0).setDisplaySize(width,Math.min(20,height-dy)).setDepth(2);
     } else if(width>600) {
       for(let left=x-width/2;left<x+width/2;left+=160) this.add.image(left,top,'masonry','trimmed').setOrigin(0).setDisplaySize(160,56).setDepth(2);
     } else this.add.image(x,top,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(width,Math.max(height, width/4)).setDepth(2);

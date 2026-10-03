@@ -1,7 +1,68 @@
+import { TUNING } from '../config/tuning';
 import type { RoomRectangle } from './gate1Room';
 
 // One readable route. The only optional layer sits behind breakable walls.
 export const CASTLE = { width: 11520, top: -800, bottom: 400, bossStart: 8960 } as const;
+
+const HALL_FLOOR_TOP = 360;
+// Hole sits in the floor under B2's left edge (toward A7), a little wider than Duckoman.
+// B2 stays full width, so Duckoman walks in under it from the right side.
+export const CASTLE_SECRET = {
+  scene: 'castle-secret',
+  // The portal sits at the shaft bottom, well below the camera's floor-level bottom edge, and spans this same width.
+  hole: { left: 1545, width: Math.round((TUNING.player.bodyWidth + 6) * 1.1), portalY: HALL_FLOOR_TOP + 200 },
+  room: {
+    width: TUNING.simulation.width,
+    height: TUNING.simulation.height,
+    floor: { x: TUNING.simulation.width / 2, y: 380, width: TUNING.simulation.width, height: 40 } satisfies RoomRectangle,
+    spawn: { x: TUNING.simulation.width / 2, y: 40 }
+  }
+} as const;
+
+/** Coming back up after RustWing: land just right of the hole, clear of B2. */
+export const SECRET_RETURN_X = CASTLE_SECRET.hole.left + CASTLE_SECRET.hole.width + 80;
+
+/** Invisible floor plug for the hole once the secret is cleared, flush with the hall floor. */
+export function secretSeal(): RoomRectangle {
+  const { left, width } = CASTLE_SECRET.hole, height = 40;
+  return { x: left + width / 2, y: HALL_FLOOR_TOP + height / 2, width, height };
+}
+
+export function inSecretHole(x: number, bottom: number): boolean {
+  return x > CASTLE_SECRET.hole.left && x < CASTLE_SECRET.hole.left + CASTLE_SECRET.hole.width && bottom > HALL_FLOOR_TOP;
+}
+
+export function reachedSecretPortal(x: number, bottom: number): boolean {
+  return inSecretHole(x, bottom) && bottom >= CASTLE_SECRET.hole.portalY;
+}
+
+/** Invisible walls lining the shaft below the hall floor so the fall stays straight down. */
+export function secretShaftWalls(): RoomRectangle[] {
+  const { left, width, portalY } = CASTLE_SECRET.hole;
+  const wallTop = CASTLE.bottom, wallWidth = 40, height = portalY - wallTop, y = wallTop + height / 2;
+  return [
+    { x: left - wallWidth / 2, y, width: wallWidth, height },
+    { x: left + width + wallWidth / 2, y, width: wallWidth, height }
+  ];
+}
+
+/** Collision pieces for a platform, with the invisible secret hole cut out of the hall floor only. */
+export function punchSecretHole(platform: RoomRectangle): RoomRectangle[] {
+  const left = platform.x - platform.width / 2;
+  const right = platform.x + platform.width / 2;
+  const holeLeft = CASTLE_SECRET.hole.left;
+  const holeRight = holeLeft + CASTLE_SECRET.hole.width;
+  const isHallFloor = platform.y - platform.height / 2 === HALL_FLOOR_TOP;
+  if (!isHallFloor || right <= holeLeft || left >= holeRight) return [{ x: platform.x, y: platform.y, width: platform.width, height: platform.height }];
+  const solids: RoomRectangle[] = [];
+  if (left < holeLeft) solids.push({ x: (left + holeLeft) / 2, y: platform.y, width: holeLeft - left, height: platform.height });
+  if (right > holeRight) solids.push({ x: (holeRight + right) / 2, y: platform.y, width: right - holeRight, height: platform.height });
+  return solids;
+}
+
+export function secretHoleSolids(platforms: readonly RoomRectangle[]): RoomRectangle[] {
+  return platforms.flatMap(punchSecretHole);
+}
 const PLATFORM_LAYOUT: RoomRectangle[] = [
   {x:5760,y:380,width:6400,height:40},
   // Royal gallery: single rising route.

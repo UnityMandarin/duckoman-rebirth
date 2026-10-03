@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 import { SECTION_WIDTH } from '../../data/chapters';
 import { HITBOX_LEGEND } from '../DebugHitboxes';
+import { CASTLE_SECRET } from '../../data/castle';
+import { RELICS, grantRelic, ownedRelics, revokeRelic, type RelicId } from '../relics';
 import { DEBUG_TOGGLES, debugToggleSetting, setDebugToggle, type DebugToggle } from './debugSettings';
 import {markCampaignRunIneligible} from './debugSettings';
 
@@ -32,6 +34,8 @@ function toggleList(title: string, toggles: DebugToggle[]): DebugSection {
 
 const LEVELS: { label: string; scene: string; data?: object }[] = [
   { label: 'Castle', scene: 'gate-1' },
+  { label: 'Castle · Secret', scene: CASTLE_SECRET.scene },
+  { label: 'Castle · Molten Rustwing', scene: CASTLE_SECRET.scene, data: { rustForm: 2 } },
   { label: 'Jail', scene: 'jail' },
   { label: 'Wildlands', scene: 'outside' },
   { label: 'Wildlands · Antler Regent', scene: 'outside', data: { checkpoint: 22 * SECTION_WIDTH + 120 } },
@@ -60,6 +64,26 @@ const levelSelect: DebugSectionFactory = game => {
 
 const cheats: DebugSectionFactory = () => toggleList('Cheats', ['invincible', 'infiniteUltimate', 'infiniteJumps', 'infiniteDashes']);
 
+/** Grant or remove relics for the session. The castle hole seals when Rustwing dies, not when a relic is toggled. */
+const relics: DebugSectionFactory = game => {
+  const body = element('div', 'debug-stack');
+  const rows = (Object.keys(RELICS) as RelicId[]).map(id => {
+    const row = element('label', 'debug-toggle');
+    const box = element('input');
+    box.type = 'checkbox';
+    box.onchange = () => (box.checked ? grantRelic : revokeRelic)(game.registry, id);
+    row.append(box, `${RELICS[id].name} · ${RELICS[id].blurb}`);
+    return { row, refresh: () => { box.checked = ownedRelics(game.registry).includes(id); } };
+  });
+  body.append(...rows.map(r => r.row));
+  const refresh = (): void => rows.forEach(r => r.refresh());
+  // Picking a relic up in-game updates the checkboxes too.
+  game.registry.events.on('setdata', refresh);
+  game.registry.events.on('changedata', refresh);
+  refresh();
+  return { title: 'Relics', body, refresh };
+};
+
 const view: DebugSectionFactory = () => {
   const { row, refresh } = toggleRow('hitboxes');
   const legend = element('ul', 'debug-legend');
@@ -74,4 +98,4 @@ const view: DebugSectionFactory = () => {
 };
 
 /** Panel sections, top to bottom. */
-export const DEBUG_SECTIONS: DebugSectionFactory[] = [levelSelect, cheats, view];
+export const DEBUG_SECTIONS: DebugSectionFactory[] = [levelSelect, cheats, relics, view];

@@ -1,6 +1,6 @@
 """Cut a generated relic painting off its white backdrop into a square transparent sprite.
 
-usage: python3 scripts/cut-relic-sprite.py <source image> <output png> [size]
+usage: python3 tools/cut-relic-sprite.py <source image> <output png> [size]
 Only near-white pixels connected to the image border are removed, so highlights inside the outline survive.
 """
 import sys

@@ -9,6 +9,7 @@ import {SolidDashable} from '../entities/SolidDashable';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
 import {ChapterHud} from '../systems/ChapterHud';
+import {preloadRelicArt} from '../systems/RelicArt';
 import {ChapterTraps} from '../systems/ChapterTraps';
 import {ChapterDepth} from '../systems/ChapterDepth';
 import type {ChapterDepthSurface} from '../systems/ChapterDepth';
@@ -67,6 +68,7 @@ export class JourneyScene extends Phaser.Scene {
  private routeCourse?:SkillRoute;private routeControllers:CrownRoute[]=[];private routeController?:CrownRoute;private routeHud?:Phaser.GameObjects.Text;private routeDone=false;private readonly routePracticeAlias:boolean;
  constructor(private readonly kind:ChapterKind,sceneKey:string=kind){super(sceneKey);this.routePracticeAlias=sceneKey.endsWith('-route-practice');}
  preload():void {
+  preloadRelicArt(this);
   const needed=this.kind==='jail'?['jail-gallery','cistern','road-platform','rest-lantern','sealed-dispatch']:CHAPTER_ART;
   for(const key of needed)if(!this.textures.exists(key))this.load.image(key,`${import.meta.env.BASE_URL}assets/chapters/${key}.png`);
   if(this.kind==='jail'&&!this.textures.exists('jail-distance'))this.load.image('jail-distance',`${import.meta.env.BASE_URL}assets/depth/jail-distance.png`);

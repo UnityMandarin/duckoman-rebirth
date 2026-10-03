@@ -22,6 +22,8 @@ export const TUNING = {
     jumpBufferTime: 120,
     jumpCutMultiplier: 0.58,
     boostedJumpVelocity: -760,
+    /** Midair jumps granted by relics. */
+    airJumpVelocity: -560,
     slamVelocity: 850,
     slamBoostWindow: 750,
     crouchHeight: 28,

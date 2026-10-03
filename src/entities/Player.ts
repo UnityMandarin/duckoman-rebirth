@@ -4,10 +4,13 @@ import type { InputSnapshot } from '../systems/InputController';
 import { JumpAssist } from '../systems/JumpAssist';
 import { PlayerAbilities, dashBounceVelocity } from '../systems/PlayerAbilities';
 import { AirTuck } from '../systems/AirTuck';
+import { attackVelocity, type Attack } from '../systems/attack';
 import { circleIntersectsRect, type Circle, type Rect } from '../systems/contactRules';
 import { tagBody } from '../systems/DebugHitboxes';
 import { hitSpark } from '../systems/HitSpark';
 import { debugToggle } from '../systems/debug/debugSettings';
+import { ownedRelics, relicAirJumps } from '../systems/relics';
+import { airJumpShockwave } from '../systems/AirJumpShockwave';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -42,6 +45,7 @@ export class Player {
   private ghosts:Phaser.GameObjects.Image[]=[];
   private lastSweatAt=0;
   private holdingDown = false;
+  private airJumpsUsed = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
@@ -90,6 +94,7 @@ export class Player {
     if (this.grounded) {
       this.jumpAssist.recordGrounded(now);
       this.abilities.land();
+      this.airJumpsUsed = 0;
       this.dashMomentum = 0;
       this.abilities.landSlam(now, TUNING.player.slamBoostWindow);
     }
@@ -116,7 +121,9 @@ export class Player {
     }
 
     const canJump = !this.abilities.slamming && (debugToggle('infiniteJumps') || this.jumpAssist.canJump(now, TUNING.player.coyoteTime));
-    if (this.abilities.isDashing(now) && canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime)) {
+    const airJump = !canJump && !this.abilities.slamming && !!input.jumpPressed
+      && this.airJumpsUsed < relicAirJumps(ownedRelics(this.sprite.scene.registry));
+    if (this.abilities.isDashing(now) && (airJump || canJump && this.jumpAssist.hasBufferedPress(now, TUNING.player.jumpBufferTime))) {
       this.abilities.endDash();
       this.dashMomentum = this.facing;
     }
@@ -142,6 +149,13 @@ export class Player {
       this.body.setVelocityY(this.abilities.consumeBoost(now) ? TUNING.player.boostedJumpVelocity : TUNING.player.jumpVelocity);
       this.setCrouching(false);
       this.jumpCutAvailable = true;
+    } else if (airJump) {
+      this.airJumpsUsed += 1;
+      this.jumpAssist.consumeBufferedPress(now, TUNING.player.jumpBufferTime);
+      this.body.setVelocityY(TUNING.player.airJumpVelocity);
+      this.setCrouching(false);
+      this.jumpCutAvailable = true;
+      airJumpShockwave(this.sprite.scene, this.body.center.x, this.sprite.y + TUNING.player.bodyHeight / 2);
     }
     if (input.jumpReleased && this.jumpCutAvailable && this.body.velocity.y < 0) {
       this.body.setVelocityY(this.body.velocity.y * TUNING.player.jumpCutMultiplier);
@@ -174,10 +188,11 @@ export class Player {
     hitSpark(this.sprite.scene, target ? Phaser.Math.Clamp(x, target.left, target.right) : x, target ? Phaser.Math.Clamp(y, target.top, target.bottom) : y);
   }
 
-  takeDamage(attackerX: number, amount: number = TUNING.player.contactDamage): boolean {
+  takeDamage(attackerX: number, amount: number | Attack = TUNING.player.contactDamage, knockback = 1): boolean {
+    const hit: Attack = typeof amount === 'number' ? { damage: amount, knockback } : amount;
     const now = this.sprite.scene.time.now;
     if (!this.active || this.infiniteHealth || debugToggle('invincible') || this.usingUltimate || this.invulnerable) return false;
-    this.health = Math.max(0, this.health - amount);
+    this.health = Math.max(0, this.health - hit.damage);
     this.hurtUntil = now + TUNING.player.hurtLockTime;
     this.invulnerableUntil = now + TUNING.player.invulnerabilityTime;
     this.lifeState = this.health === 0 ? 'DEAD' : 'HURT';
@@ -185,13 +200,13 @@ export class Player {
     this.dashMomentum = 0;
     this.body.setAllowGravity(true);
     this.setCrouching(false);
-    const direction = this.sprite.x < attackerX ? -1 : 1;
-    this.body.setAcceleration(0, 0).setVelocity(direction * TUNING.player.damageKnockback.x, TUNING.player.damageKnockback.y);
+    const shove = attackVelocity(this.sprite.x, attackerX, hit);
+    this.body.setAcceleration(0, 0).setVelocity(shove.x, shove.y);
     if (this.lifeState === 'DEAD') {
       this.body.setVelocity(0, 0).setEnable(false);
       this.visual.setAlpha(0.35);
     }
-    this.sprite.scene.events?.emit('player-damaged', amount);
+    this.sprite.scene.events?.emit('player-damaged', hit.damage);
     return true;
   }
 

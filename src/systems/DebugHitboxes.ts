@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
-import type { Circle, Rect } from './contactRules';
+import type { Circle, Polygon, Rect } from './contactRules';
 import { debugToggle } from './debug/debugSettings';
 import { platformLabels } from './debug/platformLabels';
 
 export type HitboxKind = 'hurtbox' | 'attack' | 'danger' | 'target' | 'interact' | 'solid';
-type Shape = Rect | Circle;
+type Shape = Rect | Circle | Polygon;
 type Rect2D = { x: number; y: number; width: number; height: number };
 type Tag = { kind: HitboxKind; shapes?: () => Shape[] };
 
@@ -50,6 +50,11 @@ export function installHitboxDebug(scene: Phaser.Scene): void {
       g.fillStyle(color, kind === 'solid' ? 0.08 : 0.2).lineStyle(1.5, color, 0.95);
       if ('radius' in shape) {
         g.fillCircle(shape.x, shape.y, shape.radius).strokeCircle(shape.x, shape.y, shape.radius);
+        return;
+      }
+      if ('points' in shape) {
+        const points = shape.points.map(p => new Phaser.Math.Vector2(p.x, p.y));
+        g.fillPoints(points, true).strokePoints(points, true);
         return;
       }
       const r = { left: shape.left, right: shape.right, top: Math.max(shape.top, view.y - 50), bottom: Math.min(shape.bottom, view.bottom + 50) };

@@ -12,6 +12,7 @@ import {showHitbox} from '../systems/DebugHitboxes';
 import {renderScale} from '../systems/renderScale';
 import {Dashable} from './Dashable';
 import {hitSpark} from '../systems/HitSpark';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
@@ -51,8 +52,8 @@ export class CastleBoss extends Dashable {
     this.summonArt=scene.add.graphics().setDepth(17);
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
-    const strike=(p:Player)=>{
-      if(!this.finished&&this.started!==undefined&&Math.abs(p.sprite.x-this.image.x)<200&&Math.abs(p.sprite.y-this.image.y)<140){
+    const strike=(s:UltimateStrike)=>{
+      if(!this.finished&&this.started!==undefined&&s.tryHit(this,this.bodyBounds)){
         this.health.damage(4);this.retreatUntil=scene.time.now+1400;hitSpark(scene,this.image.x,this.image.y,1.4);
         if(this.health.hp===0)this.finish();
       }

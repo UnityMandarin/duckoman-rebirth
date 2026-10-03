@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
-import {alignSwordMeterFill,createUltimateSwordVisual,setSwordMeterCharge,SWORD_METER} from '../systems/SwordMeterArt';
+import {alignSwordMeterFill,setSwordMeterCharge,SWORD_METER} from '../systems/SwordMeterArt';
+import {playUltimateSwing} from '../systems/UltimateSwing';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import { BasicEnemy } from '../entities/BasicEnemy';
 import { Player } from '../entities/Player';
@@ -16,7 +17,7 @@ import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
 import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
-import { renderScale, setupRenderScale } from '../systems/renderScale';
+import { setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
 import {preloadCommon,registerCommonFrames} from './CommonAssets';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
@@ -29,6 +30,7 @@ export class Gate1Scene extends Phaser.Scene {
   constructor() { super('gate-1'); }
   private hud!: Phaser.GameObjects.Graphics;
   private swordFill!: Phaser.GameObjects.Image;
+  private swordFrame!: Phaser.GameObjects.Image;
   private displayedHealth = 3;
   private healthChangedAt = -1000;
   private shadows: Phaser.GameObjects.Ellipse[] = [];
@@ -107,7 +109,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.hud = this.add.graphics().setScrollFactor(0).setDepth(19);
     this.swordFill=this.add.image(0,0,'ultimate-sword-fill').setScrollFactor(0).setDepth(19.5);
     alignSwordMeterFill(this.swordFill);
-    this.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(20);
+    this.swordFrame=this.add.image(SWORD_METER.frameX,SWORD_METER.frameY,'ultimate-sword-frame').setOrigin(0).setDisplaySize(SWORD_METER.frameWidth,SWORD_METER.frameHeight).setScrollFactor(0).setDepth(20);
     this.add.image(43, 40, 'duckoman').setDisplaySize(40, 38).setScrollFactor(0).setDepth(20);
     this.dashMeter = new DashMeter(this, 20);
     this.healthText = this.add.text(82, 10, '', { fontFamily: 'Arial', fontSize: '14px', color: '#fff2d4', stroke: '#130b05', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
@@ -208,25 +210,7 @@ export class Gate1Scene extends Phaser.Scene {
   private updateAbilityHud(): void {
     this.abilityText.setText(this.player.ultimateCharge>=100?'U · ULTIMATE READY':'U · ULTIMATE');
   }
-  private useUltimate():void {
-    const p=this.player;p.ultimateCharge=0;p.ultimateUntil=this.time.now+900;
-    p.abilities.setSprint(false);
-    p.abilities.cancelTransient();p.body.setVelocity(0,0).setAllowGravity(false);
-    // Lift the actual HUD sword artwork into the world, then swing from Duckoman's hand.
-    const start=this.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
-    const sword=createUltimateSwordVisual(this,start.x,start.y);
-    this.tweens.add({targets:sword,x:p.sprite.x+p.facing*22,y:p.sprite.y-10,scaleX:130/220,scaleY:20/25,duration:280,ease:'Cubic.InOut',onComplete:()=>{
-      sword.setScale((p.facing<0?-1:1)*130/220,20/25).setAngle(p.facing*-100);
-      this.tweens.add({targets:sword,angle:p.facing*70,duration:360,ease:'Cubic.InOut'});
-      this.time.delayedCall(160,()=>{
-        this.events.emit('ultimate-strike',p);
-        const arc=this.add.graphics().setPosition(p.sprite.x,p.sprite.y).setDepth(44).lineStyle(14,0xffda70,.75);
-        arc.beginPath().arc(0,0,125,-1.5,1.5).strokePath();
-        arc.setScale(p.facing,1);this.tweens.add({targets:arc,alpha:0,duration:250,onComplete:()=>arc.destroy()});
-      });
-    }});
-    this.time.delayedCall(900,()=>{sword.destroy();p.body.setAllowGravity(true);});
-  }
+  private useUltimate():void {playUltimateSwing(this,this.player,{frame:this.swordFrame,fill:this.swordFill});}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {

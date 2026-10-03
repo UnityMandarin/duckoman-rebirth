@@ -13,6 +13,7 @@ import {loadProgress,saveProgress,updateChapter,canPersistCampaign,releaseRescue
 import {campaignRunEligible,markCampaignRunIneligible,debugModeOn,debugToggle,resetCampaignRunEligibility} from '../systems/debug/debugSettings';
 import {authorizeFranklinUltimate,consumeFranklinUltimate,createRescueWaveController,rescueEntryCharge,rescueEntryCheckpoint,rescueEntryRecord,rescueRetryRecord,rescueStage,tickRescueWaves,type RescueStage,type RescueWaveController,type RescueSpawn,type UltimateReleaseAuthorization} from '../systems/RescueRules';
 import {enemyPatrolBounds} from '../systems/enemyPatrolBounds';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 import type {Ledge} from '../data/chapters';
 
 interface RescueStart {devPreview?:boolean;bossPreview?:boolean;retry?:boolean;checkpoint?:number;opened?:number[];bossDefeated?:boolean;ultimateCharge?:number;infiniteHealth?:boolean;}
@@ -24,7 +25,7 @@ export class RescueScene extends Phaser.Scene {
  private franklin!:Phaser.GameObjects.Image;private chains!:Phaser.GameObjects.Graphics;private seal!:Phaser.GameObjects.Rectangle;private exitGate!:Phaser.GameObjects.Rectangle;
  private objective!:Phaser.GameObjects.Text;private status!:Phaser.GameObjects.Text;private story!:Phaser.GameObjects.Text;private storyUntil=0;private compass!:Phaser.GameObjects.Text;
  private pendingGraphics:Phaser.GameObjects.Graphics[]=[];private waves:RescueWaveController=createRescueWaveController();private stage:RescueStage='chained';private authorization:UltimateReleaseAuthorization={armed:false,consumed:false};private persistedCharge=0;
- private warden?:HollowWarden;private cameraReturnAt=0;private devPreview=false;private leaving=false;private dying=false;private ending=false;private footstepMs=0;private cakeWasGrounded=false;private cakeLandingSent=false;private pagehide=()=>this.saveCampaign();private menuKey=()=>this.openMenu();private readonly ultimateStrike=(source:Player)=>{if(source!==this.player||!source.usingUltimate)return;const used=consumeFranklinUltimate(this.authorization,{stage:this.stage,playerX:source.body.center.x,playerY:source.body.center.y,franklinX:540});this.authorization=used.authorization;if(used.released)this.releaseFranklin();};
+ private warden?:HollowWarden;private cameraReturnAt=0;private devPreview=false;private leaving=false;private dying=false;private ending=false;private footstepMs=0;private cakeWasGrounded=false;private cakeLandingSent=false;private readonly spentSwings=new WeakSet<UltimateStrike>();private pagehide=()=>this.saveCampaign();private menuKey=()=>this.openMenu();private readonly ultimateStrike=(strike:UltimateStrike)=>{if(strike.player!==this.player||!strike.player.usingUltimate||this.spentSwings.has(strike))return;this.spentSwings.add(strike);const used=consumeFranklinUltimate(this.authorization,{stage:this.stage,playerX:strike.player.body.center.x,playerY:strike.player.body.center.y,franklinX:540});this.authorization=used.authorization;if(used.released)this.releaseFranklin();};
  constructor(){super('rescue');}
  preload():void {
   preloadCommon(this);

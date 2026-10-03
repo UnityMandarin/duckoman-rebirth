@@ -36,7 +36,9 @@ const LEVELS: { label: string; scene: string; data?: object }[] = [
   { label: 'Wildlands', scene: 'outside' },
   { label: 'Wildlands · Antler Regent', scene: 'outside', data: { checkpoint: 22 * SECTION_WIDTH + 120 } },
   { label: 'Crimson', scene: 'crimson' },
-  { label: 'Crimson · Crimson Claw', scene: 'crimson', data: { checkpoint: 10 * SECTION_WIDTH + 120 } }
+  { label: 'Crimson · Crimson Claw', scene: 'crimson', data: { checkpoint: 10 * SECTION_WIDTH + 120 } },
+  { label: 'Hollow Prison', scene: 'rescue', data: { devPreview:true } },
+  { label: 'Hollow Prison · Warden', scene: 'rescue', data: { devPreview:true,bossPreview:true } }
 ];
 
 const levelSelect: DebugSectionFactory = game => {

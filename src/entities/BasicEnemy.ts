@@ -25,10 +25,11 @@ export class BasicEnemy extends Dashable {
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
+  private readonly strike:(player:Player)=>void;
   private jumpAt=0;
   private awake?:boolean;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, private patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string) {
+  constructor(scene: Phaser.Scene, x: number, y: number, private patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string,private readonly onDefeated?:()=>void) {
     super();
     this.pointed=pointed;
     this.jumper=jumper;
@@ -51,16 +52,16 @@ export class BasicEnemy extends Dashable {
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
-    this.cleanup=()=>scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
-    const strike=(player:Player)=>{
+    this.strike=(player:Player)=>{
       if(!this.defeated&&this.body.enable&&Math.abs(this.sprite.x-player.sprite.x)<180&&Math.abs(this.sprite.y-player.sprite.y)<120){
         const dx=this.sprite.x-player.sprite.x,dy=this.sprite.y-player.sprite.y,len=Math.hypot(dx,dy)||1;
         if(this.hit(2,{x:dx/len*500,y:dy/len*500}))player.chargeUltimate(10);
       }
     };
-    scene.events.on('ultimate-strike',strike);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>scene.events.off('ultimate-strike',strike));
+    this.cleanup=()=>{scene.events.off(Phaser.Scenes.Events.POST_UPDATE,this.syncVisual,this);scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);};
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE,this.syncVisual,this);
+    scene.events.on('ultimate-strike',this.strike);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
   }
 
   setPatrolBounds(bounds:{left:number;right:number}):void { this.patrol={...bounds}; }
@@ -122,6 +123,8 @@ export class BasicEnemy extends Dashable {
   defeat(impulse?:KillImpulse): void {
     if (this.defeated) return;
     this.defeated = true;
+    this.cleanup();
+    this.onDefeated?.();
     this.healthImage?.destroy();this.healthLabel?.destroy();this.healthEmpty?.destroy();
     this.sprite.scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.sprite.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);

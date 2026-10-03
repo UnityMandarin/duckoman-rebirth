@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AirTuck } from '../src/systems/AirTuck';
-import { pillarPhase } from '../src/systems/PillarTiming';
+import { pillarPhase, pillarSkyTop } from '../src/systems/PillarTiming';
 import { GATE_1_ROOM } from '../src/data/gate1Room';
 import { TUNING } from '../src/config/tuning';
 describe('expanded level rules',()=>{
@@ -11,6 +11,11 @@ describe('expanded level rules',()=>{
     expect(tuck.update(false,true)).toBe(true);
     tuck.update(true,false);
     expect(tuck.update(false,true)).toBe(false);
+  });
+  it('starts the column at or above the camera so it always reaches the top of the view',()=>{
+    expect(pillarSkyTop(132,155)).toBe(-165);
+    expect(pillarSkyTop(-200,155)).toBe(-200);
+    expect(pillarSkyTop(-10,155)).toBe(-165);
   });
   it('warns before falling and becomes an obstacle only after impact',()=>{
     expect(pillarPhase(1499,1500,650)).toBe('warning');

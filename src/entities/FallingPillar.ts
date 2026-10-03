@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GATE_1_ROOM } from '../data/gate1Room';
 import type { Player } from './Player';
-import { pillarPhase } from '../systems/PillarTiming';
+import { pillarPhase, pillarSkyTop } from '../systems/PillarTiming';
 import { showHitbox } from '../systems/DebugHitboxes';
 import { SolidDashable } from './SolidDashable';
 
@@ -11,7 +11,7 @@ export class FallingPillar {
   private hit = false;
   private previousBottom = -10;
   private readonly shape: Phaser.GameObjects.Rectangle;
-  private readonly art: Phaser.GameObjects.Container;
+  private readonly art: Phaser.GameObjects.Image;
   private readonly warning: Phaser.GameObjects.Text;
   private readonly zone: Phaser.GameObjects.Rectangle;
   private readonly guide:Phaser.GameObjects.Graphics;
@@ -28,9 +28,7 @@ export class FallingPillar {
     (this.shape.body as Phaser.Physics.Arcade.StaticBody).enable=false;
     scene.physics.add.collider(player.sprite,this.shape);
     this.dashable=new SolidDashable(this.shape);
-    const pieces: Phaser.GameObjects.GameObject[]=[];
-    for(let i=0;i<4;i++) pieces.push(scene.add.image(0,i*p.height/4,'masonry','trimmed').setOrigin(0.5,0).setDisplaySize(p.width,p.height/4+5));
-    this.art=scene.add.container(p.x,-p.height-10,pieces).setDepth(4).setVisible(false);
+    this.art=scene.add.image(p.x,-p.height-10,'rock-pillar-kit','pillar').setOrigin(0.5,0).setDisplaySize(p.width,p.height).setDepth(4).setVisible(false);
     this.zone=scene.add.rectangle(p.x,357,p.width,6,0xff3028,0.9).setDepth(7).setVisible(false);
     this.warning=scene.add.text(p.x,160,'⚠ FALLING PILLAR',{fontFamily:'Arial',fontSize:'14px',color:'#ffd789',stroke:'#180b05',strokeThickness:4}).setOrigin(0.5).setDepth(12).setVisible(false);
   }
@@ -42,15 +40,16 @@ export class FallingPillar {
     }
     const elapsed=this.scene.time.now-this.triggeredAt;
     const phase=pillarPhase(elapsed,p.warningMs,p.fallMs);
+    const sky=pillarSkyTop(this.scene.cameras.main.worldView.y,p.height);
     if(phase==='warning') {
       this.guide.clear().fillStyle(0xff3329,.9);
-      for(let y=-10;y<357;y+=16)this.guide.fillRect(p.x-2,y,4,7);
+      for(let y=sky;y<357;y+=16)this.guide.fillRect(p.x-2,y,4,7);
       this.warning.setVisible(true); this.zone.setVisible(true).setAlpha(0.4+Math.abs(Math.sin(elapsed/100))*0.6); return;
     }
     this.guide.clear();
     this.warning.setVisible(false); this.art.setVisible(true);
     const progress=Phaser.Math.Clamp((elapsed-p.warningMs)/p.fallMs,0,1);
-    const top=Phaser.Math.Linear(-p.height-10,360-p.height,progress*progress);
+    const top=Phaser.Math.Linear(sky,360-p.height,progress*progress);
     const bottom=top+p.height;
     this.art.y=top;
     const body=this.player.body;

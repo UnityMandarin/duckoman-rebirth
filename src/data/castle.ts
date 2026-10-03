@@ -6,7 +6,7 @@ export const CASTLE = { width: 11520, top: -800, bottom: 400, bossStart: 8960 } 
 
 const HALL_FLOOR_TOP = 360;
 // Hole sits in the floor under B2's left edge (toward A7), a little wider than Duckoman.
-// B2 stays full width, so Duckoman walks in under it from the right side.
+// An A5 column under B2's right edge shuts that side. The way in is from the left.
 export const CASTLE_SECRET = {
   scene: 'castle-secret',
   // The portal sits at the shaft bottom, well below the camera's floor-level bottom edge, and spans this same width.

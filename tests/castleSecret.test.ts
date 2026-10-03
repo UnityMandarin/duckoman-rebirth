@@ -39,6 +39,20 @@ describe('castle secret under B2', () => {
     expect(360 - b2Bottom).toBeGreaterThan(TUNING.player.bodyHeight);
   });
 
+  it('stands an A5 column under B2 so the right side is shut', () => {
+    const a5 = GATE_1_ROOM.platforms.find(platform => platform.x === 1080)!;
+    const column = GATE_1_ROOM.platforms.find(platform => platform.x === 1619)!;
+    expect(column.width).toBe(a5.width);
+    expect(column.height).toBe(a5.height);
+    const columnLeft = column.x - column.width / 2;
+    const columnTop = column.y - column.height / 2;
+    const b2Bottom = b2.y + b2.height / 2;
+    expect(columnLeft).toBeGreaterThanOrEqual(holeRight);
+    expect(column.x + column.width / 2).toBeLessThanOrEqual(b2.x + b2.width / 2);
+    expect(column.y + column.height / 2).toBe(360);
+    expect(columnTop - b2Bottom).toBeLessThan(TUNING.player.crouchHeight);
+  });
+
   it('portals into a separate empty room instead of extending the castle map', () => {
     expect(CASTLE_SECRET.scene).toBe('castle-secret');
     expect(CASTLE.bottom).toBe(400);

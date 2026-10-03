@@ -8,13 +8,14 @@ import {
 
 describe('RustWing prototype', () => {
   it('is a weaker IronWing that still dies to separated hits and ultimates', () => {
-    expect(RUSTWING_RULES.hp).toBe(8);
+    expect(RUSTWING_RULES.hp).toBe(10);
+    expect(RUSTWING_RULES.moltenHp).toBe(12);
     expect(rustDamage('dash')).toBe(1);
     expect(rustDamage('stomp')).toBe(1);
     expect(rustDamage('ultimate')).toBe(4);
     const h = new RustHealth();
     expect(h.touch(0, true, false)).toBe(false);
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < RUSTWING_RULES.hp; i++) {
       expect(h.touch(i * 1000, true, true)).toBe(true);
       expect(h.touch(i * 1000 + 900, true, true)).toBe(false);
       h.touch(i * 1000 + 950, false, false);

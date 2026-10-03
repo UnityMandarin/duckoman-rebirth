@@ -15,8 +15,8 @@ export type RustPhase =
   | 'eruptWindup' | 'erupt';
 
 export const RUSTWING_RULES = {
-  hp: 8,
-  moltenHp: 8,
+  hp: 10,
+  moltenHp: 12,
   /** Invulnerable while transforming into the second form; the new bar fills over this time. */
   transformMs: 2400,
   hitLock: 650,

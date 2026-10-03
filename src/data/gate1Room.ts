@@ -23,6 +23,7 @@ export const GATE_1_ROOM = {
     ,{ x: 1290, y: 330, width: 90, height: 20 }
     ,{ x: 1415, y: 325, width: 190, height: 20 }
     ,{ x: 1590, y: 275, width: 90, height: 20 }
+    ,{ x: 1619, y: 330, width: 20, height: 60 }
     ,{ x: 1770, y: 255, width: 210, height: 20 }
     ,{ x: 2190, y: 320, width: 85, height: 20 }
     ,{ x: 2370, y: 275, width: 250, height: 20 }

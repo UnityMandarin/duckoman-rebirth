@@ -6,7 +6,8 @@ export const RELIC_TEXTURES: Record<RelicId, string> = { 'bronze-wing': 'bronze-
 /** Call from every scene's preload that shows the relic HUD or lets the duck use relics. */
 export function preloadRelicArt(scene: Phaser.Scene): void {
   const base = import.meta.env.BASE_URL;
-  if (!scene.textures.exists(RELIC_TEXTURES['bronze-wing'])) scene.load.image(RELIC_TEXTURES['bronze-wing'], `${base}assets/gate3/bronze-wing.png`);
+  const key = RELIC_TEXTURES['bronze-wing'];
+  if (!scene.textures.exists(key) && !Array.from(scene.load.list).some(file => file.key === key)) scene.load.image(key, `${base}assets/gate3/bronze-wing.png`);
 }
 
 /** Owned relics in a row under the duck's HUD panel. */

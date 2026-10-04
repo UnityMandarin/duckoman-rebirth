@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {SKILL_ROUTES,type SkillRoute} from '../data/skillRoutes';
 import {canPracticeBoss,canPracticeRoute,loadProgress,type CampaignProgress} from '../systems/progress';
 import {setupRenderScale} from '../systems/renderScale';
+import {preloadSceneAssets} from './SceneAssets';
 
 const TABS=['SUNKEN CELLS','WILDLANDS','CRIMSON THRONE','BOSS TRIALS'];
 const CHAPTERS=['jail','outside','crimson'] as const;
@@ -15,6 +16,7 @@ export class RouteSelectScene extends Phaser.Scene {
  private tabs:Phaser.GameObjects.Rectangle[]=[];
  private cards:Phaser.GameObjects.Container[]=[];
  constructor(){super('routes');}
+ preload():void {preloadSceneAssets(this,'menu');}
  create(data:GalleryData={}):void {
   this.pausedScene=data.pausedScene;
   this.tab=Number.isInteger(data.tab)&&data.tab!>=0&&data.tab!<4?data.tab!:0;

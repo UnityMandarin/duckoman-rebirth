@@ -1,8 +1,9 @@
 import {CASTLE} from './castle';
+import {qualityPlatforms} from './qualityRooms';
 import {encounterFor} from './chapterChallenges';
 
 export type ChapterKind='jail'|'outside'|'crimson';
-export interface Ledge {x:number;y:number;width:number;height:number;}
+export interface Ledge {x:number;y:number;width:number;height:number;role?:'floor'|'ledge';room?:number;step?:number;}
 export interface ChapterSection {name:string;route:'gallery'|'stairs'|'gap'|'gauntlet';story?:string;secret?:string;}
 export const CHAPTER_WIDTH={jail:CASTLE.width*1.5,outside:CASTLE.width*3,crimson:CASTLE.width*1.5} as const;
 export const SECTION_WIDTH=1440;
@@ -65,17 +66,12 @@ export function chapterSections(kind:ChapterKind):ChapterSection[]{return kind==
 
 /** Two readable paths at most; every upper route returns to the continuous lower road. */
 export function chapterPlatforms(kind:ChapterKind):Ledge[]{
- const sections=chapterSections(kind);
+ if(kind!=='crimson')return qualityPlatforms(kind);
  const result:Ledge[]=[];
- for(let i=0;i<sections.length;i++){
-   const x=i*SECTION_WIDTH;
-   result.push({x:x+720,y:390,width:1440,height:60});
-   // Keep final outdoor arena open, with modest perimeter refuges.
-   if((kind==='outside'&&i>=22)||(kind==='crimson'&&i>=10)){
-     result.push({x:x+320,y:270,width:180,height:32},{x:x+1100,y:270,width:180,height:32});continue;
-   }
-   const pattern=encounterFor(kind,i)!.steps;
-   for(const [dx,y,width]of pattern)result.push({x:x+dx,y,width,height:32});
+ for(let i=0;i<12;i++){
+  const x=i*SECTION_WIDTH;result.push({x:x+720,y:390,width:1440,height:60,role:'floor',room:i});
+  if(i>=10){result.push({x:x+320,y:270,width:180,height:32,role:'ledge',room:i,step:0},{x:x+1100,y:270,width:180,height:32,role:'ledge',room:i,step:1});continue;}
+  encounterFor(kind,i)?.steps.forEach(([dx,y,width],step)=>result.push({x:x+dx,y,width,height:32,role:'ledge',room:i,step}));
  }
  return result;
 }

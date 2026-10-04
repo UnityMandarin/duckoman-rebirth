@@ -9,14 +9,14 @@ import {nearbySectionIndexes} from './performancePolicy';
 /** Keeps live contact shadowing beside the painted chapter composition. */
 export class ChapterDepth {
   private readonly scenery?: ChapterScenery;
-  private readonly atmosphere: Atmosphere;
+  private readonly atmosphere?: Atmosphere;
   private readonly geometryBuckets=new Map<number,{surface:ChapterDepthSurface;geometry:DepthSurfaceGeometry}[]>();
   private shadow?: Phaser.GameObjects.Ellipse;
   private player?: Player;
 
   constructor(private readonly scene: Phaser.Scene, private readonly kind: ChapterKind | 'castle', private readonly width: number, decorate=true) {
     if(decorate)this.scenery = new ChapterScenery(scene, kind, width);
-    this.atmosphere=new Atmosphere(scene,kind);
+    if(kind==='castle')this.atmosphere=new Atmosphere(scene,kind);
   }
 
   setSurfaces(surfaces: readonly ChapterDepthSurface[]): void {this.geometryBuckets.clear();surfaces.forEach((surface,id)=>{const geometry=this.geometry(surface,id),section=Math.floor(geometry.x/1440),bucket=this.geometryBuckets.get(section)??[];bucket.push({surface,geometry});this.geometryBuckets.set(section,bucket);});}
@@ -30,7 +30,7 @@ export class ChapterDepth {
   update(): void {
     if (!this.player) return;
     this.scenery?.update(this.player);
-    this.atmosphere.update(this.player,this.scene.game.loop.delta);
+    this.atmosphere?.update(this.player,this.scene.game.loop.delta);
     this.updateShadow();
   }
 
@@ -55,6 +55,6 @@ export class ChapterDepth {
 
 export interface ChapterDepthSurface {
   shape: Phaser.GameObjects.Rectangle;
-  art?: Phaser.GameObjects.Image;
+  art?: Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite;
   ledge: Ledge;
 }

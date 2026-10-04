@@ -7,7 +7,7 @@ export function parseRenderQuality(value:unknown):RenderQuality{return value==='
 export function computeRenderScale(viewW:number,viewH:number,dpr:number,quality:RenderQuality):number {
  if(!Number.isFinite(viewW)||!Number.isFinite(viewH)||viewW<=0||viewH<=0)return 1;
  const density=Number.isFinite(dpr)&&dpr>0?dpr:1;
- const cap=quality==='sharp'?4:2;
+ const cap=quality==='sharp'?2:1;
  return Math.max(1,Math.min(cap,Math.ceil(Math.min(viewW/640,viewH/400)*density)));
 }
 

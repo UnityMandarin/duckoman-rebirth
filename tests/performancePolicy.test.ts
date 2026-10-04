@@ -2,12 +2,12 @@ import {describe,it,expect} from 'vitest';
 import {computeRenderScale,nearbySectionIndexes,parseRenderQuality,projectedInView} from '../src/systems/performancePolicy';
 
 describe('performance policy',()=>{
- it('caps Smooth at 2 and Sharp at 4 across tiny, retina, and wide views',()=>{
+ it('caps Smooth at 1 and Sharp at 2 across tiny, retina, and wide views',()=>{
   expect(computeRenderScale(200,100,2,'smooth')).toBe(1);
-  expect(computeRenderScale(1280,800,2,'smooth')).toBe(2);
-  expect(computeRenderScale(1280,800,2,'sharp')).toBe(4);
-  expect(computeRenderScale(2560,720,2,'sharp')).toBe(4);
-  expect(computeRenderScale(2560,720,2,'smooth')).toBe(2);
+  expect(computeRenderScale(1280,800,2,'smooth')).toBe(1);
+  expect(computeRenderScale(1280,800,2,'sharp')).toBe(2);
+  expect(computeRenderScale(2560,720,2,'sharp')).toBe(2);
+  expect(computeRenderScale(2560,720,2,'smooth')).toBe(1);
   expect(computeRenderScale(1,1,.1,'sharp')).toBe(1);
  });
  it('falls back to Smooth for invalid or unavailable stored values',()=>{

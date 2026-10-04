@@ -12,6 +12,8 @@ import { RescueScene } from '../scenes/RescueScene';
 const { width, height } = canvasSize();
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL, parent: 'game', width, height, backgroundColor: '#20242b',
+  fps: { target: 60, limit: 60 }, antialias: true, powerPreference: 'low-power',
+  loader: { maxParallelDownloads: 2 },
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, fps: TUNING.simulation.physicsFps, fixedStep: true, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width, height }, scene: [BootScene,MenuScene,JournalScene,RouteSelectScene,Gate1Scene,CastleSecretScene,JailScene,OutsideScene,CrimsonScene,RescueScene,RegentPracticeScene,CrabPracticeScene,JailRoutePracticeScene,OutsideRoutePracticeScene,CrimsonRoutePracticeScene]
 };

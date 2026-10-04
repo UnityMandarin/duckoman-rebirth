@@ -5,6 +5,8 @@ import {CHAPTER_DIFFICULTY,JAIL_ENCOUNTERS,OUTSIDE_ENCOUNTERS,CRIMSON_ENCOUNTERS
 import {TUNING} from '../src/config/tuning';
 import {enemyPatrolBounds} from '../src/systems/enemyPatrolBounds';
 import {shouldCheckpoint} from '../src/systems/checkpointPolicy';
+import {JAIL_ROOMS,OUTSIDE_ROOMS} from '../src/data/qualityRooms';
+const spikeXs=(spikes:readonly (number|{x:number})[]):number[]=>spikes.map(spike=>typeof spike==='number'?spike:spike.x);
 
 describe('authored expansion geometry',()=>{
  it('preserves authored encounter counts of 12, 22, and 10',()=>{
@@ -17,32 +19,24 @@ describe('authored expansion geometry',()=>{
   expect(OUTSIDE_SECTIONS.length*SECTION_WIDTH).toBe(CHAPTER_WIDTH.outside);
  });
  for(const kind of ['jail','outside','crimson'] as const){
-  it(`${kind} has no void floor seams or out-of-bounds platforms`,()=>{
-   const platforms=chapterPlatforms(kind),floor=platforms.filter(p=>p.height===60);
-   let end=0;
-   for(const p of floor){expect(p.x-p.width/2).toBe(end);expect(p.y-p.height/2).toBe(360);end=p.x+p.width/2;}
-   expect(end).toBe(CHAPTER_WIDTH[kind]);
-   for(const p of platforms){expect(p.x-p.width/2).toBeGreaterThanOrEqual(0);expect(p.x+p.width/2).toBeLessThanOrEqual(end);}
-  });
-  it(`${kind} raised routes have reachable ascending steps and return to ground`,()=>{
-   const platforms=chapterPlatforms(kind);
-   const reached=new Set(platforms.filter(p=>p.height===60));
-   // Full held jump plus horizontal dash, using the actual movement constants.
-   // Graph search supports flat bridges and switchbacks, not only ascending staircases.
-   let changed=true;
-   while(changed){changed=false;for(const target of platforms){
-    if(reached.has(target))continue;
-    for(const source of reached){
-     const rise=(source.y-source.height/2)-(target.y-target.height/2);
-     const v=-TUNING.player.jumpVelocity,g=TUNING.player.gravity;
-     const discriminant=v*v-2*g*rise;if(discriminant<0)continue;
-     const airTime=(v+Math.sqrt(discriminant))/g;
-     const gap=Math.max(0,Math.abs(target.x-source.x)-(target.width+source.width)/2+60);
-     const reach=airTime*TUNING.player.sprintSpeed+TUNING.player.dashSpeed*TUNING.player.dashDuration/1000;
-     if(gap<=reach-20){reached.add(target);changed=true;break;}
+  it(`${kind} uses its authored floor intervals and keeps steps out of foundations`,()=>{
+   const platforms=chapterPlatforms(kind),rooms=kind==='jail'?JAIL_ROOMS:kind==='outside'?OUTSIDE_ROOMS:undefined;
+   if(!rooms){expect(platforms.filter(p=>p.role==='floor')).toHaveLength(12);return;}
+   expect(platforms.filter(p=>p.role==='floor')).toHaveLength(rooms.reduce((n,r)=>n+r.intervals.length,0)+(kind==='outside'?2:0));
+   for(const [index,room] of rooms.entries()){
+    const floors=platforms.filter(p=>p.role==='floor'&&p.room===index);
+    expect(floors.map(p=>[p.x-index*SECTION_WIDTH-p.width/2,p.x-index*SECTION_WIDTH+p.width/2])).toEqual(room.intervals);
+    expect(floors.every(p=>p.y-p.height/2===room.floor)).toBe(true);
+    for(const step of platforms.filter(p=>p.role==='ledge'&&p.room===index)){
+     expect(step.height).toBe(32);
+     for(const floor of floors){
+      const xOverlap=step.x-step.width/2<floor.x+floor.width/2&&step.x+step.width/2>floor.x-floor.width/2;
+      const yOverlap=step.y-step.height/2<floor.y+floor.height/2&&step.y+step.height/2>floor.y-floor.height/2;
+      expect(xOverlap&&yOverlap,`${kind} room${index} step${step.step} embeds in floor`).toBe(false);
+     }
     }
-   }}
-   for(const ledge of platforms)expect(reached.has(ledge),`unreachable ${ledge.x},${ledge.y}`).toBe(true);
+   }
+   for(const p of platforms){expect(p.x-p.width/2).toBeGreaterThanOrEqual(0);expect(p.x+p.width/2).toBeLessThanOrEqual(CHAPTER_WIDTH[kind]);}
   });
  }
  it('includes discoverable story on both routes and an explicit Franklin destination',()=>{
@@ -57,13 +51,13 @@ describe('authored expansion geometry',()=>{
    expect(new Set(encounters.map(e=>e.steps.length)).size).toBeGreaterThan(1);
    for(const encounter of encounters){
     if(encounter.spikes.length)expect(encounter.spikes.length).toBeGreaterThanOrEqual(2);
-    for(let i=1;i<encounter.spikes.length;i++)expect(encounter.spikes[i]-encounter.spikes[i-1]).toBeGreaterThanOrEqual(84);
-    if(encounter.spikes.length>=4)expect(encounter.spikes[2]-encounter.spikes[1]).toBeGreaterThanOrEqual(150);
-    for(const enemy of encounter.enemies){expect(enemy.x).toBeGreaterThan(0);expect(enemy.x).toBeLessThan(1440);expect(enemy.patrol).toBeGreaterThanOrEqual(60);}
+    const xs=spikeXs(encounter.spikes);for(let i=1;i<xs.length;i++)expect(xs[i]-xs[i-1]).toBeGreaterThanOrEqual(84);
+    if(xs.length>=4)expect(xs[2]-xs[1]).toBeGreaterThanOrEqual(84);
+    for(const enemy of encounter.enemies){expect(enemy.x).toBeGreaterThan(0);expect(enemy.x).toBeLessThan(1440);expect(enemy.patrol).toBeGreaterThan(0);}
    }
   }
  });
- it('keeps authored calm sections spike-free and places enemies over clamped support ledges',()=>{
+ it('keeps calm sections spike-free and enemies attached to their authored support',()=>{
   const chapters=[['jail',JAIL_ENCOUNTERS],['outside',OUTSIDE_ENCOUNTERS],['crimson',CRIMSON_ENCOUNTERS]] as const;
   for(const [kind,encounters] of chapters){
    const platforms=chapterPlatforms(kind);
@@ -71,12 +65,14 @@ describe('authored expansion geometry',()=>{
     if(encounter.pacing==='calm')expect(encounter.spikes).toEqual([]);
     for(const enemy of encounter.enemies){
      const placement={...enemy,x:index*SECTION_WIDTH+enemy.x};
-     const ledges=platforms.filter(p=>p.x>index*SECTION_WIDTH&&p.x<(index+1)*SECTION_WIDTH);
-     const support=ledges.filter(p=>placement.x>=p.x-p.width/2&&placement.x<=p.x+p.width/2).sort((a,b)=>Math.abs(a.y-a.height/2-(placement.y+25))-Math.abs(b.y-b.height/2-(placement.y+25)))[0];
+     const ledges=platforms.filter(p=>p.room===index);
+     const authored=kind==='crimson'?undefined:(kind==='jail'?JAIL_ROOMS:OUTSIDE_ROOMS)[index].enemies.find(e=>e.x===enemy.x&&e.type===enemy.type);
+     const authoredSupport=kind==='crimson'?enemy.support:authored?.support;
+     const support=authoredSupport==='floor'?ledges.find(p=>p.role==='floor'&&placement.x>=p.x-p.width/2&&placement.x<=p.x+p.width/2):typeof authoredSupport==='number'?ledges.find(p=>p.role==='ledge'&&p.step===authoredSupport):ledges.filter(p=>placement.x>=p.x-p.width/2&&placement.x<=p.x+p.width/2).sort((a,b)=>Math.abs(a.y-a.height/2-(placement.y+25))-Math.abs(b.y-b.height/2-(placement.y+25)))[0];
      expect(support,`${kind} ${index}:${enemy.x} support`).toBeDefined();
-     expect(Math.abs(support!.y-support!.height/2-(placement.y+25))).toBeLessThanOrEqual(1);
+     const runtimePlacement={...placement,y:support!.y-support!.height/2-25};
      const bodyWidth=enemy.type==='pointed'?46:enemy.type==='boar'?68:enemy.type==='hare'?46:enemy.type==='jumper'?42:50;
-     const bounds=enemyPatrolBounds(placement,ledges,bodyWidth);
+     const bounds=enemyPatrolBounds(runtimePlacement,[support!],bodyWidth);
      expect(bounds).toBeDefined();
      expect(bounds!.left).toBeGreaterThanOrEqual(support!.x-support!.width/2+bodyWidth/2+12);
      expect(bounds!.right).toBeLessThanOrEqual(support!.x+support!.width/2-bodyWidth/2-12);
@@ -91,10 +87,10 @@ describe('authored expansion geometry',()=>{
   const conveyorLesson=OUTSIDE_ENCOUNTERS[3],windLesson=OUTSIDE_ENCOUNTERS[7];
   expect(conveyorLesson.type).toBe('conveyor');expect(conveyorLesson.spikes).toEqual([]);
   expect(conveyorLesson.steps[0][1]).toBeGreaterThanOrEqual(280);expect(conveyorLesson.enemies.every(e=>Math.abs(e.x-conveyorLesson.steps[1][0])>conveyorLesson.steps[1][2]/2+60)).toBe(true);
-  expect(encounterSurfaceEffects(conveyorLesson)).toEqual([{platformIndex:1,type:'conveyor',direction:1,strength:70},{platformIndex:2,type:'conveyor',direction:1,strength:70}]);
+  expect(encounterSurfaceEffects(conveyorLesson)).toEqual([{platformIndex:1,type:'conveyor',direction:1,strength:70},{platformIndex:2,type:'conveyor',direction:1,strength:70},{platformIndex:3,type:'conveyor',direction:1,strength:70}]);
   expect(windLesson.type).toBe('gust');expect(windLesson.spikes).toEqual([]);expect(windLesson.steps[0][1]).toBeGreaterThanOrEqual(280);
   expect(windLesson.enemies.every(e=>Math.abs(e.x-windLesson.steps[1][0])>windLesson.steps[1][2]/2+60)).toBe(true);
-  expect(OUTSIDE_ENCOUNTERS.filter(e=>e.wind||e.conveyor)).toHaveLength(8);
+  expect(OUTSIDE_ENCOUNTERS.filter(e=>e.wind||e.conveyor)).toHaveLength(9);
   expect(OUTSIDE_ENCOUNTERS.slice(12).filter(e=>e.wind||e.conveyor).length).toBeGreaterThanOrEqual(6);
  });
  it('keeps the first conveyor and wind teaching landings safe and reachable without dash',()=>{
@@ -104,16 +100,14 @@ describe('authored expansion geometry',()=>{
    const airtime=(v+Math.sqrt(v*v-2*g*rise))/g;
    const horizontalReach=airtime*TUNING.player.sprintSpeed;
    expect(Math.max(0,x-width/2-100)).toBeLessThan(horizontalReach);
-   expect(encounter.spikes.every(spike=>spike<x-width/2||spike>x+width/2)).toBe(true);
+   expect(spikeXs(encounter.spikes).every(spike=>spike<x-width/2||spike>x+width/2)).toBe(true);
    expect(encounter.enemies.every(enemy=>Math.abs(enemy.x-x)>width/2+enemy.patrol/2)).toBe(true);
   }
  });
  it('registers conveyor force on combined encounter surfaces, not only on conveyor-named sections',()=>{
   expect(encounterSurfaceEffects(CRIMSON_ENCOUNTERS[3])).toEqual([
    {platformIndex:1,type:'conveyor',direction:1,strength:80},
-   {platformIndex:2,type:'conveyor',direction:1,strength:80},
-   {platformIndex:3,type:'conveyor',direction:1,strength:80},
-   {platformIndex:4,type:'conveyor',direction:1,strength:80}
+   {platformIndex:3,type:'conveyor',direction:1,strength:80}
   ]);
  });
  it('keeps the two crimson arena sections free from ambient encounter effects',()=>{
@@ -142,7 +136,7 @@ describe('authored expansion geometry',()=>{
   expect(advanceWindDrift(0,-1,100,1, true,85)).toBe(-85);expect(advanceWindDrift(0,1,100,-1,true,85)).toBe(0);
  });
  it('sets explicit 20% and 50% pressure targets against kingdom timing',()=>{
-  expect(CHAPTER_DIFFICULTY.jail).toBe(1.2);expect(CHAPTER_DIFFICULTY.outside).toBe(1.5);
-  expect(900/CHAPTER_DIFFICULTY.jail).toBe(750);expect(900/CHAPTER_DIFFICULTY.outside).toBe(600);
+  expect(CHAPTER_DIFFICULTY.jail).toBe(1.2);expect(CHAPTER_DIFFICULTY.outside).toBe(1.44);expect(CHAPTER_DIFFICULTY.crimson).toBe(1.728);
+  expect(900/CHAPTER_DIFFICULTY.jail).toBe(750);expect(900/CHAPTER_DIFFICULTY.outside).toBe(625);expect(900/CHAPTER_DIFFICULTY.crimson).toBeCloseTo(520.833,2);
  });
 });

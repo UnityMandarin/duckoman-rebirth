@@ -1,9 +1,9 @@
 import type {ChapterKind} from './chapters';
 
 export const SKILL_ROUTES=[
- {id:'jail-laundry',name:'Laundry Leap',chapter:'jail',section:2,stepIndexes:[1,2,3],goal:'Cracked ledges break'},
- {id:'jail-vault',name:'Vault Switchback',chapter:'jail',section:5,stepIndexes:[2,3,4],goal:'Climb, turn, cross'},
- {id:'jail-drain',name:'Drain Dash',chapter:'jail',section:9,stepIndexes:[1,2,3],goal:'Red lines mark falling stone'},
+ {id:'jail-laundry',name:'Laundry Leap',chapter:'jail',section:2,stepIndexes:[1,2,3],goal:'Wait for the red line'},
+ {id:'jail-vault',name:'Vault Switchback',chapter:'jail',section:5,stepIndexes:[2,3,4],goal:'Cracked ledges break'},
+ {id:'jail-drain',name:'Drain Dash',chapter:'jail',section:9,stepIndexes:[1,2,3],goal:'Follow the descent and watch your landing'},
  {id:'outside-market',name:'Market Momentum',chapter:'outside',section:3,stepIndexes:[1,2,3],goal:'Arrows show the moving floor'},
  {id:'outside-wind',name:'Wind Lines',chapter:'outside',section:7,stepIndexes:[1,2,3],goal:'Wind bends jumps; dash holds course'},
  {id:'outside-stonewater',name:'Stonewater Beat',chapter:'outside',section:14,stepIndexes:[1,2,4],goal:'Fading ledges will vanish'},

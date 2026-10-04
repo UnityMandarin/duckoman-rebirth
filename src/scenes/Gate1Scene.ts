@@ -6,7 +6,7 @@ import { Player } from '../entities/Player';
 import { ThrowableObject } from '../entities/ThrowableObject';
 import { InputController } from '../systems/InputController';
 import { InteractionSystem } from '../systems/InteractionSystem';
-import { ChapterHud } from '../systems/ChapterHud';
+import { ChapterHud,registerChapterHudFrames } from '../systems/ChapterHud';
 import { FallingPillar } from '../entities/FallingPillar';
 import { CASTLE, CASTLE_PLATFORMS, CASTLE_ENEMIES, CASTLE_SECRET, SECRET_RETURN_X, reachedSecretPortal, secretHoleSolids, secretSeal, secretShaftWalls } from '../data/castle';
 import { rustwingDefeated } from '../systems/relics';
@@ -19,7 +19,9 @@ import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../sys
 import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
 import { setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
-import {preloadCommon,registerCommonFrames} from './CommonAssets';
+import {registerCommonFrames} from './CommonAssets';
+import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
+import {addMenuControl} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
 
@@ -41,10 +43,10 @@ export class Gate1Scene extends Phaser.Scene {
   private checkpointX?:number;
   private enteredSecret=false;
   private devPreview=false; private opened:number[]=[]; private secrets:number[]=[];private bossDefeated=false;
-  preload(): void {preloadCommon(this);preloadRelicArt(this);}
+  preload(): void {preloadSceneAssets(this,'gate-1');preloadRelicArt(this);}
   create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;devPreview?:boolean;fromSecret?:boolean} = {}): void {
     this.deathAt=undefined;
-    registerCommonFrames(this);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;
+    registerCommonFrames(this);registerChapterHudFrames(this);registerSharedPropFrames(this);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;
     this.checkpointX=data.checkpoint;this.opened=[...(data.opened??[])];this.secrets=[...(data.secrets??[])];this.bossDefeated=!!(data.bossDefeated??loadProgress().chapters['gate-1'].bossDefeated);
     this.physics.world.resume();
     const sealed=rustwingDefeated(this.registry);
@@ -54,7 +56,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE_SECRET.hole.portalY-CASTLE.top);
     // Backdrop floor stays at the collision floor height through vertical traversal.
-    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-depth').setOrigin(0).setDisplaySize(5100,1700)
+    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-background').setOrigin(0).setDisplaySize(5100,1700)
       .setFlipX(i%2===1).setScrollFactor(.72,1).setDepth(-21);
     this.add.rectangle(CASTLE.width/2,490,CASTLE.width,260,0x08111b).setDepth(-18);
     const background=this.textures.get('castle-background').getSourceImage();
@@ -135,7 +137,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.hudCamera=setupRenderScale(this,'hud');
     new SceneLayerRouter(this,this.hudCamera);
     if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
-    this.add.text(605,16,'MENU',{fontFamily:'Georgia',fontSize:'9px',color:'#ffedc4',backgroundColor:'#352716',padding:{x:8,y:5}}).setOrigin(1,0).setScrollFactor(0).setDepth(60).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.openMenu());
+    addMenuControl(this,()=>this.openMenu());
     const escape=()=>this.openMenu();this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
     const pagehide=()=>this.saveCampaign();window.addEventListener('pagehide',pagehide);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>window.removeEventListener('pagehide',pagehide));
     this.saveCampaign();

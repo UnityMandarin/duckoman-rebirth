@@ -1,3 +1,4 @@
+
 import {afterEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('phaser',()=>({default:{Scenes:{Events:{POST_UPDATE:'post-update',SHUTDOWN:'shutdown'}}}}));
@@ -30,7 +31,7 @@ class FakeDisplay {
  setPosition(x:number,y:number){this.x=x;this.y=y;return this;}setX(x:number){this.x=x;return this;}setY(y:number){this.y=y;return this;}
  setFlipX(v:boolean){this.flipX=v;return this;}setRotation(v:number){this.rotation=v;return this;}setAngle(v:number){this.rotation=v;return this;}
  setAlpha(v:number){this.alpha=v;return this;}setOrigin(){return this;}setScrollFactor(){return this;}setText(v:string){this.text=v;return this;}setCrop(){return this;}
- destroy(){this.destroyed=true;return this;}clear(){return this;}lineStyle(){return this;}lineBetween(){return this;}fillStyle(){return this;}fillCircle(){return this;}fillRect(){return this;}
+ destroy(){this.destroyed=true;this.scene=undefined;return this;}clear(){return this;}lineStyle(){return this;}lineBetween(){return this;}fillStyle(){return this;}fillCircle(){return this;}fillRect(){return this;}
 }
 class FakeBody {
  width:number;height:number;offsetX=0;offsetY=0;enable=true;velocity={x:0,y:0};prev={x:0,y:0};blocked={left:false,right:false,down:false};touching={down:false};gravityY=0;maxVelocity={x:Infinity,y:Infinity};velocityYWrites=0;
@@ -64,6 +65,16 @@ describe('animal combat integration',()=>{
   const scene=sceneFixture(),player=playerFixture(),enemy=makeAnimal(scene);Object.assign(player,{isDashing:true});
   contact(scene,player,enemy).resolvePlayerEnemy();
   expect(enemy.defeated).toBe(true);expect(enemy.hp).toBe(0);expect(player.dashImpact).toHaveBeenCalledTimes(1);expect(player.bounceFromDash).toHaveBeenCalledTimes(1);expect(player.chargeUltimate).toHaveBeenCalledWith(10);
+ });
+ it('ignores updates after combat death destroys the sprite and clears its scene',()=>{
+  const scene=sceneFixture(),player=playerFixture(),enemy=makeAnimal(scene);Object.assign(player,{isDashing:true});
+  contact(scene,player,enemy).resolvePlayerEnemy();
+  expect(enemy.defeated).toBe(true);expect(enemy.sprite.scene).toBeUndefined();
+  const velocity={...enemy.body.velocity},objectCount=scene.objects.length;
+  expect(()=>enemy.update()).not.toThrow();
+  expect(()=>enemy.update(false)).not.toThrow();
+  expect(()=>enemy.update(true,16)).not.toThrow();
+  expect(enemy.body.velocity).toEqual(velocity);expect(scene.objects).toHaveLength(objectCount);
  });
  it('uses the real descending stomp path to defeat one HP and bounce the player',()=>{
   const scene=sceneFixture(),player=playerFixture(100,60),enemy=makeAnimal(scene);player.body.velocity.y=120;player.body.prev.y=20;

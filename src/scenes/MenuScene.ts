@@ -5,7 +5,6 @@ import type {RenderQuality} from '../systems/performancePolicy';
 import {resetCampaignRunEligibility,campaignRunEligible} from '../systems/debug/debugSettings';
 import {chapterSections,type ChapterKind} from '../data/chapters';
 import {preloadSceneAssets} from './SceneAssets';
-import {resetKeys} from '../systems/MenuControl';
 const cards:{key:CampaignScene;name:string;art:string;requires?:CampaignScene}[]=[
  {key:'gate-1',name:'Corrupted Kingdom',art:'menu-ruined-kingdom'},
  {key:'jail',name:'Sunken Cells',art:'menu-jail-gallery',requires:'gate-1'},
@@ -40,17 +39,19 @@ export class MenuScene extends Phaser.Scene {
    this.launches.push(unlocked?()=>this.openChapter(card.key,false):undefined);this.replays.push(unlocked?()=>this.openChapter(card.key,true):undefined);
    this.button(container,26,70,'REPLAY',unlocked?0x4b5661:0x33363a,()=>this.openChapter(card.key,true),unlocked,47,true);
   });
-  this.resumeAction=()=>{const p=loadProgress();if(this.pausedScene&&this.scene.isPaused(this.pausedScene)){const parentKey=this.pausedScene;this.scene.setVisible(true,parentKey);this.scene.stop();this.scene.resume(parentKey);resetKeys(this.scene.get(parentKey));return;}if(p.ended){this.openChapter('gate-1',true);return;}if(!this.pausedScene&&!hasProgress(p)){this.openChapter('gate-1',true);return;}this.scene.start(p.currentScene,sceneDataFromProgress(p,p.currentScene));};
-  const mainAction=()=>{if(loadProgress().ended){this.openChapter('gate-1',true);return;}this.resumeAction();};
-  this.button(this,320,293,progress.ended?'REPLAY CAMPAIGN':hasProgress(progress)?'CONTINUE JOURNEY':'BEGIN JOURNEY',0x98713b,mainAction,true,320);
+  this.resumeAction=()=>{const p=loadProgress();if(this.pausedChapterIsValid()){const parentKey=this.pausedScene!;this.scene.setVisible(true,parentKey);this.scene.stop();this.scene.resume(parentKey);return;}if(p.ended){this.openChapter('gate-1',true);return;}if(!this.pausedScene&&!hasProgress(p)){this.openChapter('gate-1',true);return;}this.scene.start(p.currentScene,sceneDataFromProgress(p,p.currentScene));};
+  this.button(this,320,293,this.primaryActionLabel(progress),0x98713b,()=>this.runPrimaryAction(),true,320);
   this.button(this,100,330,'JOURNAL',0x4b5661,()=>this.openJournal(),true,180);
   this.button(this,320,330,'ROUTE PRACTICE',0x4b5661,()=>this.openRouteSelect(0),true,220);
   this.button(this,540,330,'BOSS TRIALS',0x4b5661,()=>this.openRouteSelect(3),true,160);
   this.add.text(320,363,'↑ / ↓ select    ENTER continue    R replay    J journal    P routes    G Regent    C Claw    ESC resume',{fontSize:'8px',color:'#a8a395'}).setOrigin(.5);
   this.graphicsButton=this.button(this,320,385,this.graphicsLabel(),0x292f36,()=>this.toggleGraphics(),true,200);
   setupRenderScale(this,'menu-hud');this.cameras.main.ignore(this.children.list);
-  const keyboard=this.input.keyboard;if(keyboard){const keydown=(e:KeyboardEvent)=>{if(e.key==='Escape'){this.resumeAction();return;}if(e.key==='ArrowRight'||e.key==='ArrowDown'){this.selection=(this.selection+1)%cards.length;this.moveFocus();}if(e.key==='ArrowLeft'||e.key==='ArrowUp'){this.selection=(this.selection+cards.length-1)%cards.length;this.moveFocus();}if(e.key==='Enter')this.launches[this.selection]?.();if(e.key.toLowerCase()==='r')this.replays[this.selection]?.();if(e.key.toLowerCase()==='j')this.openJournal();if(e.key.toLowerCase()==='p')this.openRouteSelect(0);if(e.key.toLowerCase()==='g')this.openPractice('regent-practice','outside');if(e.key.toLowerCase()==='c')this.openPractice('crab-practice','crimson');if(e.key.toLowerCase()==='q')this.toggleGraphics();};keyboard.on('keydown',keydown);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>keyboard.off('keydown',keydown));}
+  const keyboard=this.input.keyboard;if(keyboard){const keydown=(e:KeyboardEvent)=>{if(e.repeat)return;if(e.key==='Escape'){this.resumeAction();return;}if(e.key==='ArrowRight'||e.key==='ArrowDown'){this.selection=(this.selection+1)%cards.length;this.moveFocus();}if(e.key==='ArrowLeft'||e.key==='ArrowUp'){this.selection=(this.selection+cards.length-1)%cards.length;this.moveFocus();}if(e.key==='Enter')this.launches[this.selection]?.();if(e.key.toLowerCase()==='r')this.replays[this.selection]?.();if(e.key.toLowerCase()==='j')this.openJournal();if(e.key.toLowerCase()==='p')this.openRouteSelect(0);if(e.key.toLowerCase()==='g')this.openPractice('regent-practice','outside');if(e.key.toLowerCase()==='c')this.openPractice('crab-practice','crimson');if(e.key.toLowerCase()==='q')this.toggleGraphics();};keyboard.on('keydown',keydown);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>keyboard.off('keydown',keydown));}
  }
+ private pausedChapterIsValid():boolean{return !!this.pausedScene&&this.scene.isPaused(this.pausedScene);}
+ private primaryActionLabel(progress:ReturnType<typeof loadProgress>):string{return this.pausedChapterIsValid()?'RESUME JOURNEY':progress.ended?'REPLAY CAMPAIGN':hasProgress(progress)?'CONTINUE JOURNEY':'BEGIN JOURNEY';}
+ private runPrimaryAction():void {if(this.pausedChapterIsValid()){this.resumeAction();return;}if(loadProgress().ended){this.openChapter('gate-1',true);return;}this.resumeAction();}
  private graphicsLabel():string{return renderQuality()==='smooth'?'GRAPHICS: SMOOTH · FEWER PIXELS':'GRAPHICS: SHARP · MORE PIXELS';}
  private toggleGraphics():void {const next:RenderQuality=renderQuality()==='smooth'?'sharp':'smooth';setRenderQuality(next,this.game);this.graphicsButton?.setText(this.graphicsLabel());}
  private openJournal():void {this.scene.pause();this.scene.launch('journal');}

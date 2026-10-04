@@ -21,7 +21,7 @@ import { setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
 import {registerCommonFrames} from './CommonAssets';
 import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
-import {addMenuControl} from '../systems/MenuControl';
+import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
 
@@ -138,7 +138,7 @@ export class Gate1Scene extends Phaser.Scene {
     new SceneLayerRouter(this,this.hudCamera);
     if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
     addMenuControl(this,()=>this.openMenu());
-    const escape=()=>this.openMenu();this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
+    const escape=(event:KeyboardEvent)=>{if(event.repeat)return;this.openMenu();};this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
     const pagehide=()=>this.saveCampaign();window.addEventListener('pagehide',pagehide);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>window.removeEventListener('pagehide',pagehide));
     this.saveCampaign();
     window.dispatchEvent(new Event('duckoman-ready'));
@@ -188,7 +188,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.hud.update();
   }
   private saveCampaign():void {if(this.boss?.transitioning||!canPersistCampaign({devPreview:this.devPreview,infiniteHealth:this.player?.infiniteHealth,runEligible:campaignRunEligible()}))return;let p=loadProgress();p=updateChapter(p,'gate-1',{checkpoint:this.checkpointX??0,charge:Math.max(0,Math.min(100,this.player?.ultimateCharge??0)),opened:this.opened,secrets:this.secrets,bossDefeated:this.bossDefeated});p.currentScene='gate-1';saveProgress(p);}
-  private openMenu():void {this.saveCampaign();this.scene.pause();this.scene.launch('menu',{pausedScene:'gate-1'});}
+  private openMenu():boolean {return requestPauseMenu(this,()=>this.saveCampaign(),'gate-1');}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {

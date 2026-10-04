@@ -4,6 +4,6 @@ const images:[string,string][]=[
 ];
 export function preloadCommon(scene:Phaser.Scene):void {for(const [key,path] of images)if(!scene.textures.exists(key))scene.load.image(key,`${import.meta.env.BASE_URL}${path}`);}
 export function registerCommonFrames(scene:Phaser.Scene):void {
- const add=(key:string,name:string,x:number,y:number,w:number,h:number)=>{const texture=scene.textures.get(key);if(texture&&!texture.has(name))texture.add(name,0,x,y,w,h);};
+ const add=(key:string,name:string,x:number,y:number,w:number,h:number)=>{if(!scene.textures.exists(key))return;const texture=scene.textures.get(key);if(!texture.has(name))texture.add(name,0,x,y,w,h);};
  add('masonry','trimmed',28,112,1980,456);add('lock-kit','door',10,10,915,990);add('lock-kit','button',1015,790,510,210);add('rock-pillar-kit','pillar',1100,10,435,1000);add('spike-platform','hazard',16,175,1740,505);
 }

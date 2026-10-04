@@ -17,7 +17,7 @@ export class CrownRoute {
  readonly route:SkillRoute;
  private readonly sectionStart:number;
  private readonly ledges:readonly [Ledge,Ledge,Ledge];
- private readonly ringArt:Phaser.GameObjects.Graphics[]=[];
+ private readonly ringArt:Phaser.GameObjects.Image[]=[];
  private readonly ringLabels:Phaser.GameObjects.Text[]=[];
  private readonly ringStyles=['','',''];
  private readonly options:CrownRouteOptions;
@@ -34,7 +34,7 @@ export class CrownRoute {
   const selected=route.stepIndexes.map(index=>raisedLedges[index]);
   if(selected.some(ledge=>!ledge)||new Set(selected).size!==3)throw new Error(`Invalid authored Crown Route ledges: ${route.id}`);
   this.ledges=selected as [Ledge,Ledge,Ledge];
-  this.ledges.forEach((_,index)=>{this.ringArt.push(scene.add.graphics().setDepth(8));this.ringLabels.push(scene.add.text(0,0,String(index+1),{fontFamily:'Georgia',fontSize:'12px',fontStyle:'bold',color:'#f1d18d',stroke:'#071019',strokeThickness:3}).setOrigin(.5).setDepth(9));});
+  this.ledges.forEach((_,index)=>{this.ringArt.push(scene.add.image(0,0,'quality-concept-props','crown-ring').setDisplaySize(40,40).setDepth(8));this.ringLabels.push(scene.add.text(0,0,String(index+1),{fontFamily:'Georgia',fontSize:'12px',fontStyle:'bold',color:'#f1d18d',stroke:'#071019',strokeThickness:3}).setOrigin(.5).setDepth(9));});
   this.syncPositions();
   this.syncRingStyles();
   scene.add.text(this.sectionStart+100,242,'OPTIONAL CROWN ROUTE · 1 → 2 → 3 → EXIT',{fontFamily:'Georgia',fontSize:'10px',color:'#f1d18d',stroke:'#071019',strokeThickness:4}).setOrigin(0,.5).setDepth(13);
@@ -79,10 +79,10 @@ export class CrownRoute {
  private syncRingStyles():void{
   for(let i=0;i<3;i++){
    const style=i<this.attempt.nextRing?'collected':i===this.attempt.nextRing?'next':'later';if(this.ringStyles[i]===style)continue;this.ringStyles[i]=style;
-   const art=this.ringArt[i],label=this.ringLabels[i];art.clear();
-   if(style==='collected')art.fillStyle(0x62e7cb,.75).fillCircle(0,0,14).lineStyle(2,0xf1d18d,1).strokeCircle(0,0,15);
-   else if(style==='next')art.lineStyle(3,0xf1d18d,1).strokeCircle(0,0,15);
-   else art.lineStyle(2,0x9ba7ad,.32).strokeCircle(0,0,15);
+   const art=this.ringArt[i],label=this.ringLabels[i];
+   if(style==='collected')art.setTint(0x62e7cb).setAlpha(.88).setDisplaySize(33,33);
+   else if(style==='next')art.clearTint().setAlpha(1).setDisplaySize(40,40);
+   else art.setTint(0x9ba7ad).setAlpha(.5).setDisplaySize(34,34);
    label.setColor(style==='later'?'#879198':'#f1d18d').setAlpha(style==='later'?.42:1);
   }
  }

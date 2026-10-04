@@ -1,12 +1,12 @@
 import {describe,it,expect} from 'vitest';
 import {CASTLE} from '../src/data/castle';
 import {CHAPTER_WIDTH,CRIMSON_SECTIONS,SECTION_WIDTH} from '../src/data/chapters';
-import {CHAPTER_DIFFICULTY,CRIMSON_ENCOUNTERS,OUTSIDE_ENCOUNTERS} from '../src/data/chapterChallenges';
+import {CHAPTER_DIFFICULTY,CRIMSON_ENCOUNTERS,OUTSIDE_ENCOUNTERS,encounterSurfaceEffects} from '../src/data/chapterChallenges';
 import {CRAB_RULES,crabDamage,pillarTargets,crabPillarsNonOverlapping,nextCrabPhase,crabPhaseDuration,canCrabDashDamage,crabPillarActiveAt,crabChargeDistance,crabChargeDuration} from '../src/systems/CrabRules';
 import {shouldCheckpoint} from '../src/systems/checkpointPolicy';
 describe('crimson kingdom contract',()=>{
- it('is 50% longer than the original kingdom and targets 10% more pressure than the forest',()=>{
-  expect(CHAPTER_WIDTH.crimson).toBe(CASTLE.width*1.5);expect(CRIMSON_SECTIONS.length*SECTION_WIDTH).toBe(CHAPTER_WIDTH.crimson);expect(CHAPTER_DIFFICULTY.crimson/CHAPTER_DIFFICULTY.outside).toBeCloseTo(1.1);
+ it('is 50% longer than the original kingdom and targets 20% more pressure than the forest',()=>{
+  expect(CHAPTER_WIDTH.crimson).toBe(CASTLE.width*1.5);expect(CRIMSON_SECTIONS.length*SECTION_WIDTH).toBe(CHAPTER_WIDTH.crimson);expect(CHAPTER_DIFFICULTY.crimson/CHAPTER_DIFFICULTY.outside).toBeCloseTo(1.2);
  });
  it('keeps ten independent authored encounters before the boss and exit arenas',()=>{
   expect(CRIMSON_ENCOUNTERS).toHaveLength(10);expect(CRIMSON_SECTIONS).toHaveLength(12);
@@ -17,6 +17,21 @@ describe('crimson kingdom contract',()=>{
  });
  it('authors crimson routes separately from the forest',()=>{
   for(const crimson of CRIMSON_ENCOUNTERS)expect(OUTSIDE_ENCOUNTERS).not.toContain(crimson);
+ });
+ it('keeps each Crimson enemy on its authored support and assigns only the documented moving surfaces',()=>{
+  const supports=CRIMSON_ENCOUNTERS.slice(1,10).map(room=>room.enemies.map(enemy=>enemy.support));
+  expect(supports).toEqual([['floor',3],[2,3],[1,'floor'],[1,2,'floor'],['floor',3],[1,2,'floor'],[0,2,'floor'],[2,'floor'],['floor']]);
+  const moving=CRIMSON_ENCOUNTERS.map(room=>room.moving?.map(entry=>[entry.step,entry.type,entry.direction??0,entry.strength??0])??[]);
+  expect(moving).toEqual([
+   [],[[1,'conveyor',1,90],[2,'conveyor',1,90],[3,'conveyor',1,90]],[],
+   [[1,'conveyor',1,80],[2,'crumble',0,0],[3,'conveyor',1,80]],
+   [[1,'conveyor',-1,85],[2,'conveyor',-1,85],[3,'presses',0,0]],
+   [[1,'ferry',0,0],[2,'ferry',0,0]],
+   [[1,'conveyor',-1,105],[2,'conveyor',-1,105],[3,'conveyor',-1,105]],
+   [[1,'lift',0,0]],
+   [[1,'conveyor',1,90],[2,'conveyor',1,90],[3,'conveyor',1,90],[4,'conveyor',1,90]],[]
+  ]);
+  expect(encounterSurfaceEffects(CRIMSON_ENCOUNTERS[2])).toEqual([]);
  });
  it('allows only dash and ultimate against the 20 HP shell',()=>{
   expect(CRAB_RULES.hp).toBe(20);expect(crabDamage('dash')).toBe(1);expect(crabDamage('ultimate')).toBe(4);expect(crabDamage('stomp')).toBe(0);expect(crabDamage('throw')).toBe(0);
@@ -34,7 +49,8 @@ describe('crimson kingdom contract',()=>{
   expect(nextCrabPhase('claw-swing')).toBe('claw-recovery');expect(nextCrabPhase('claw-recovery')).toBe('charge-cue');
   expect(nextCrabPhase('charge-cue')).toBe('charge');expect(nextCrabPhase('charge')).toBe('charge-recovery');
   expect(nextCrabPhase('charge-recovery')).toBe('pillar-warning');expect(nextCrabPhase('pillar-warning')).toBe('pillar-fall');
-  expect(nextCrabPhase('pillar-fall')).toBe('pillar-impact');expect(nextCrabPhase('pillar-impact')).toBe('pillar-recovery');expect(nextCrabPhase('pillar-recovery')).toBe('rest');
+  expect(nextCrabPhase('pillar-fall')).toBe('pillar-impact');expect(nextCrabPhase('pillar-impact')).toBe('pillar-recovery');expect(nextCrabPhase('pillar-recovery')).toBe('burrow-down');
+  expect(nextCrabPhase('burrow-down')).toBe('underground');expect(nextCrabPhase('underground')).toBe('emerge-cue');expect(nextCrabPhase('emerge-cue')).toBe('emerge-active');expect(nextCrabPhase('emerge-active')).toBe('emerge-recovery');expect(nextCrabPhase('emerge-recovery')).toBe('rest');
   expect(crabPhaseDuration('claw-windup')).toBeGreaterThanOrEqual(800);expect(crabPhaseDuration('claw-swing')).toBe(350);
   expect(crabPhaseDuration('claw-recovery')).toBeGreaterThanOrEqual(900);expect(crabPhaseDuration('charge-cue')).toBeGreaterThanOrEqual(850);
   expect(crabPhaseDuration('charge-recovery')).toBeGreaterThanOrEqual(1100);expect(crabPhaseDuration('pillar-recovery')).toBeGreaterThanOrEqual(900);

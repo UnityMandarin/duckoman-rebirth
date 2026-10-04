@@ -4,6 +4,8 @@ import {renderQuality,setRenderQuality,setupRenderScale} from '../systems/render
 import type {RenderQuality} from '../systems/performancePolicy';
 import {resetCampaignRunEligibility,campaignRunEligible} from '../systems/debug/debugSettings';
 import {chapterSections,type ChapterKind} from '../data/chapters';
+import {preloadSceneAssets} from './SceneAssets';
+import {resetKeys} from '../systems/MenuControl';
 const cards:{key:CampaignScene;name:string;art:string;requires?:CampaignScene}[]=[
  {key:'gate-1',name:'Corrupted Kingdom',art:'menu-ruined-kingdom'},
  {key:'jail',name:'Sunken Cells',art:'menu-jail-gallery',requires:'gate-1'},
@@ -14,8 +16,10 @@ const cards:{key:CampaignScene;name:string;art:string;requires?:CampaignScene}[]
 export class MenuScene extends Phaser.Scene {
  private pausedScene?:CampaignScene;private selection=0;private resumeAction!:()=>void;private launches:((()=>void)|undefined)[]=[];private replays:((()=>void)|undefined)[]=[];private focus!:Phaser.GameObjects.Rectangle;private graphicsButton!:Phaser.GameObjects.Text;
  constructor(){super('menu');}
+ preload():void {preloadSceneAssets(this,'menu');}
  create(data:{pausedScene?:CampaignScene}={}):void {
   this.pausedScene=data.pausedScene;this.launches=[];this.replays=[];this.cameras.main.setBackgroundColor(0x090d12);
+  if(this.pausedScene&&this.scene.isPaused(this.pausedScene))this.scene.setVisible(false,this.pausedScene);
   this.add.rectangle(320,200,640,400,0x101722).setStrokeStyle(2,0x71572f);
   this.add.text(320,20,'THE CROWN ROAD',{fontFamily:'Georgia',fontSize:'21px',color:'#f1d18d',stroke:'#160e08',strokeThickness:4}).setOrigin(.5);
   this.add.text(320,45,'A Duckoman Rebirth campaign',{fontFamily:'Georgia',fontSize:'10px',color:'#afa98f'}).setOrigin(.5);
@@ -36,7 +40,7 @@ export class MenuScene extends Phaser.Scene {
    this.launches.push(unlocked?()=>this.openChapter(card.key,false):undefined);this.replays.push(unlocked?()=>this.openChapter(card.key,true):undefined);
    this.button(container,26,70,'REPLAY',unlocked?0x4b5661:0x33363a,()=>this.openChapter(card.key,true),unlocked,47,true);
   });
-  this.resumeAction=()=>{const p=loadProgress();if(this.pausedScene&&this.scene.isPaused(this.pausedScene)){this.scene.stop();this.scene.resume(this.pausedScene);return;}if(p.ended){this.openChapter('gate-1',true);return;}if(!this.pausedScene&&!hasProgress(p)){this.openChapter('gate-1',true);return;}this.scene.start(p.currentScene,sceneDataFromProgress(p,p.currentScene));};
+  this.resumeAction=()=>{const p=loadProgress();if(this.pausedScene&&this.scene.isPaused(this.pausedScene)){const parentKey=this.pausedScene;this.scene.setVisible(true,parentKey);this.scene.stop();this.scene.resume(parentKey);resetKeys(this.scene.get(parentKey));return;}if(p.ended){this.openChapter('gate-1',true);return;}if(!this.pausedScene&&!hasProgress(p)){this.openChapter('gate-1',true);return;}this.scene.start(p.currentScene,sceneDataFromProgress(p,p.currentScene));};
   const mainAction=()=>{if(loadProgress().ended){this.openChapter('gate-1',true);return;}this.resumeAction();};
   this.button(this,320,293,progress.ended?'REPLAY CAMPAIGN':hasProgress(progress)?'CONTINUE JOURNEY':'BEGIN JOURNEY',0x98713b,mainAction,true,320);
   this.button(this,100,330,'JOURNAL',0x4b5661,()=>this.openJournal(),true,180);

@@ -12,8 +12,10 @@ import { RustWing } from '../entities/RustWing';
 import { RUSTWING_RULES, type RustForm } from '../systems/rustWingMath';
 import { BronzeWingRelic } from '../entities/BronzeWingRelic';
 import { CreatorLetter, LETTER_TEXTURE } from '../entities/CreatorLetter';
-import { preloadRelicArt } from '../systems/RelicArt';
 import { grantRelic, markRustwingDefeated, RELICS } from '../systems/relics';
+import { registerCommonFrames } from './CommonAssets';
+import { preloadSceneAssets } from './SceneAssets';
+import { registerChapterHudFrames } from '../systems/ChapterHud';
 
 interface SecretState { infiniteHealth?: boolean; ultimateCharge?: number; checkpoint?: number; vx?: number; vy?: number; rustForm?: RustForm; opened?: number[]; secrets?: number[]; bossDefeated?: boolean; devPreview?: boolean; }
 
@@ -33,18 +35,10 @@ export class CastleSecretScene extends Phaser.Scene {
   private announceLeft?: number;
   constructor() { super(CASTLE_SECRET.scene); }
   preload(): void {
-    preloadRelicArt(this);
-    const base = import.meta.env.BASE_URL;
-    if (!this.textures.exists(LETTER_TEXTURE)) this.load.image(LETTER_TEXTURE, `${base}assets/chapters/${LETTER_TEXTURE}.png`);
-    if (!this.textures.exists('duckoman')) this.load.image('duckoman', `${base}assets/gate3/duckoman.png`);
-    if (!this.textures.exists('masonry')) this.load.image('masonry', `${base}assets/gate3/masonry.png`);
-    if (!this.textures.exists('rustwing-lair')) this.load.image('rustwing-lair', `${base}assets/gate3/rustwing-lair.png`);
-    if (!this.textures.exists('rustwing-fireball')) this.load.image('rustwing-fireball', `${base}assets/gate3/rustwing-fireball.png`);
-    if (!this.textures.exists('rustwing')) this.load.spritesheet('rustwing', `${base}assets/gate3/rustwing-walk.png`, { frameWidth: 768, frameHeight: 768 });
-    if (!this.textures.exists('ultimate-sword-frame')) this.load.image('ultimate-sword-frame', `${base}assets/hud/ultimate-sword-frame.png`);
-    if (!this.textures.exists('ultimate-sword-fill')) this.load.image('ultimate-sword-fill', `${base}assets/hud/ultimate-sword-fill.png`);
+    preloadSceneAssets(this,'castle-secret');
   }
   create(data: SecretState = {}): void {
+    registerCommonFrames(this);registerChapterHudFrames(this);
     this.state = data;
     this.deathAt = undefined;
     this.physics.world.resume();

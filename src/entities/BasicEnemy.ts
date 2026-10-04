@@ -8,6 +8,7 @@ import {scatterDebris} from '../systems/DebrisBurst';
 import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
 import type {UltimateStrike} from '../systems/ultimateSwingMath';
+import {canHareJump, createBoarState, findHareSupport, harePassiveBounds, isHareNear, hareLandingTimeSeconds, resetBoarPause, safeHareBounds, selectHareClimbTarget, stepBoar, type AnimalSurface} from '../systems/animalRules';
 
 const SPIKE={bodyWidth:46,bodyHeight:84,spikeWidth:10,spikeHeight:22,displayHeight:84,displayWidth:59};
 
@@ -29,6 +30,19 @@ export class BasicEnemy extends Dashable {
   private readonly strike:(strike:UltimateStrike)=>void;
   private jumpAt=0;
   private awake?:boolean;
+  private animalPlayer?:Player;
+  private animalSurfaces:readonly AnimalSurface[]=[];
+  private animalSpeedFactor=1;
+  private animalClockMs=0;
+  private boarState=createBoarState();
+  private boarTell=false;
+  private hareNextHopAt=0;
+  private hareCommittedX?:number;
+  private hareCommittedBaseVX=0;
+  private hareFlatHop=false;
+  private hareAirBounds?:{left:number;right:number};
+  private hareWasGrounded=false;
+  private animalRoom=0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string,private readonly onDefeated?:()=>void) {
     super();
@@ -37,11 +51,9 @@ export class BasicEnemy extends Dashable {
     this.sprite = scene.add.rectangle(x, y, TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight, 0xef5350);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, skin??(pointed?'spike-robot':jumper?'jumper-robot':'robot')).setDepth(5);
-    if(!skin) {
-      this.healthImage=scene.add.image(x,y-64,'robot-health').setDisplaySize(108,36).setDepth(12);
-      this.healthEmpty=scene.add.graphics().setDepth(13);
-      this.healthLabel=scene.add.text(x,y-84,'1 / 1 HP',{fontFamily:'Arial',fontSize:'11px',color:'#fff2dc',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,1).setDepth(14);
-    }
+    this.healthImage=scene.add.image(x,y-64,'robot-health').setDisplaySize(108,36).setDepth(12);
+    this.healthEmpty=scene.add.graphics().setDepth(13);
+    this.healthLabel=scene.add.text(x,y-84,'1 / 1 HP',{fontFamily:'Arial',fontSize:this.isAnimal?'9px':'11px',color:'#fff2dc',stroke:'#07111f',strokeThickness:this.isAnimal?2:3}).setOrigin(.5,this.isAnimal ? 0.5 : 1).setDepth(14);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight);
@@ -52,12 +64,11 @@ export class BasicEnemy extends Dashable {
     this.body.setGravityY(TUNING.enemy.gravity);
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
-    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
-    this.strike=(s:UltimateStrike)=>{
+    this.strike=(strike:UltimateStrike)=>{
       const bounds=this.dashBounds();
-      if(bounds&&s.tryHit(this,bounds)){
-        const dx=this.sprite.x-s.hand.x,dy=this.sprite.y-s.hand.y,len=Math.hypot(dx,dy)||1;
-        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))s.player.chargeUltimate(10);
+      if(bounds&&strike.tryHit(this,bounds)){
+        const dx=this.sprite.x-strike.hand.x,dy=this.sprite.y-strike.hand.y,len=Math.hypot(dx,dy)||1;
+        if(this.hit(2,{x:dx/len*500,y:dy/len*500}))strike.player.chargeUltimate(10);
       }
     };
     this.cleanup=()=>{scene.events.off(Phaser.Scenes.Events.POST_UPDATE,this.syncVisual,this);scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);};
@@ -68,16 +79,33 @@ export class BasicEnemy extends Dashable {
 
   setPatrolBounds(bounds:{left:number;right:number}):void { this.patrol={...bounds}; }
 
+  get isAnimal():boolean { return this.skin==='thorn-boar'||this.skin==='gloom-hare'; }
+
+  configureAnimal(player:Player,surfaces:readonly AnimalSurface[],speedFactor:number):void {
+    if(!this.isAnimal)return;
+    this.animalPlayer=player;this.animalSurfaces=surfaces;this.animalSpeedFactor=Math.max(.01,speedFactor);
+    this.animalRoom=Math.floor(this.sprite.x/1440);
+    if(this.skin==='thorn-boar'){
+      this.boarState=createBoarState(-1);this.boarTell=false;this.body.setVelocityX(0);
+      this.body.setMaxVelocity(260*this.animalSpeedFactor,TUNING.enemy.maxFallVelocity);
+    }else this.body.setMaxVelocity(210*this.animalSpeedFactor,TUNING.enemy.maxFallVelocity);
+  }
+
   setAwake(awake:boolean):void {
     if(this.defeated)return;
     if(this.awake===awake)return;
     this.awake=awake;
     this.body.setEnable(awake);this.visual.setVisible(awake);
     this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
+    if(this.skin==='thorn-boar'){
+      this.boarState=resetBoarPause(this.boarState);this.boarTell=false;this.animalClockMs=0;this.body.setVelocityX(0);
+    }
   }
 
-  update(autoJump=true): void {
+  update(autoJump=true,deltaMs=this.sprite.scene.game.loop.delta): void {
     if (this.defeated) return;
+    if(this.skin==='thorn-boar'){this.updateBoar(deltaMs);return;}
+    if(this.skin==='gloom-hare'){this.updateHare(deltaMs);return;}
     if (this.body.blocked.left) this.direction = 1;
     if (this.body.blocked.right) this.direction = -1;
     if (this.patrol && this.sprite.x <= this.patrol.left) this.direction = 1;
@@ -87,6 +115,60 @@ export class BasicEnemy extends Dashable {
     if(autoJump&&this.jumper&&this.body.blocked.down&&now>=this.jumpAt){
       this.body.setVelocityY(TUNING.player.jumpVelocity);this.jumpAt=now+1600;
     }
+  }
+
+  private updateBoar(deltaMs:number):void {
+    const bounds=this.patrol??{left:this.sprite.x-180,right:this.sprite.x+180};
+    const step=stepBoar(this.boarState,{deltaMs,x:this.sprite.x,left:bounds.left,right:bounds.right,blockedLeft:this.body.blocked.left,blockedRight:this.body.blocked.right});
+    this.boarState=step.state;this.boarTell=step.tell;this.body.setVelocityX(step.velocityX);
+  }
+
+  private updateHare(deltaMs:number):void {
+    const dt=Math.max(0,Math.min(50,deltaMs));this.animalClockMs+=dt;
+    const player=this.animalPlayer;
+    const grounded=this.body.blocked.down||this.body.touching.down;
+    const half=this.body.width/2,feet=this.body.bottom,roomLeft=this.animalRoom*1440,roomRight=roomLeft+1440;
+    if(grounded&&!this.hareWasGrounded){this.hareCommittedX=undefined;this.hareCommittedBaseVX=0;this.hareFlatHop=false;this.hareAirBounds=undefined;}
+    if(!grounded&&this.hareCommittedX!==undefined){
+      const dx=this.hareCommittedX-this.sprite.x;
+      this.body.setVelocityX(Math.abs(dx)<=8?0:Math.sign(dx)*Math.min(210,Math.abs(this.hareCommittedBaseVX)));
+      this.hareWasGrounded=false;return;
+    }
+    if(!grounded&&this.hareFlatHop){
+      const bounds=this.hareAirBounds;
+      const atLimit=!!bounds&&(this.direction<0?this.sprite.x<=bounds.left+1:this.sprite.x>=bounds.right-1);
+      this.body.setVelocityX(atLimit?0:this.direction*100);this.hareWasGrounded=false;return;
+    }
+    const support=findHareSupport(this.animalSurfaces,this.animalRoom,this.sprite.x,feet,half);
+    if(!support){this.body.setVelocityX(0);this.hareWasGrounded=grounded;return;}
+    const liveBounds=safeHareBounds(support,roomLeft,roomRight,half);
+    if(!liveBounds){this.body.setVelocityX(0);this.hareWasGrounded=grounded;return;}
+    const near=player?isHareNear({active:player.active,x:player.sprite.x,feet:player.body.bottom},{x:this.sprite.x,feet}):false;
+    const passiveBounds=harePassiveBounds(this.patrol,liveBounds);
+    const bounds=near?liveBounds:passiveBounds;
+    const targetX=near&&player?Math.max(liveBounds.left,Math.min(liveBounds.right,player.sprite.x)):undefined;
+    if(!near){
+      if(this.sprite.x<=bounds.left)this.direction=1;else if(this.sprite.x>=bounds.right)this.direction=-1;
+      this.body.setVelocityX(this.direction*55);this.hareWasGrounded=grounded;return;
+    }
+    const toward=Math.sign((targetX??this.sprite.x)-this.sprite.x) as -1|0|1;
+    if(toward!==0)this.direction=toward;
+    const above=!!player&&player.body.bottom<=feet-16;
+    if(canHareJump(near,grounded,this.animalClockMs,this.hareNextHopAt)&&above&&player){
+      const climb=selectHareClimbTarget({surfaces:this.animalSurfaces,room:this.animalRoom,x:this.sprite.x,feet,playerX:player.sprite.x,halfBodyWidth:half,roomLeft,roomRight});
+      if(climb){
+        const seconds=hareLandingTimeSeconds(climb.rise),baseVX=(climb.x-this.sprite.x)/seconds/this.animalSpeedFactor;
+        this.hareCommittedX=climb.x;this.hareCommittedBaseVX=Math.max(-210,Math.min(210,baseVX));this.body.setVelocityX(this.hareCommittedBaseVX);this.body.setVelocityY(TUNING.player.jumpVelocity);this.hareNextHopAt=this.animalClockMs+900;this.hareWasGrounded=false;return;
+      }
+    }
+    const direction=toward||this.direction;
+    const atLimit=direction<0?this.sprite.x<=liveBounds.left+1:this.sprite.x>=liveBounds.right-1;
+    if(canHareJump(near,grounded,this.animalClockMs,this.hareNextHopAt)&&!atLimit){
+      const requested=targetX??this.sprite.x;
+      const requestedDirection=Math.sign(requested-this.sprite.x);if(requestedDirection)this.direction=requestedDirection<0?-1:1;
+      this.hareCommittedX=undefined;this.hareFlatHop=true;this.hareAirBounds=liveBounds;this.body.setVelocityX(this.direction*100);this.body.setVelocityY(TUNING.player.jumpVelocity);this.hareNextHopAt=this.animalClockMs+900;this.hareWasGrounded=false;return;
+    }
+    this.body.setVelocityX(atLimit?0:direction*55);this.hareWasGrounded=grounded;
   }
 
   /** Solid hurt regions: the torso, plus the single spike on a pointed robot's head. */
@@ -157,11 +239,11 @@ export class BasicEnemy extends Dashable {
     this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
     this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?this.direction<0:this.direction>0);
     if(this.skin||this.pointed)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
-    this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035));
+    this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035) + (this.skin==='thorn-boar'&&this.boarTell?-0.075:0));
     this.maxHp=Math.max(this.maxHp,this.hp);
     const barY=this.visual.y-this.visual.displayHeight/2-20;
     this.healthImage?.setPosition(this.sprite.x,barY);
-    this.healthLabel?.setPosition(this.sprite.x,barY-19).setText(`${this.hp} / ${this.maxHp} HP`);
+    this.healthLabel?.setPosition(this.isAnimal?this.sprite.x+11:this.sprite.x,this.isAnimal?barY+2:barY-19).setText(`${this.hp} / ${this.maxHp} HP`);
     this.healthEmpty?.clear();
     if(this.hp<this.maxHp)this.healthEmpty?.fillStyle(0x08131b,.95).fillRect(this.sprite.x-23+67*this.hp/this.maxHp,barY-1,67*(1-this.hp/this.maxHp),6);
   }

@@ -1,4 +1,3 @@
-
 import {afterEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('phaser',()=>({default:{Scenes:{Events:{POST_UPDATE:'post-update',SHUTDOWN:'shutdown'}}}}));

@@ -102,10 +102,11 @@ export class BasicEnemy extends Dashable {
     }
   }
 
-  update(autoJump=true,deltaMs=this.sprite.scene.game.loop.delta): void {
+  update(autoJump=true,deltaMs?:number): void {
     if (this.defeated) return;
-    if(this.skin==='thorn-boar'){this.updateBoar(deltaMs);return;}
-    if(this.skin==='gloom-hare'){this.updateHare(deltaMs);return;}
+    const frameDeltaMs=deltaMs??this.sprite.scene.game.loop.delta;
+    if(this.skin==='thorn-boar'){this.updateBoar(frameDeltaMs);return;}
+    if(this.skin==='gloom-hare'){this.updateHare(frameDeltaMs);return;}
     if (this.body.blocked.left) this.direction = 1;
     if (this.body.blocked.right) this.direction = -1;
     if (this.patrol && this.sprite.x <= this.patrol.left) this.direction = 1;

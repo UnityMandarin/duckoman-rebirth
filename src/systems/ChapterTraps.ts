@@ -13,7 +13,7 @@ type Press={section:number;x:number;ground:number;art:Phaser.GameObjects.Image;w
 type Crumble={section:number;surface:ChapterSurface;phase:TrapCrumblePhase;at:number;baseX:number;baseY:number;brokenAt:number;visible:boolean;};
 type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x:number;y:number;phase:number;direction:-1|1;strength:number;cycleStart:number;holdSolid:boolean;visible:boolean;justRevealed:boolean;};
 type DustFx={image:Phaser.GameObjects.Image;active:boolean;started:number;x:number;y:number;section:number;duration:number;scale:number;baseScaleX:number;baseScaleY:number;};
-const WIND_POOL_SIZE=12,DUST_POOL_SIZE=12,SECTION_WIDTH=1440,ACTIVE_X=1510,ACTIVE_Y=720;
+const AMBIENT_WIND_POOL_SIZE=16,CONVEYOR_WIND_POOL_SIZE=4,WIND_POOL_SIZE=AMBIENT_WIND_POOL_SIZE+CONVEYOR_WIND_POOL_SIZE,DUST_POOL_SIZE=12,SECTION_WIDTH=1440,ACTIVE_X=1510,ACTIVE_Y=720;
 
 /** Authored Chapter 2/3 motion, tells and safe recovery. */
 export class ChapterTraps {
@@ -21,6 +21,7 @@ export class ChapterTraps {
  private readonly crumbles=new Map<number,Crumble[]>();
  private readonly specials=new Map<number,Special[]>();
  private readonly effects=new Map<number,Phaser.GameObjects.Text[]>();
+ private readonly windRooms=new Map<number,{direction:-1|1;floor:number}>();
  private readonly windStreaks:Phaser.GameObjects.Image[]=[];
  private readonly dust:DustFx[]=[];
  private readonly roomActive:boolean[]=[];
@@ -34,7 +35,7 @@ export class ChapterTraps {
   this.sectionCount=kind==='jail'?12:kind==='crimson'?10:22;
   for(let i=0;i<this.sectionCount;i++)this.roomActive.push(false);
   this.reducedMotion=typeof window!=='undefined'?window.matchMedia?.('(prefers-reduced-motion: reduce)'):undefined;
-  for(let i=0;i<WIND_POOL_SIZE;i++)this.windStreaks.push(scene.add.image(0,0,'quality-concept-props','wind-streak').setDisplaySize(i<8?54:46,i<8?17:14).setDepth(i<8?7:6).setVisible(false));
+  for(let i=0;i<WIND_POOL_SIZE;i++)this.windStreaks.push(scene.add.image(0,0,'quality-concept-props','wind-streak').setDisplaySize(i<AMBIENT_WIND_POOL_SIZE?54:46,i<AMBIENT_WIND_POOL_SIZE?17:14).setDepth(i<AMBIENT_WIND_POOL_SIZE?7:6).setVisible(false));
   for(let i=0;i<DUST_POOL_SIZE;i++){const image=scene.add.image(0,0,'quality-concept-props','impact-dust').setDisplaySize(66,52).setDepth(14).setVisible(false);this.dust.push({image,active:false,started:0,x:0,y:0,section:-1,duration:460,scale:1,baseScaleX:image.scaleX,baseScaleY:image.scaleY});}
   const put=<T,>(map:Map<number,T[]>,section:number,item:T):void=>{let bucket=map.get(section);if(!bucket){bucket=[];map.set(section,bucket);}bucket.push(item);};
   const buildSections=onlySections??undefined;
@@ -51,6 +52,7 @@ export class ChapterTraps {
    }
    if(encounter.wind){
     const floor=roomFor(kind,section)?.floor??360;
+    this.windRooms.set(section,{direction:encounter.wind.direction,floor});
     put(this.effects,section,scene.add.text(section*SECTION_WIDTH+720,floor-76,`WIND  ${encounter.wind.direction<0?'←':'→'}  ·  DASH TO HOLD YOUR LINE`,{fontSize:'11px',color:'#c0e3dc',stroke:'#071119',strokeThickness:4}).setOrigin(.5).setDepth(6).setAlpha(.16));
    }
    for(const moving of encounter.moving??[]){
@@ -92,7 +94,7 @@ export class ChapterTraps {
   const activeEncounter=encounterIndex===undefined?undefined:encounterFor(this.kind,encounterIndex);if(activeEncounter?.wind){encounterWindDirection=activeEncounter.wind.direction;encounterWindStrength=activeEncounter.wind.strength;}
   if(encounterWindDirection!==undefined){
    const receivesWind=canReceiveWind(true,this.player.grounded,this.player.isDashing,this.player.usingUltimate);
-   this.windDriftX=advanceWindDrift(this.windDriftX,encounterWindDirection,encounterWindStrength*.45,stepMs/1000,receivesWind,85);
+   this.windDriftX=advanceWindDrift(this.windDriftX,encounterWindDirection,encounterWindStrength*.9,stepMs/1000,receivesWind,170);
    p.velocity.x=addWindDrift(p.velocity.x,this.windDriftX,receivesWind);
   }else{if(this.windDriftX!==0)p.velocity.x-=this.windDriftX;this.windDriftX=0;}
   for(let i=roomStart;i<=roomEnd;i++){
@@ -101,7 +103,7 @@ export class ChapterTraps {
    const presses=this.presses.get(i);if(presses)for(const press of presses)this.updatePress(press,now,p,section,factor,resumed);
    const crumbles=this.crumbles.get(i);if(crumbles)for(const crumble of crumbles)this.updateCrumble(crumble,now,p,section,resumed);
   }
-  this.updateWindVisuals(now,p,encounterWindDirection,roomStart,roomEnd);
+  this.updateWindVisuals(now,p,roomStart,roomEnd);
   this.updateDust(now,p,section,roomStart,roomEnd);
  }
  private inWindow(section:number,x:number,y:number,playerSection:number,playerY:number):boolean{return Math.abs(section-playerSection)<=1&&Math.abs(x-this.player.body.center.x)<=ACTIVE_X&&Math.abs(y-playerY)<=ACTIVE_Y;}
@@ -200,17 +202,21 @@ export class ChapterTraps {
   }
  }
  private overlapsRestoredCrumble(p:Phaser.Physics.Arcade.Body,x:number,y:number,width:number):boolean{return p.right>x-width/2&&p.left<x+width/2&&p.bottom>y-16&&p.top<y+16;}
- private updateWindVisuals(now:number,p:Phaser.Physics.Arcade.Body,direction:-1|1|undefined,roomStart:number,roomEnd:number):void {
-  const ambient=direction!==undefined&&!this.reducedMotion?.matches;
-  for(let i=0;i<8;i++){
-   const image=this.windStreaks[i];if(!ambient){image.setVisible(false);continue;}
-   let wrap=((now*.16*direction+i*177+720)%1440+1440)%1440-720;
-   image.setVisible(true).setPosition(p.center.x+wrap,p.center.y+((i%4)-1.5)*53).setFlipX(direction<0).setAlpha(.36+(i%3)*.11);
+ private updateWindVisuals(now:number,p:Phaser.Physics.Arcade.Body,roomStart:number,roomEnd:number):void {
+  // Three neighboring rooms use stable pool slots, so crossing an edge cannot move an existing field.
+  for(let i=0;i<AMBIENT_WIND_POOL_SIZE;i++){
+   const image=this.windStreaks[i],sourceSlot=Math.floor(i/2),pair=i%2;let room=-1;
+   for(let candidate=roomStart;candidate<=roomEnd;candidate++)if(candidate%3===sourceSlot%3){room=candidate;break;}
+   const wind=room<0?undefined:this.windRooms.get(room);
+   if(!wind||this.reducedMotion?.matches){image.setVisible(false);continue;}
+   const slotCount=(room%3===2?2:3)*2,slot=Math.floor(sourceSlot/3)*2+pair,offset=slot*SECTION_WIDTH/slotCount;
+   const localX=((now*.16*wind.direction+offset+720)%SECTION_WIDTH+SECTION_WIDTH)%SECTION_WIDTH;
+   image.setVisible(true).setPosition(room*SECTION_WIDTH+localX,wind.floor-160+((sourceSlot%4)-1.5)*53+pair*26.5).setFlipX(wind.direction<0).setAlpha(.36+(sourceSlot%3)*.11);
   }
-  let arrowSlot=8;
+  let arrowSlot=AMBIENT_WIND_POOL_SIZE;
   for(let i=roomStart;i<=roomEnd;i++){
    const list=this.specials.get(i);if(!list)continue;
-   for(const special of list){if(special.type!=='conveyor'||arrowSlot>=WIND_POOL_SIZE)continue;
+   for(const special of list){if(special.type!=='conveyor'||arrowSlot>=AMBIENT_WIND_POOL_SIZE+CONVEYOR_WIND_POOL_SIZE)continue;
     const image=this.windStreaks[arrowSlot++],body=special.surface.shape.body as Phaser.Physics.Arcade.StaticBody;
     const active=this.inWindow(i,special.x,special.y,Math.floor(p.center.x/SECTION_WIDTH),p.center.y);
     image.setVisible(active).setPosition(special.x,body.top+8).setFlipX(special.direction<0).setAlpha(active?.58:0);

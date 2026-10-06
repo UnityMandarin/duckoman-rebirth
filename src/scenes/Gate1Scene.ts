@@ -24,6 +24,7 @@ import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
 import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
+import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -40,6 +41,7 @@ export class Gate1Scene extends Phaser.Scene {
   private hudCamera!:Phaser.Cameras.Scene2D.Camera;
   private depthPresentation!:ChapterDepth;
   private castleCheckpoint!:Phaser.GameObjects.Image;
+  private castleCheckpointVisual!:CheckpointVisual;
   private checkpointX?:number;
   private enteredSecret=false;
   private devPreview=false; private opened:number[]=[]; private secrets:number[]=[];private bossDefeated=false;
@@ -86,7 +88,7 @@ export class Gate1Scene extends Phaser.Scene {
       this.physics.add.existing(rectangle,true); terrain.add(rectangle);
     }
     this.castleCheckpoint=this.add.image(CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop,'rest-lantern').setOrigin(.5,1).setDisplaySize(30,54).setDepth(4);
-    if(data.checkpoint===CASTLE_CHECKPOINT.x)this.castleCheckpoint.setTint(0xffe2a3);
+    this.castleCheckpointVisual=addCheckpointVisual(this,this.castleCheckpoint,{coreYRatio:.44,initiallyActive:data.checkpoint===CASTLE_CHECKPOINT.x});
     const spawnY=data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
     this.player = new Player(this, data.fromSecret?SECRET_RETURN_X:data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
     this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
@@ -173,7 +175,7 @@ export class Gate1Scene extends Phaser.Scene {
       return;
     }
     if(this.checkpointX===undefined&&this.player.grounded&&isCheckpointContact(this.player.sprite.x,this.player.body.bottom,CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop)){
-      this.checkpointX=CASTLE_CHECKPOINT.x; this.castleCheckpoint.setTint(0xffe2a3); this.mechanisms.say('Checkpoint · The royal hall holds.');
+      this.checkpointX=CASTLE_CHECKPOINT.x; this.castleCheckpointVisual.activate(); this.mechanisms.say('Checkpoint · The royal hall holds.');
       this.saveCampaign();
     }
     this.depthPresentation.update();

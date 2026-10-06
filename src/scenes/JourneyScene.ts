@@ -37,6 +37,7 @@ import type {RouteVictory} from '../systems/RouteAttempt';
 import {canPracticeRoute,recordRouteOutcome} from '../systems/progress';
 import {roomFor,JAIL_ROOMS,OUTSIDE_ROOMS} from '../data/qualityRooms';
 import {addIdentityBlock,addIdentityChapterSigns,addIdentityDoor,addIdentityFloor,chapterSpikeFlipY,floorVisual,openIdentityDoor,platformVisual,preloadChapterIdentity,registerChapterIdentity,type IdentityDoor} from '../systems/ChapterVisuals';
+import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;devPreview?:boolean;previewSection?:number;practice?:boolean;routePractice?:SkillRouteId;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];labels:Phaser.GameObjects.Text[];wall:Phaser.GameObjects.Rectangle;door:IdentityDoor;}
@@ -51,6 +52,7 @@ export class JourneyScene extends Phaser.Scene {
  private gates:Gate[]=[];
  private secrets:{id:number;x:number;y:number;art:Phaser.GameObjects.Image;text:string}[]=[];
  private checkpoints:Phaser.GameObjects.Image[]=[];
+ private checkpointVisuals=new WeakMap<Phaser.GameObjects.Image,CheckpointVisual>();
  private hazards:{x:number;y:number;width:number;height?:number;pit?:boolean}[]=[];
  private story!:Phaser.GameObjects.Text;
  private objective!:Phaser.GameObjects.Text;
@@ -88,7 +90,7 @@ export class JourneyScene extends Phaser.Scene {
   registerCommonFrames(this);registerSharedPropFrames(this);this.registerQualityFrames();registerChapterHudFrames(this);registerChapterIdentity(this,this.kind);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;this.previewSection=data.previewSection;
   this.practice=this.routePracticeAlias||!!data.practice;this.practiceBoss=this.kind==='crimson'?'crimson':'outside';this.trialClock=new TrialClock();this.trialHits=0;this.trialEligibility=new TrialEligibility(true);this.trialDone=false;
   const saved=progress.chapters[this.kind as CampaignScene];this.state=this.devPreview||this.practice?{opened:[],secrets:[],checkpoint:data.previewSection!==undefined?data.previewSection*SECTION_WIDTH:0,ultimateCharge:0}:{...saved,...data,opened:[...new Set([...saved.opened,...(data.opened??[])])],secrets:[...new Set([...saved.secrets,...(data.secrets??[])])]};
-  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.hazards=[];this.walls=[];this.solids=[];
+  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.checkpointVisuals=new WeakMap();this.hazards=[];this.walls=[];this.solids=[];
   this.section=-1;this.dying=false;this.leaving=false;this.boss=undefined;
   const width=CHAPTER_WIDTH[this.kind],arenaStart=(this.kind==='crimson'?10:22)*SECTION_WIDTH,arenaRight=width-400,routeStart=this.routeCourse?this.routeCourse.section*SECTION_WIDTH:0,previewStart=data.previewSection===undefined?0:data.previewSection*SECTION_WIDTH,worldStart=this.routeCourse?routeStart:this.practice?arenaStart:this.devPreview?previewStart:0,worldWidth=this.routeCourse||this.devPreview&&data.previewSection!==undefined?SECTION_WIDTH:this.practice?arenaRight-arenaStart:width;
   const worldTop=this.kind==='jail'?-160:-160,worldBottom=this.kind==='jail'?1840:this.kind==='outside'?620:460;
@@ -219,6 +221,7 @@ export class JourneyScene extends Phaser.Scene {
    addIdentityChapterSigns(this,this.kind,i,x,quality?.floor??360);
    if(!this.routeCourse&&(quality?.checkpoint!==undefined||(!quality&&shouldCheckpoint(this.kind,i)))){
     const floorY=quality?.floor??360,checkpoint=this.add.image(x+80,floorY-28,`identity-${this.kind}`,'rest').setDisplaySize(30,54).setDepth(4).setData('floorY',floorY);this.checkpoints.push(checkpoint);
+    this.checkpointVisuals.set(checkpoint,addCheckpointVisual(this,checkpoint,{coreYRatio:this.kind==='crimson'?.37:this.kind==='jail'?.60:.65,haloColor:this.kind==='crimson'?0xff443b:0xffc95f,coreColor:this.kind==='crimson'?0xffb18b:0xffefb0,initiallyActive:checkpoint.x<=(this.state.checkpoint??0)}));
    }
    if(!this.routeCourse&&section.secret&&!this.state.secrets!.includes(i)){
     const route=this.platforms.filter(p=>p.room===i&&p.role==='ledge');
@@ -320,7 +323,7 @@ export class JourneyScene extends Phaser.Scene {
   const index=Math.max(0,Math.min(Math.floor(this.player.sprite.x/1440),sections.length-1));
   if(index!==this.section){this.section=index;const section=sections[index],encounter=encounterFor(this.kind,index),room=roomFor(this.kind,index);this.label.setText(`${room?.name??section.name} · ${index+1}/${sections.length}${this.kind==='outside'&&index<22?' · Boss: 23':''}`);const objective=this.kind==='jail'&&index===0&&!this.practice?'Reach the cell latch · J to release':this.kind==='jail'&&index===6?'FLOOR 2 · Descend east to the sluice':encounter?{gallery:'Choose the upper route or follow the road',split:'High route or low road — both reconnect',bridge:'Cross the span; keep a landing in sight',switchback:'Climb back, then move east',arena:'Read the guard, then commit',descent:'Climb once; carry momentum downhill',sprint:'Link landings without rushing',tower:'Ride upward, step off at the top',sanctuary:'A quiet stretch — recover and look around'}[encounter.format]:'';this.objective.setText(objective);if(!this.routeCourse){const story=room?.story??section.story;if(story)this.say(story);}}
   for(const checkpoint of this.checkpoints)if((this.kind==='jail'?isCheckpointContact(this.player.sprite.x,this.player.body.bottom,checkpoint.x,checkpoint.getData('floorY')??360):Math.abs(this.player.sprite.x-checkpoint.x)<35)&&this.player.grounded&&checkpoint.x>(this.state.checkpoint??0)){
-   this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;checkpoint.setTint(0xffe2a3);this.say('Checkpoint · Half a heart restored.');this.saveCampaign();
+   this.state.checkpoint=checkpoint.x;this.player.health=Math.min(3,this.player.health+.5);this.state.ultimateCharge=this.player.ultimateCharge;this.checkpointVisuals.get(checkpoint)?.activate();this.say('Checkpoint · Half a heart restored.');this.saveCampaign();
   }
   for(const secret of this.secrets){
    if(!secret.art.active)continue;secret.art.setAngle(Math.sin(this.time.now*.003)*8);

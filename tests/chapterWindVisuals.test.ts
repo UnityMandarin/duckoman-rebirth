@@ -26,7 +26,7 @@ function updateHarness(kind:'jail'|'outside'|'crimson',room:number,grounded=fals
  traps.scene={sys:{isActive:()=>true},physics:{world:{isPaused:false}},game:{loop:{delta:1000/60}}};
  traps.player.active=true;traps.player.grounded=grounded;traps.player.isDashing=isDashing;traps.player.usingUltimate=usingUltimate;
  traps.player.body.center.x=room*1440+700;traps.player.body.velocity={x:0};
- traps.effects=new Map();traps.presses=new Map();traps.crumbles=new Map();traps.roomActive=Array.from({length:traps.sectionCount},()=>false);
+ traps.effects=new Map();traps.presses=new Map();traps.crumbles=new Map();traps.disappearingRooms=new Map();traps.roomActive=Array.from({length:traps.sectionCount},()=>false);
  traps.windDriftX=0;traps.clockMs=0;traps.suspendedGap=false;traps.dust=[];
  return traps;
 }

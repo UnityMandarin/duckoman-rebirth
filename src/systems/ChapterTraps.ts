@@ -6,12 +6,14 @@ import {rectsOverlap} from './contactRules';
 import {showHitbox} from './DebugHitboxes';
 import {roomFor} from '../data/qualityRooms';
 import {identityTexture} from './ChapterVisuals';
-import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,shutterCanClose,crumblePhaseAfterGap,specialPhaseAfterGap,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,type TrapPressPhase,type TrapCrumblePhase} from './qualityTrapClock';
+import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,type TrapPressPhase} from './qualityTrapClock';
 
 export interface ChapterSurface {shape:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image|Phaser.GameObjects.TileSprite;ledge:Ledge;}
 type Press={section:number;x:number;ground:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;phase:TrapPressPhase;at:number;hit:boolean;zone:{left:number;right:number;top:number;bottom:number};};
-type Crumble={section:number;surface:ChapterSurface;phase:TrapCrumblePhase;at:number;baseX:number;baseY:number;brokenAt:number;visible:boolean;};
-type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x:number;y:number;phase:number;direction:-1|1;strength:number;cycleStart:number;holdSolid:boolean;visible:boolean;justRevealed:boolean;};
+type Crumble={section:number;surface:ChapterSurface;baseX:number;baseY:number;};
+type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x:number;y:number;phase:number;direction:-1|1;strength:number;visible:boolean;justRevealed:boolean;};
+type DisappearingEntry={surface:ChapterSurface;kind:'shutter'|'crumble';x:number;y:number;phase:'solid'|'warn'|'gone'|'recover';at:number;};
+type DisappearingRoom={entries:DisappearingEntry[];started:boolean;index:number;};
 type DustFx={image:Phaser.GameObjects.Image;active:boolean;started:number;x:number;y:number;section:number;duration:number;scale:number;baseScaleX:number;baseScaleY:number;};
 const AMBIENT_WIND_POOL_SIZE=16,CONVEYOR_WIND_POOL_SIZE=4,WIND_POOL_SIZE=AMBIENT_WIND_POOL_SIZE+CONVEYOR_WIND_POOL_SIZE,DUST_POOL_SIZE=12,SECTION_WIDTH=1440,ACTIVE_X=1510,ACTIVE_Y=720;
 
@@ -20,6 +22,7 @@ export class ChapterTraps {
  private readonly presses=new Map<number,Press[]>();
  private readonly crumbles=new Map<number,Crumble[]>();
  private readonly specials=new Map<number,Special[]>();
+ private readonly disappearingRooms=new Map<number,DisappearingRoom>();
  private readonly effects=new Map<number,Phaser.GameObjects.Text[]>();
  private readonly windRooms=new Map<number,{direction:-1|1;floor:number}>();
  private readonly windStreaks:Phaser.GameObjects.Image[]=[];
@@ -48,7 +51,7 @@ export class ChapterTraps {
    const effectSource=kind==='crimson'?encounter:{...encounter,conveyor:undefined};
    for(const effect of encounterSurfaceEffects(effectSource)){
     const surface=ledges[effect.platformIndex];if(!surface)continue;
-    put(this.specials,section,{section,surface,type:effect.type,x:surface.ledge.x,y:surface.ledge.y,phase:effect.platformIndex*Math.PI,direction:effect.direction,strength:effect.strength,cycleStart:0,holdSolid:false,visible:false,justRevealed:false});
+    put(this.specials,section,{section,surface,type:effect.type,x:surface.ledge.x,y:surface.ledge.y,phase:effect.platformIndex*Math.PI,direction:effect.direction,strength:effect.strength,visible:false,justRevealed:false});
    }
    if(encounter.wind){
     const floor=roomFor(kind,section)?.floor??360;
@@ -57,12 +60,22 @@ export class ChapterTraps {
    }
    for(const moving of encounter.moving??[]){
     const surface=ledges[moving.step];if(!surface)continue;
-    if(moving.type==='crumble')put(this.crumbles,section,{section,surface,phase:'idle',at:0,baseX:surface.ledge.x,baseY:surface.ledge.y,brokenAt:0,visible:false});
+    if(moving.type==='crumble')put(this.crumbles,section,{section,surface,baseX:surface.ledge.x,baseY:surface.ledge.y});
     if(moving.type==='presses'){
      const x=surface.ledge.x,ground=surface.ledge.y-16;
      put(this.presses,section,{section,x,ground,art:scene.add.image(x,ground-480,identityTexture(kind),'press').setDisplaySize(88,225).setDepth(9).setVisible(false),warning:scene.add.graphics().setDepth(8),phase:'idle',at:1200+moving.step*240,hit:false,zone:{left:x-32,right:x+32,top:ground-480-QUALITY_PRESS_HALF_HEIGHT,bottom:ground-480+QUALITY_PRESS_HALF_HEIGHT}});
     }
    }
+  }
+  for(let section=0;section<this.sectionCount;section++){
+   const entries:DisappearingEntry[]=[];
+   for(const surface of surfaces){
+    if(Math.floor(surface.ledge.x/SECTION_WIDTH)!==section)continue;
+    const special=this.specials.get(section)?.find(item=>item.surface===surface&&item.type==='shutters');
+    if(special)entries.push({surface,kind:'shutter',x:special.x,y:special.y,phase:'solid',at:0});
+    else if(this.crumbles.get(section)?.some(item=>item.surface===surface))entries.push({surface,kind:'crumble',x:surface.ledge.x,y:surface.ledge.y,phase:'solid',at:0});
+   }
+   if(entries.length)this.disappearingRooms.set(section,{entries,started:false,index:0});
   }
   this.scene.events.on(Phaser.Scenes.Events.PAUSE,this.markGap);
   this.scene.events.on(Phaser.Scenes.Events.SLEEP,this.markGap);
@@ -101,38 +114,24 @@ export class ChapterTraps {
    const texts=this.effects.get(i);if(texts)for(const cue of texts)cue.setAlpha(i===section&&Math.abs(cue.y-p.center.y)<ACTIVE_Y?.85:.16);
    const specials=this.specials.get(i);if(specials)for(const special of specials)this.updateSpecial(special,now,p,section);
    const presses=this.presses.get(i);if(presses)for(const press of presses)this.updatePress(press,now,p,section,factor,resumed);
-   const crumbles=this.crumbles.get(i);if(crumbles)for(const crumble of crumbles)this.updateCrumble(crumble,now,p,section,resumed);
+   const disappearing=this.disappearingRooms.get(i);if(disappearing)this.updateDisappearingRoom(disappearing,i,now,p,section);
   }
   this.updateWindVisuals(now,p,roomStart,roomEnd);
   this.updateDust(now,p,section,roomStart,roomEnd);
  }
  private inWindow(section:number,x:number,y:number,playerSection:number,playerY:number):boolean{return Math.abs(section-playerSection)<=1&&Math.abs(x-this.player.body.center.x)<=ACTIVE_X&&Math.abs(y-playerY)<=ACTIVE_Y;}
  private updateSpecial(special:Special,now:number,p:Phaser.Physics.Arcade.Body,playerSection:number):void {
-  const {shape,art,ledge}=special.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody,baseTop=special.y-16;
+  const {shape,art,ledge}=special.surface;
   if(!this.inWindow(special.section,special.x,special.y,playerSection,p.center.y)){special.visible=false;return;}
-  const overlaps=p.right>body.left&&p.left<body.right&&p.bottom>body.top&&p.top<body.bottom;
   special.justRevealed=!special.visible;special.visible=true;
   if(special.justRevealed){
-   if(special.type==='shutters')this.resetShutter(special,now,overlaps);
-   else if(special.type==='ferry'||special.type==='lift'){
+   if(special.type==='ferry'||special.type==='lift'){
     const displacement=special.type==='ferry'?shape.x-special.x:shape.y-special.y;
     special.phase=Math.asin(Phaser.Math.Clamp(displacement/65,-1,1))-now/950;
    }
   }
-  if(special.type==='shutters'){
-   if(special.holdSolid){
-    if(!overlaps){body.enable=true;special.holdSolid=false;special.cycleStart=now;}
-    else body.enable=false;
-    art.setPosition(special.x,baseTop+(overlaps?16:0)).setAlpha(overlaps?.15:1);
-    return;
-   }
-   const elapsed=((now-special.cycleStart)%3000+3000)%3000,closing=elapsed<2100;
-   if(closing){if(!body.enable&&shutterCanClose(overlaps))body.enable=true;}
-   else body.enable=false;
-   const openProgress=closing?0:(elapsed-2100)/900;
-   art.setPosition(special.x,baseTop+openProgress*23).setAlpha(closing?(elapsed>1600?.68+Math.sin(now*.035)*.25:1):Math.max(.12,1-openProgress*.88));
-   return;
-  }
+  if(special.type==='shutters')return;
+  const body=shape.body as Phaser.Physics.Arcade.StaticBody;
   if(special.type==='conveyor'){
    const standing=body.enable&&this.player.grounded&&Math.abs(p.bottom-body.top)<10&&p.right>body.left&&p.left<body.right;
    const dx=special.direction*special.strength*qualityTrapDeltaMs(this.scene.game.loop.delta,true)/1000;
@@ -143,12 +142,6 @@ export class ChapterTraps {
   shape.setPosition(nx,ny);body.updateFromGameObject();art.setPosition(nx,ny-16);ledge.x=nx;ledge.y=ny;
   const standing=body.enable&&this.player.grounded&&Math.abs(p.bottom-body.top)<10&&p.right>body.left&&p.left<body.right;
   if(standing&&!special.justRevealed&&!this.player.usingUltimate){p.position.x+=dx;p.position.y+=dy;p.prev.x+=dx;p.prev.y+=dy;this.player.sprite.x+=dx;this.player.sprite.y+=dy;}
- }
- private resetShutter(special:Special,now:number,overlaps:boolean):void {
-  const body=special.surface.shape.body as Phaser.Physics.Arcade.StaticBody;
-  const restarted=specialPhaseAfterGap('shutters',overlaps);
-  special.cycleStart=now;special.holdSolid=!restarted.solid;body.enable=restarted.solid;
-  special.surface.art.setPosition(special.x,special.y-16+(overlaps?16:0)).setAlpha(overlaps?.15:1);
  }
  private updatePress(press:Press,now:number,p:Phaser.Physics.Arcade.Body,playerSection:number,factor:number,resumed:boolean):void {
   const near=this.inWindow(press.section,press.x,press.ground,playerSection,p.center.y);
@@ -180,28 +173,40 @@ export class ChapterTraps {
    if(t>=1){press.phase='idle';press.art.setVisible(false);press.at=now+trapIdleCadenceMs(factor);}
   }
  }
- private updateCrumble(crumble:Crumble,now:number,p:Phaser.Physics.Arcade.Body,playerSection:number,resumed:boolean):void {
-  const {shape,art,ledge}=crumble.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody,top=crumble.baseY-16,near=this.inWindow(crumble.section,crumble.baseX,top,playerSection,p.center.y);
-  if(resumed&&crumble.phase==='warn'){crumble.phase=crumblePhaseAfterGap(crumble.phase);crumble.at=now;art.clearTint().setAlpha(1).setPosition(crumble.baseX,top);}
-  if(!near){if(crumble.visible&&crumble.phase==='warn'){crumble.phase='idle';crumble.at=0;art.clearTint().setAlpha(1).setPosition(crumble.baseX,top);}crumble.visible=false;return;}
-  crumble.visible=true;
-  const over=p.right>crumble.baseX-ledge.width/2&&p.left<crumble.baseX+ledge.width/2;
-  if(crumble.phase==='idle'&&over&&Math.abs(p.bottom-top)<9&&this.player.grounded){crumble.phase='warn';crumble.at=now+QUALITY_TRAP_WARNING_MS;}
-  if(crumble.phase==='warn'){
-   art.setTint(0xd8aa78).setAlpha(.78+.22*Math.sin((QUALITY_TRAP_WARNING_MS-(crumble.at-now))*.06)).setPosition(crumble.baseX+Math.sin(now*.05)*2,top);
-   if(now>=crumble.at){crumble.phase='drop';crumble.at=now;body.enable=false;this.emitDust(crumble.baseX,top,1,crumble.section);}
+ private updateDisappearingRoom(room:DisappearingRoom,section:number,now:number,p:Phaser.Physics.Arcade.Body,playerSection:number):void {
+  if(playerSection===section&&!room.started){room.started=true;room.index=0;const first=room.entries[0];if(first){first.phase='warn';first.at=now;}}
+  if(!room.started)return;
+  const entry=room.entries[room.index];if(!entry)return;
+  const {shape,art,ledge}=entry.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody,top=entry.y-16;
+  if(entry.phase==='warn'){
+   const elapsed=Math.max(0,now-entry.at),blink=Math.floor(elapsed/180)%2===0;
+   art.setTint(0xffc36b).setAlpha(blink?.96:.58).setPosition(entry.x,top);
+   if(elapsed>=2000){entry.phase='gone';entry.at=now;body.enable=false;if(entry.kind==='crumble')this.emitDust(entry.x,top,1,section);}
   }
-  if(crumble.phase==='drop'){
-   const t=Math.min(1,(now-crumble.at)/300),drop=48*t*t;
-   shape.setPosition(crumble.baseX,crumble.baseY+drop);body.updateFromGameObject();art.setPosition(crumble.baseX,top+drop);ledge.x=crumble.baseX;ledge.y=crumble.baseY+drop;
-   if(t>=1){crumble.phase='broken';crumble.brokenAt=now;}
-  }else if(crumble.phase==='broken'){
-   if(now-crumble.brokenAt>=900&&!this.overlapsRestoredCrumble(p,crumble.baseX,crumble.baseY,ledge.width)){
-    shape.setPosition(crumble.baseX,crumble.baseY);body.updateFromGameObject();body.enable=true;art.setPosition(crumble.baseX,top).clearTint().setAlpha(1);ledge.x=crumble.baseX;ledge.y=crumble.baseY;crumble.phase='idle';crumble.at=0;
+  if(entry.phase==='gone'){
+   const elapsed=now-entry.at;
+   if(entry.kind==='crumble'&&elapsed<300){const t=Math.min(1,elapsed/300),drop=48*t*t;shape.setPosition(entry.x,entry.y+drop);body.updateFromGameObject();art.setPosition(entry.x,top+drop).clearTint().setAlpha(1);ledge.x=entry.x;ledge.y=entry.y+drop;}
+   else if(entry.kind==='crumble'){art.setAlpha(0);}
+   else art.setAlpha(0);
+   if(elapsed>=1000){
+    if(this.disappearingOverlap(p,entry)){this.restoreDisappearingSurface(entry,false);art.setAlpha(.28);}
+    else {this.restoreDisappearingSurface(entry,true);entry.phase='recover';entry.at=now;}
    }
   }
+  if(entry.phase==='recover'){
+   if(now-entry.at>=400){entry.phase='solid';room.index++;if(room.index>=room.entries.length)room.index=0;const next=room.entries[room.index];next.phase='warn';next.at=now;}
+  }
  }
- private overlapsRestoredCrumble(p:Phaser.Physics.Arcade.Body,x:number,y:number,width:number):boolean{return p.right>x-width/2&&p.left<x+width/2&&p.bottom>y-16&&p.top<y+16;}
+ private disappearingOverlap(p:Phaser.Physics.Arcade.Body,entry:DisappearingEntry):boolean{return p.right>entry.x-entry.surface.ledge.width/2&&p.left<entry.x+entry.surface.ledge.width/2&&p.bottom>entry.y-16&&p.top<entry.y+16;}
+ private restoreDisappearingSurface(entry:DisappearingEntry,enable:boolean):void {
+  const {shape,art,ledge}=entry.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody;
+  shape.setPosition(entry.x,entry.y);body.updateFromGameObject();body.enable=enable;
+  art.setPosition(entry.x,entry.y-16).clearTint().setAlpha(enable?1:.28);ledge.x=entry.x;ledge.y=entry.y;
+ }
+ private resetDisappearingRoom(room:DisappearingRoom):void {
+  for(const entry of room.entries){this.restoreDisappearingSurface(entry,true);entry.phase='solid';entry.at=0;}
+  room.started=false;room.index=0;
+ }
  private updateWindVisuals(now:number,p:Phaser.Physics.Arcade.Body,roomStart:number,roomEnd:number):void {
   // Three neighboring rooms use stable pool slots, so crossing an edge cannot move an existing field.
   for(let i=0;i<AMBIENT_WIND_POOL_SIZE;i++){
@@ -242,28 +247,17 @@ export class ChapterTraps {
    if(Math.abs(room-section)>1||Math.abs(press.ground-playerY)>ACTIVE_Y)continue;
    press.phase=pressPhaseAfterGap(press.phase);press.at=now;press.hit=false;press.warning.clear();press.art.setVisible(false).setPosition(press.x,press.ground-480);
   }
-  for(const list of this.specials.values())for(const special of list)if(special.type==='shutters'){
-   if(Math.abs(special.section-section)>1||Math.abs(special.y-playerY)>ACTIVE_Y)continue;
-   const body=special.surface.shape.body as Phaser.Physics.Arcade.StaticBody,p=this.player.body,overlaps=p.right>body.left&&p.left<body.right&&p.bottom>body.top&&p.top<body.bottom;
-   this.resetShutter(special,now,overlaps);special.visible=true;
-  }
-  for(const [room,list] of this.crumbles)for(const crumble of list)if(Math.abs(room-section)<=1&&Math.abs(crumble.baseY-playerY)<=ACTIVE_Y&&crumble.phase==='warn'){
-   crumble.phase=crumblePhaseAfterGap(crumble.phase);crumble.at=now;crumble.surface.art.clearTint().setAlpha(1).setPosition(crumble.baseX,crumble.baseY-16);
-  }
   this.windDriftX=0;
  }
  private suspendRoom(section:number,now:number,factor:number):void {
   const texts=this.effects.get(section);if(texts)for(const cue of texts)cue.setAlpha(.16);
   const presses=this.presses.get(section);if(presses)for(const press of presses){press.phase='idle';press.at=now+trapIdleCadenceMs(factor);press.hit=false;press.warning.clear();press.art.setVisible(false).setPosition(press.x,press.ground-480);}
   const specials=this.specials.get(section);if(specials)for(const special of specials)special.visible=false;
-  const crumbles=this.crumbles.get(section);if(crumbles)for(const crumble of crumbles){
-   crumble.visible=false;
-   if(crumble.phase==='warn'){crumble.phase=crumblePhaseAfterGap(crumble.phase);crumble.at=0;crumble.surface.art.clearTint().setAlpha(1).setPosition(crumble.baseX,crumble.baseY-16);}
-  }
+  const disappearing=this.disappearingRooms.get(section);if(disappearing)this.resetDisappearingRoom(disappearing);
  }
  private enterRoom(section:number,now:number):void {
   const presses=this.presses.get(section);if(presses)for(const press of presses){press.phase='idle';press.at=now;press.hit=false;press.warning.clear();press.art.setVisible(false).setPosition(press.x,press.ground-480);}
   const specials=this.specials.get(section);if(specials)for(const special of specials)special.visible=false;
-  const crumbles=this.crumbles.get(section);if(crumbles)for(const crumble of crumbles){crumble.visible=false;if(crumble.phase==='warn'){crumble.phase='idle';crumble.at=0;crumble.surface.art.clearTint().setAlpha(1).setPosition(crumble.baseX,crumble.baseY-16);}}
+  const disappearing=this.disappearingRooms.get(section);if(disappearing){for(const entry of disappearing.entries)entry.surface.art.clearTint().setAlpha(1);}
  }
 }

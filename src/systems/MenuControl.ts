@@ -63,14 +63,15 @@ export function requestPauseMenu(scene: Phaser.Scene, onSave: () => void, parent
 /** Adds an accessible native menu button that stays independent of the scaled game camera. */
 export function addMenuControl(scene: Phaser.Scene, onOpen: PauseMenuHandler): void {
   if (controls.has(scene) || typeof document === 'undefined') return;
-  const parent = document.getElementById('game');
+  const game = document.getElementById('game');
+  const parent = game?.querySelector?.('.game-controls') ?? game;
   if (!parent) return;
 
   const button = document.createElement('button');
   button.type = 'button';
   button.setAttribute('aria-label', 'Open game menu');
   button.className = 'game-menu-control';
-  button.textContent = 'MENU';
+  button.textContent = 'Esc · Menu';
   let openPending = false;
 
   const stopPropagation = (event: Event): void => event.stopPropagation();

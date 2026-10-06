@@ -117,7 +117,6 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setDeadzone(96,150);
     if(data.fromSecret)this.cameras.main.setScroll(this.player.sprite.x-TUNING.simulation.width/2,this.player.sprite.y-TUNING.simulation.height/2);
     this.hud = new ChapterHud(this, this.player);
-    this.add.text(16, 80, 'A/D move · Hold Left Shift sprint · L/Space jump · J throw · K dash · S tuck/slam', { fontFamily: 'Arial', fontSize: '10px', color: '#c9d6e4', stroke: '#000000', strokeThickness: 3 }).setScrollFactor(0).setDepth(20);
     for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
       this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
     // First-half dash cues: first robot, cracked wall, spike robot, and gap's airborne dash point.

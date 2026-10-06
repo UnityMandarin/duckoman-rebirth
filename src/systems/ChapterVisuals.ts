@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import {CHAPTER_DOORS,CHAPTER_SIGNS,CHAPTER_SPIKES_FLIP_Y,CHAPTER_SURFACES,RESCUE_SURFACES,type CapFrame,type IdentityChapter,type IdentityFrame,type PlatformFrame} from '../data/chapterVisuals';
+import {planTerrainAxis,type TerrainSegment} from './chapterTerrainPieces';
 
 type FrameRect=[number,number,number,number];
 type ChapterMetadata={width:number;height:number;frames:Partial<Record<IdentityFrame,FrameRect>>};
@@ -47,15 +48,70 @@ export function addIdentitySign(scene:Phaser.Scene,chapter:IdentityChapter,{x,y,
  const label=scene.add.text(x,y-60,copy,{fontFamily:'Georgia',fontSize:'9px',color:palette[chapter],stroke:'#100e16',strokeThickness:2,align:'center',wordWrap:{width:Math.min(132,width*.78)}}).setOrigin(.5).setDepth(4);
  return {art,label};
 }
-export function addIdentityBlock(scene:Phaser.Scene,chapter:IdentityChapter,{x,top,width,height=48,frame,depth=2}:{x:number;top:number;width:number;height?:number;frame:IdentityFrame;depth?:number}):Phaser.GameObjects.TileSprite{
- assertFrame(scene,chapter,frame);const key=identityTexture(chapter),native=scene.textures.get(key).get(frame),scale=height/native.height;
- return scene.add.tileSprite(x,top,width,height,key,frame).setOrigin(.5,0).setTileScale(scale,scale).setDepth(depth);
+const PIXELS_PER_WORLD=2;
+// Rescue's metadata frame is the opaque inner repeat face; partial edges need the atlas's full closed contour.
+const RESCUE_FOUNDATION_FINISH={x:-6,y:-6,width:258,height:177};
+type Slice={source:number;size:number;destination:number;drawSize:number};
+type AxisPiece={segment:TerrainSegment;slices:Slice[]};
+function axisPieces(segments:TerrainSegment[],sourceSize:number,scale:number,partialSourceStart=0,partialSourceSize=sourceSize):AxisPiece[]{
+ let destination=0;
+ return segments.map(segment=>{
+  const slices:Slice[]=[];
+  if(segment.kind==='full'){
+   const units=segment.units??1;
+   for(let i=0;i<units;i++)slices.push({source:0,size:sourceSize,destination:destination+i*sourceSize*scale,drawSize:sourceSize*scale});
+  }else{
+   const sourceWidth=segment.width/scale,edge=sourceWidth/2;
+   slices.push({source:partialSourceStart,size:edge,destination,drawSize:edge*scale});
+   slices.push({source:partialSourceStart+partialSourceSize-edge,size:edge,destination:destination+edge*scale,drawSize:edge*scale});
+  }
+  const result={segment,slices};destination+=segment.width;return result;
+ });
 }
-export function addIdentityFloor(scene:Phaser.Scene,chapter:IdentityChapter,{x,top,width,height,frame}:{x:number;top:number;width:number;height:number;frame:CapFrame}):{cap:Phaser.GameObjects.TileSprite;foundation?:Phaser.GameObjects.TileSprite;backing?:Phaser.GameObjects.Rectangle}{
- assertFrame(scene,chapter,'foundation');const key=identityTexture(chapter),tile=addIdentityBlock(scene,chapter,{x,top,width,height:Math.min(48,height),frame,depth:1});
+function makeTerrainCanvas(scene:Phaser.Scene,key:string,width:number,height:number,draw:(context:CanvasRenderingContext2D)=>void):string{
+ if(scene.textures.exists(key))return key;
+ const pixelWidth=Math.max(1,Math.ceil(width*PIXELS_PER_WORLD)),pixelHeight=Math.max(1,Math.ceil(height*PIXELS_PER_WORLD));
+ const texture=scene.textures.createCanvas(key,pixelWidth,pixelHeight);if(!texture)throw new Error(`Could not create terrain texture ${key}.`);const context=texture.getContext();
+ draw(context);texture.add('terrain',0,0,0,width*PIXELS_PER_WORLD,height*PIXELS_PER_WORLD);texture.refresh();return key;
+}
+function terrainKey(parts:unknown[]):string{return `terrain-piece-${parts.map(value=>String(value).replace(/[^a-zA-Z0-9.-]/g,'_')).join('-')}`;}
+function drawTerrainPattern(context:CanvasRenderingContext2D,source:HTMLImageElement|HTMLCanvasElement,frame:Phaser.Textures.Frame,xSlices:Slice[],ySlices:Slice[]):void{
+ for(const sx of xSlices)for(const sy of ySlices){
+  if(sx.size<=0||sy.size<=0)continue;
+  context.drawImage(source,frame.cutX+sx.source,frame.cutY+sy.source,sx.size,sy.size,sx.destination*PIXELS_PER_WORLD,sy.destination*PIXELS_PER_WORLD,sx.drawSize*PIXELS_PER_WORLD,sy.drawSize*PIXELS_PER_WORLD);
+ }
+}
+function addFinishedStrip(scene:Phaser.Scene,chapter:IdentityChapter,frame:IdentityFrame,width:number,height:number,depth:number,originX=.5):Phaser.GameObjects.Image{
+ const key=identityTexture(chapter),texture=scene.textures.get(key),native=texture.get(frame),scale=height/native.height,unitWidth=native.width*scale,segments=planTerrainAxis(width,unitWidth),xSlices=axisPieces(segments,native.width,scale).flatMap(piece=>piece.slices),ySlices=[{source:0,size:native.height,destination:0,drawSize:height}];
+ const cache=terrainKey([chapter,frame,width,height]),source=texture.getSourceImage() as HTMLImageElement;
+ const pieceKey=makeTerrainCanvas(scene,cache,width,height,context=>drawTerrainPattern(context,source,native,xSlices,ySlices));
+ return scene.add.image(0,0,pieceKey,'terrain').setOrigin(originX,0).setScale(1/PIXELS_PER_WORLD).setDepth(depth);
+}
+function addFoundationGroup(scene:Phaser.Scene,chapter:IdentityChapter,frame:Phaser.Textures.Frame,x:number,top:number,depth:number,scale:number,unitWidth:number,unitHeight:number,xSegment:TerrainSegment,ySegment:TerrainSegment):Phaser.GameObjects.Image|Phaser.GameObjects.TileSprite{
+ const key=identityTexture(chapter),native=scene.textures.get(key).get(frame.name),fullX=xSegment.kind==='full',fullY=ySegment.kind==='full';
+ if(fullX&&fullY)return scene.add.tileSprite(x,top,xSegment.width,ySegment.width,key,frame.name).setOrigin(.5,0).setTileScale(scale,scale).setDepth(depth);
+ const patternWidth=fullX?unitWidth:xSegment.width,patternHeight=fullY?unitHeight:ySegment.width;
+ const rescueFinish=chapter==='rescue'&&frame.name==='foundation'?RESCUE_FOUNDATION_FINISH:undefined;
+ const xPieces=axisPieces([{...xSegment,width:patternWidth,...(fullX?{units:1}:{})}],native.width,scale,fullX?0:rescueFinish?.x??0,fullX?native.width:rescueFinish?.width??native.width)[0]!.slices;
+ const yPieces=axisPieces([{...ySegment,width:patternHeight,...(fullY?{units:1}:{})}],native.height,scale,fullY?0:rescueFinish?.y??0,fullY?native.height:rescueFinish?.height??native.height)[0]!.slices;
+ const textureKey=terrainKey(['foundation',chapter,fullX?'full':'partial',patternWidth,fullY?'full':'partial',patternHeight]);
+ const source=scene.textures.get(key).getSourceImage() as HTMLImageElement;
+ makeTerrainCanvas(scene,textureKey,patternWidth,patternHeight,context=>drawTerrainPattern(context,source,native,xPieces,yPieces));
+ if(fullX||fullY)return scene.add.tileSprite(x,top,xSegment.width,ySegment.width,textureKey,'terrain').setOrigin(.5,0).setTileScale(1/PIXELS_PER_WORLD,1/PIXELS_PER_WORLD).setDepth(depth);
+ return scene.add.image(x,top,textureKey,'terrain').setOrigin(.5,0).setScale(1/PIXELS_PER_WORLD).setDepth(depth);
+}
+export function addIdentityBlock(scene:Phaser.Scene,chapter:IdentityChapter,{x,top,width,height=48,frame,depth=2}:{x:number;top:number;width:number;height?:number;frame:IdentityFrame;depth?:number}):Phaser.GameObjects.Image{
+ assertFrame(scene,chapter,frame);
+ return addFinishedStrip(scene,chapter,frame,width,height,depth).setPosition(x,top).setOrigin(.5,0).setScale(1/PIXELS_PER_WORLD);
+}
+export function addIdentityFloor(scene:Phaser.Scene,chapter:IdentityChapter,{x,top,width,height,frame}:{x:number;top:number;width:number;height:number;frame:CapFrame}):{cap:Phaser.GameObjects.Image;foundation?:Phaser.GameObjects.Container;backing?:Phaser.GameObjects.Rectangle}{
+ assertFrame(scene,chapter,'foundation');assertFrame(scene,chapter,frame);const key=identityTexture(chapter),tile=addFinishedStrip(scene,chapter,frame,width,Math.min(48,height),1).setPosition(x,top);
  const foundationHeight=height;
- let foundation:Phaser.GameObjects.TileSprite|undefined,backing:Phaser.GameObjects.Rectangle|undefined;
- if(foundationHeight>0){const fill={jail:0x172633,outside:0x35281e,crimson:0x1b1119,rescue:0x36313b}[chapter],f=scene.textures.get(key).get('foundation'),scale=128/f.height;backing=scene.add.rectangle(x,top+foundationHeight/2,width,foundationHeight,fill,1).setDepth(-1);foundation=scene.add.tileSprite(x,top,width,foundationHeight,key,'foundation').setOrigin(.5,0).setTileScale(scale,scale).setDepth(0);}
+ let foundation:Phaser.GameObjects.Container|undefined,backing:Phaser.GameObjects.Rectangle|undefined;
+ if(foundationHeight>0){const fill={jail:0x172633,outside:0x35281e,crimson:0x1b1119,rescue:0x36313b}[chapter],f=scene.textures.get(key).get('foundation'),scale=128/f.height,unitWidth=f.width*scale,unitHeight=128,xSegments=planTerrainAxis(width,unitWidth),ySegments=planTerrainAxis(foundationHeight,unitHeight);backing=scene.add.rectangle(x,top+foundationHeight/2,width,foundationHeight,fill,1).setDepth(-1);
+  const xStart=x-width/2;let xOffset=0;foundation=scene.add.container(0,0).setDepth(0);
+  for(const xSegment of xSegments){let yOffset=0;for(const ySegment of ySegments){const groupWidth=xSegment.width,groupHeight=ySegment.width,groupX=xStart+xOffset+groupWidth/2,groupTop=top+yOffset,group=addFoundationGroup(scene,chapter,f,groupX,groupTop,0,scale,unitWidth,unitHeight,xSegment,ySegment).setDepth(0);foundation.add(group);yOffset+=groupHeight;}xOffset+=xSegment.width;}
+ }
  return {cap:tile,foundation,backing};
 }
 export function addIdentityDoor(scene:Phaser.Scene,chapter:IdentityChapter,{x,ground,width,height,opened}:{x:number;ground:number;width:number;height:number;opened:boolean}):IdentityDoor{

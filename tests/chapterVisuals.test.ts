@@ -5,14 +5,17 @@ import {JAIL_ROOMS,OUTSIDE_ROOMS} from '../src/data/qualityRooms';
 import {encounterFor} from '../src/data/chapterChallenges';
 
 const code=(frame:string):string=>({'cap-a':'A','cap-b':'B','cap-c':'C',cracked:'R',shutter:'S',belt:'T',carrier:'M'} as Record<string,string>)[frame]??'?';
-type MockTile={x:number;y:number;width:number;height:number;scaleX:number;scaleY:number;tileScaleX:number;tileScaleY:number;tilePositionX:number;alpha:number;tint?:number;setOrigin(x:number,y:number):MockTile;setTileScale(x:number,y:number):MockTile;setDepth(depth:number):MockTile;setFlipX(value:boolean):MockTile;setPosition(x:number,y:number):MockTile;setAlpha(value:number):MockTile;setTint(value:number):MockTile;};
-function mockRenderer():{scene:unknown;tiles:MockTile[];rectangles:{x:number;y:number;width:number;height:number;color:number;depth?:number}[]} {
- const tiles:MockTile[]=[],rectangles:{x:number;y:number;width:number;height:number;color:number;depth?:number}[]=[],frames:Record<string,{width:number;height:number}>={'cap-a':{width:200,height:80},'cap-b':{width:180,height:60},'cap-c':{width:190,height:70},foundation:{width:240,height:64},carrier:{width:320,height:50}};
- const texture={has:(frame:string)=>frame in frames,get:(frame:string)=>frames[frame]??{width:100,height:100}},scene={
-  textures:{exists:(key:string)=>key==='identity-outside',get:()=>texture},
-  add:{tileSprite:(x:number,y:number,width:number,height:number)=>{const tile:MockTile={x,y,width,height,scaleX:1,scaleY:1,tileScaleX:1,tileScaleY:1,tilePositionX:0,alpha:1,setOrigin(){return this;},setTileScale(a,b){this.tileScaleX=a;this.tileScaleY=b;return this;},setDepth(){return this;},setFlipX(){return this;},setPosition(a,b){this.x=a;this.y=b;return this;},setAlpha(value){this.alpha=value;return this;},setTint(value){this.tint=value;return this;}};tiles.push(tile);return tile;},rectangle:(x:number,y:number,width:number,height:number,color:number)=>{const rect={x,y,width,height,color,depth:undefined as number|undefined,setDepth(depth:number){this.depth=depth;return this;}};rectangles.push(rect);return rect;}}
- };
- return {scene,tiles,rectangles};
+type MockObject={x:number;y:number;width:number;height:number;scaleX:number;scaleY:number;tileScaleX:number;tileScaleY:number;alpha:number;tint?:number;depth?:number;setOrigin(x:number,y:number):MockObject;setTileScale(x:number,y:number):MockObject;setScale(x:number,y?:number):MockObject;setDepth(depth:number):MockObject;setFlipX(value:boolean):MockObject;setPosition(x:number,y:number):MockObject;setAlpha(value:number):MockObject;setTint(value:number):MockObject;};
+type DrawCall={sx:number;sy:number;sw:number;sh:number;dx:number;dy:number;dw:number;dh:number};
+type MockFrame={name:string;width:number;height:number;cutX:number;cutY:number};
+type MockContainer=MockObject&{children:MockObject[];add(child:MockObject):MockContainer};
+function mockRenderer(){
+ const objects:MockObject[]=[],rectangles:{x:number;y:number;width:number;height:number;color:number;depth?:number}[]=[],drawCalls:DrawCall[]=[],frames:Record<string,MockFrame>={
+  'cap-a':{name:'cap-a',width:200,height:80,cutX:0,cutY:0},'cap-b':{name:'cap-b',width:180,height:60,cutX:0,cutY:80},'cap-c':{name:'cap-c',width:190,height:70,cutX:0,cutY:140},foundation:{name:'foundation',width:240,height:64,cutX:0,cutY:210},carrier:{name:'carrier',width:320,height:50,cutX:0,cutY:274},belt:{name:'belt',width:300,height:50,cutX:0,cutY:324},cracked:{name:'cracked',width:310,height:50,cutX:0,cutY:374},shutter:{name:'shutter',width:290,height:50,cutX:0,cutY:424}};
+ const rescueFrames:Record<string,MockFrame>={...frames,foundation:{name:'foundation',width:249,height:94,cutX:972,cutY:89}};
+ const textures:Record<string,{frames:Record<string,MockFrame>;has(name:string):boolean;get(name:string):MockFrame;getSourceImage():HTMLImageElement}>={'identity-outside':{frames,has(name){return name in frames;},get(name){return frames[name]??{name,width:100,height:100,cutX:0,cutY:0};},getSourceImage(){return {} as HTMLImageElement;}},'identity-rescue':{frames:rescueFrames,has(name){return name in rescueFrames;},get(name){return rescueFrames[name]??{name,width:100,height:100,cutX:0,cutY:0};},getSourceImage(){return {} as HTMLImageElement;}}};
+ const scene={textures:{exists:(key:string)=>key in textures,get:(key:string)=>textures[key]!,createCanvas(key:string,width:number,height:number){const ctx={drawImage(_source:unknown,sx:number,sy:number,sw:number,sh:number,dx:number,dy:number,dw:number,dh:number){drawCalls.push({sx,sy,sw,sh,dx,dy,dw,dh});}} as unknown as CanvasRenderingContext2D;const texture={getContext:()=>ctx,add(name:string,_source:number,_x:number,_y:number,w:number,h:number){frames[name]={name,width:w,height:h,cutX:0,cutY:0};},refresh(){}};textures[key]={frames:{...frames},has(name){return name in this.frames;},get(name){return this.frames[name]??frames[name]??{name,width:100,height:100,cutX:0,cutY:0};},getSourceImage(){return {} as HTMLImageElement;}};return texture;}},add:{image(x:number,y:number,_key:string,frameName=''){const frame=frames[frameName]??{width:100,height:100};const obj:MockObject={x,y,width:frame.width,height:frame.height,scaleX:1,scaleY:1,tileScaleX:1,tileScaleY:1,alpha:1,setOrigin(){return this;},setTileScale(a,b){this.tileScaleX=a;this.tileScaleY=b;return this;},setScale(a,b=a){this.scaleX=a;this.scaleY=b;return this;},setDepth(value){this.depth=value;return this;},setFlipX(){return this;},setPosition(a,b){this.x=a;this.y=b;return this;},setAlpha(value){this.alpha=value;return this;},setTint(value){this.tint=value;return this;}};objects.push(obj);return obj;},container(x:number,y:number){const obj:MockContainer={x,y,width:0,height:0,scaleX:1,scaleY:1,tileScaleX:1,tileScaleY:1,alpha:1,children:[],setOrigin(){return this;},setTileScale(a,b){this.tileScaleX=a;this.tileScaleY=b;return this;},setScale(a,b=a){this.scaleX=a;this.scaleY=b;return this;},setDepth(value){this.depth=value;return this;},setFlipX(){return this;},setPosition(a,b){this.x=a;this.y=b;return this;},setAlpha(value){this.alpha=value;return this;},setTint(value){this.tint=value;return this;},add(child){this.children.push(child);return this;}};objects.push(obj);return obj;},tileSprite(x:number,y:number,width:number,height:number){const obj:MockObject={x,y,width,height,scaleX:1,scaleY:1,tileScaleX:1,tileScaleY:1,alpha:1,setOrigin(){return this;},setTileScale(a,b){this.tileScaleX=a;this.tileScaleY=b;return this;},setScale(a,b=a){this.scaleX=a;this.scaleY=b;return this;},setDepth(value){this.depth=value;return this;},setFlipX(){return this;},setPosition(a,b){this.x=a;this.y=b;return this;},setAlpha(value){this.alpha=value;return this;},setTint(value){this.tint=value;return this;}};objects.push(obj);return obj;},rectangle(x:number,y:number,width:number,height:number,color:number){const rect={x,y,width,height,color,depth:undefined as number|undefined,setDepth(depth:number){this.depth=depth;return this;}};rectangles.push(rect);return rect;}}};
+ return {scene,objects,rectangles,drawCalls};
 }
 describe('authored chapter identity tables',()=>{
  it('covers every authored room, floor interval, and available geometry step',()=>{
@@ -46,16 +49,28 @@ describe('authored chapter identity tables',()=>{
    });
   }
  });
- it('repeats wide and narrow blocks at native proportions and exact requested bounds',()=>{
-  const {scene,tiles}=mockRenderer(),wide=addIdentityBlock(scene as never,'outside',{x:500,top:120,width:900,height:48,frame:'carrier'}) as unknown as MockTile,narrow=addIdentityBlock(scene as never,'outside',{x:80,top:36,width:70,height:48,frame:'carrier'}) as unknown as MockTile;
-  expect(tiles).toHaveLength(2);expect([wide.width,wide.height,wide.x-wide.width/2,wide.x+wide.width/2]).toEqual([900,48,50,950]);expect([narrow.width,narrow.height,narrow.x-narrow.width/2,narrow.x+narrow.width/2]).toEqual([70,48,45,115]);
-  for(const tile of [wide,narrow]){expect(tile.tileScaleX).toBe(tile.tileScaleY);expect(tile.tileScaleX).toBe(48/50);expect(tile.scaleX).toBe(1);expect(tile.scaleY).toBe(1);expect(tile.tilePositionX).toBe(0);}
-  wide.setPosition(510,121).setAlpha(.7).setTint(0xffccaa);expect(tiles).toHaveLength(2);expect([wide.x,wide.y,wide.alpha,wide.tint]).toEqual([510,121,.7,0xffccaa]);
+ it('keeps every finished block in its exact authored bounds and preserves both source edges at full scale',()=>{
+  const {scene,objects,drawCalls}=mockRenderer(),block=addIdentityBlock(scene as never,'outside',{x:500,top:120,width:900,height:48,frame:'carrier'}) as unknown as MockObject;
+  expect(objects).toHaveLength(1);expect([block.x,block.y,block.width*block.scaleX,block.height*block.scaleY,block.scaleX,block.scaleY]).toEqual([500,120,900,48,.5,.5]);
+  const calls=drawCalls.filter(call=>call.sy===274);
+  expect(calls.length).toBe(4);expect(calls.slice(0,2).every(call=>call.sw===320&&call.dw===320*48/50*2)).toBe(true);
+  expect(calls.slice(-2).map(call=>call.sx)).toEqual([0,320-calls[2]!.sw]);
+  expect(calls.slice(-2).every(call=>Math.abs(call.dw-call.sw*48/50*2)<1e-8)).toBe(true);
+  block.setPosition(510,121).setAlpha(.7).setTint(0xffccaa);expect([block.x,block.y,block.alpha,block.tint]).toEqual([510,121,.7,0xffccaa]);
  });
- it('tiles cap and foundation floors uniformly within their existing visual bounds',()=>{
-  const {scene,tiles,rectangles}=mockRenderer(),floor=addIdentityFloor(scene as never,'outside',{x:720,top:300,width:1440,height:360,frame:'cap-a'});
-  expect(tiles).toHaveLength(2);expect([floor.cap.width,floor.cap.height,floor.cap.tileScaleX,floor.cap.tileScaleY,floor.cap.scaleX]).toEqual([1440,48,48/80,48/80,1]);
-  expect(floor.foundation).toBe(tiles[1]);expect([floor.foundation!.x,floor.foundation!.y,floor.foundation!.width,floor.foundation!.height,floor.foundation!.tileScaleX,floor.foundation!.tileScaleY,floor.foundation!.scaleX]).toEqual([720,300,1440,360,2,2,1]);
+ it('finishes Rescue foundation bottom partials from the measured outer contour at the unchanged scale',()=>{
+  const {scene,objects,drawCalls}=mockRenderer(),unitWidth=249*128/94,width=unitWidth*2,floor=addIdentityFloor(scene as never,'rescue',{x:width/2,top:0,width,height:240,frame:'cap-a'});
+  expect(floor.foundation).toBeDefined();
+  const fullCore=objects.find(item=>item.depth===0&&item.tileScaleX===128/94);expect(fullCore).toBeDefined();
+  const bottomEdge=drawCalls.filter(call=>call.sy>=200).sort((a,b)=>a.sy-b.sy).at(-1);
+  expect(bottomEdge).toBeDefined();expect(bottomEdge!.sy+bottomEdge!.sh).toBeCloseTo(260,7);
+  expect(bottomEdge!.dh).toBeCloseTo(bottomEdge!.sh*(128/94)*2,7);
+ });
+ it('renders floor caps as one exact strip and foundations as bounded repeated groups',()=>{
+  const {scene,objects,rectangles}=mockRenderer(),floor=addIdentityFloor(scene as never,'outside',{x:720,top:300,width:1440,height:360,frame:'cap-a'});
+  expect([floor.cap.x,floor.cap.y,floor.cap.scaleX,floor.cap.scaleY]).toEqual([720,300,.5,.5]);
+  expect(floor.foundation).toBeDefined();expect((floor.foundation as unknown as MockContainer).children.length).toBeLessThanOrEqual(9);expect(objects.slice(1).every(item=>item.depth===0)).toBe(true);
+  expect(objects.filter(item=>item.depth===0).length).toBeLessThanOrEqual(9);
   expect(rectangles).toHaveLength(1);expect([rectangles[0]!.x,rectangles[0]!.y,rectangles[0]!.width,rectangles[0]!.height,rectangles[0]!.depth]).toEqual([720,480,1440,360,-1]);
  });
 });

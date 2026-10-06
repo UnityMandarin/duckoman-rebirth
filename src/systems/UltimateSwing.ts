@@ -68,7 +68,7 @@ function ensureTextures(scene:Phaser.Scene):void {
 const DURATION=1000;
 const THROW_HOLD=80,THROW_MS=280;
 
-export interface HudSword {frame:Phaser.GameObjects.Image;fill:Phaser.GameObjects.Image;}
+export interface HudSword {frame:Phaser.GameObjects.Image;fill:Phaser.GameObjects.Image;setVisible?:(visible:boolean)=>void;}
 
 /**
  * Super freeze: physics stops and the scene skips its update while `player.usingUltimate`,
@@ -90,7 +90,7 @@ function superFreeze(scene:Phaser.Scene,p:Player):void {
  */
 export function playUltimateSwing(scene:Phaser.Scene,p:Player,hud?:HudSword):void {
   ensureTextures(scene);
-  if(hud){setSwordMeterCharge(hud.fill,0);hud.frame.setAlpha(0);hud.fill.setAlpha(0);}
+  if(hud){setSwordMeterCharge(hud.fill,0);hud.frame.setAlpha(0);hud.fill.setAlpha(0);hud.setVisible?.(false);}
   p.ultimateCharge=0;p.ultimateUntil=scene.time.now+DURATION;
   superFreeze(scene,p);
   p.abilities.setSprint(false);
@@ -110,7 +110,7 @@ export function playUltimateSwing(scene:Phaser.Scene,p:Player,hud?:HudSword):voi
 }
 
 function showHudSword(hud?:HudSword):void {
-  if(hud){hud.frame.setAlpha(1);hud.fill.setAlpha(1);}
+  if(hud){hud.frame.setAlpha(1);hud.fill.setAlpha(1);hud.setVisible?.(true);}
 }
 
 /** Spins the sword back up to the meter, shrinking to HUD size, and hands it back to the HUD on arrival. */

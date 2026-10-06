@@ -1,0 +1,115 @@
+{
+  "version": "royal-ui-v1",
+  "generationTool": "built-in image_gen",
+  "assets": [
+    {
+      "path": "public/assets/menu/royal-ui-v1/menu-surface.webp",
+      "bytes": 1928908,
+      "generatedSource": "exec-a3fd8155-3c23-4268-9b6f-63752535c1a0.png",
+      "width": 1417,
+      "height": 1110
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-primary.webp",
+      "bytes": 2024760,
+      "generatedSource": "exec-6a4c8c8c-c291-4324-adec-47bf3f6d8705.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-continue.webp",
+      "bytes": 1568240,
+      "generatedSource": "exec-29d4eb77-5843-4e15-8f26-489ee5a13c2c.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-replay.webp",
+      "bytes": 1584910,
+      "generatedSource": "exec-bd4b54ae-0048-47bb-9e25-c8ca95b61cc1.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-journal.webp",
+      "bytes": 1829166,
+      "generatedSource": "exec-6a84d8f7-0a8d-4071-8c6c-44e06ae30874.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-routes.webp",
+      "bytes": 1644082,
+      "generatedSource": "exec-af46d90d-3d83-4f0c-9b32-b3315e924435.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-trials.webp",
+      "bytes": 1695514,
+      "generatedSource": "exec-e620bac2-ec37-4bdc-8414-1900fa757270.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-graphics.webp",
+      "bytes": 1860298,
+      "generatedSource": "exec-c0c07d57-1bb8-4d98-857d-f4c71d2c5cb7.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-previous.webp",
+      "bytes": 1743238,
+      "generatedSource": "exec-fe466283-6660-481e-a7f0-3667534801be.png",
+      "width": 971,
+      "height": 1619
+    },
+    {
+      "path": "public/assets/menu/royal-ui-v1/button-next.webp",
+      "bytes": 1627730,
+      "generatedSource": "exec-78c45430-0846-450c-bce2-4f855377d53f.png",
+      "width": 971,
+      "height": 1619
+    }
+  ],
+  "prompts": {
+    "shared": "Use case: ui-mockup. Asset type: production game UI material. Straight-on orthographic flat rectangle, no perspective. Edge-to-edge finished opaque canvas, closed thin perimeter, no empty gutters or outer shadow. Hand-painted storybook royal ruins game UI: blue-black ink-dark worn steel and royal slate, aged brass slim finished edges, consistent upper-left light, restrained highlights, mild workmanlike wear. A quiet center reserved for live DOM labels. No text/letters/numbers/watermarks, no scene/background environment, browser, duck character, extra assets, neon/glow/glass/clutter, huge wings, dragons, skulls, random gems, microtexture. Each file is a single separate asset.",
+    "menu-surface": "whole royal menu panel; 340:266 landscape, thin aged-brass perimeter on blue-black royal stone, tiny restrained crown-and-feather marks only in top corners; quiet center, no text",
+    "button-primary": "wide 3:1 warm brass royal route action plaque, slim rim with tiny crown/feather detail confined to rim, uninterrupted dark center",
+    "button-continue": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny forward-feather rim etching, quiet center",
+    "button-replay": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny returning feather-trail rim etching, quiet center",
+    "button-journal": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny book-spine rim etching, quiet center",
+    "button-routes": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny path rim etching, quiet center",
+    "button-trials": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny crossed sword guards rim etching, quiet center, no blood",
+    "button-graphics": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny prism/window edge rim etching, quiet center, no glow",
+    "button-previous": "portrait 3:5 blue-black slate and thin aged-brass navigation plate, subtle left endpoint cut, quiet center for existing DOM arrow",
+    "button-next": "portrait 3:5 blue-black slate and thin aged-brass navigation plate, subtle right endpoint cut, quiet center for existing DOM arrow",
+    "button-primary-replacement": "Use case: ui-mockup. Production game button skin. The entire rectangular image canvas itself is the finished button: every edge pixel must be blue-black slate or aged brass; absolutely no white or black outer background, no margins, no gutters, no outer shadow. Straight-on orthographic view. Landscape 3:1. A restrained warm aged-brass royal-route plaque: thin closed brass rim around a blue-black ink-dark stone face; a tiny feather engraving confined to the rim only. The uninterrupted center remains dark and empty for a live DOM label. Hand-painted storybook game asset material matching royal ruined-stone game UI, mild workmanlike wear and restrained upper-left highlights. No other objects, no mockup, no perspective, no text, no letters, no numbers, no watermark, no gems, no wings, no dragon, no skull, no ornate crest.",
+    "button-graphics-replacement": "Use case: ui-mockup. Production game button skin. Entire rectangular canvas is the finished button; every pixel is part of the blue-black slate and aged-brass button face, with absolutely no outside background, green, white, black gutter, margin or shadow. Straight-on orthographic view, landscape 3:1. Thin continuous aged-brass perimeter and a quiet blue-black ink-dark stone face. Tiny prism/window edge etching confined to the rim only; no glow. Hand-painted storybook royal ruins material, restrained highlight from upper left, mild wear. Large uninterrupted dark center for live DOM label. No text/letters/numbers/watermark, no scene, no other object, no perspective, no gem, no ornate clutter."
+  },
+  "mapping": {
+    "menu-surface": "main spatial menu board",
+    "button-primary": "dynamic main action",
+    "button-continue": "chapter Continue controls",
+    "button-replay": "chapter Replay controls",
+    "button-journal": "Journal",
+    "button-routes": "Route Practice",
+    "button-trials": "Boss Trials",
+    "button-graphics": "dynamic Graphics quality control",
+    "button-previous": "previous chapter",
+    "button-next": "next chapter"
+  },
+  "generation": {
+    "source": "/Users/haibo/.codex/generated_images/01a10f0e-d574-7650-af1a-98b4682f70b8",
+    "pixelDimensions": {
+      "menu-surface": "1417x1110",
+      "wideButtons": "2172x724",
+      "navigationButtons": "971x1619"
+    },
+    "encoding": "WebP lossless, identical decoded RGB pixels verified",
+    "compactEncoding": "Encoded with bundled sharp/libwebp in lossless mode; decoded pixels verified identical to generated PNG sources.",
+    "originalPngBytes": 24850434,
+    "productionBytes": 17506846
+  }
+}

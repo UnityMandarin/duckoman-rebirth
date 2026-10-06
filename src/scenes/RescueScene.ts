@@ -69,7 +69,6 @@ export class RescueScene extends Phaser.Scene {
   this.status=this.add.text(402,65,'',{fontFamily:'Georgia',fontSize:'9px',color:'#8ee0d8',stroke:'#071019',strokeThickness:2}).setScrollFactor(0).setDepth(62);
   this.story=this.add.text(320,116,'',{fontFamily:'Georgia',fontSize:'13px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:510}}).setOrigin(.5,0).setScrollFactor(0).setDepth(63);
   this.compass=this.add.text(620,76,'→ EAST EXIT',{fontFamily:'Georgia',fontSize:'9px',color:'#b9c5c1',stroke:'#071019',strokeThickness:3}).setOrigin(1,0).setScrollFactor(0).setDepth(62);
-  this.add.text(13,382,'A/D move · SPACE/L jump · K dash · S tuck/slam · J throw · U ultimate · ESC menu',{fontSize:'8px',color:'#bec9cc',stroke:'#061019',strokeThickness:3}).setScrollFactor(0).setDepth(61);
   this.add.text(540,330,'Z',{fontFamily:'Georgia',fontSize:'13px',color:'#e0e6db'}).setOrigin(.5).setDepth(11).setName('franklin-breath-z');
   const hudCamera=setupRenderScale(this,'rescue-hud');new SceneLayerRouter(this,hudCamera);
   addMenuControl(this,()=>this.openMenu());

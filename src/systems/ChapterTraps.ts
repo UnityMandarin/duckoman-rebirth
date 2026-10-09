@@ -5,13 +5,13 @@ import {CHAPTER_DIFFICULTY,encounterFor,encounterSurfaceEffects,advanceWindDrift
 import {rectsOverlap} from './contactRules';
 import {showHitbox} from './DebugHitboxes';
 import {roomFor} from '../data/qualityRooms';
-import {identityTexture} from './ChapterVisuals';
+import {addConveyorBeltDeck,conveyorBeltDeckOffset,identityTexture} from './ChapterVisuals';
 import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,type TrapPressPhase} from './qualityTrapClock';
 
 export interface ChapterSurface {shape:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image|Phaser.GameObjects.TileSprite;ledge:Ledge;}
 type Press={section:number;x:number;ground:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;phase:TrapPressPhase;at:number;hit:boolean;zone:{left:number;right:number;top:number;bottom:number};};
 type Crumble={section:number;surface:ChapterSurface;baseX:number;baseY:number;};
-type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x:number;y:number;phase:number;direction:-1|1;strength:number;visible:boolean;justRevealed:boolean;};
+type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x:number;y:number;phase:number;direction:-1|1;strength:number;visible:boolean;justRevealed:boolean;deck?:Phaser.GameObjects.TileSprite;};
 type DisappearingEntry={surface:ChapterSurface;kind:'shutter'|'crumble';x:number;y:number;phase:'solid'|'warn'|'gone'|'recover';at:number;};
 type DisappearingRoom={entries:DisappearingEntry[];started:boolean;index:number;};
 type DustFx={image:Phaser.GameObjects.Image;active:boolean;started:number;x:number;y:number;section:number;duration:number;scale:number;baseScaleX:number;baseScaleY:number;};
@@ -51,7 +51,12 @@ export class ChapterTraps {
    const effectSource=kind==='crimson'?encounter:{...encounter,conveyor:undefined};
    for(const effect of encounterSurfaceEffects(effectSource)){
     const surface=ledges[effect.platformIndex];if(!surface)continue;
-    put(this.specials,section,{section,surface,type:effect.type,x:surface.ledge.x,y:surface.ledge.y,phase:effect.platformIndex*Math.PI,direction:effect.direction,strength:effect.strength,visible:false,justRevealed:false});
+    const special:Special={section,surface,type:effect.type,x:surface.ledge.x,y:surface.ledge.y,phase:effect.platformIndex*Math.PI,direction:effect.direction,strength:effect.strength,visible:false,justRevealed:false};
+    if(effect.type==='conveyor'){
+     const art=surface.art,frame=scene.textures.get(identityTexture(kind)).get('belt');
+     special.deck=addConveyorBeltDeck(scene,kind,{x:art.x,y:art.y+conveyorBeltDeckOffset(kind,art.displayHeight,frame.height),width:surface.ledge.width-8,depth:art.depth+.01}).setVisible(false);
+    }
+    put(this.specials,section,special);
    }
    if(encounter.wind){
     const floor=roomFor(kind,section)?.floor??360;
@@ -92,7 +97,7 @@ export class ChapterTraps {
  };
  update(deltaMs=this.scene.game.loop.delta):void {
   const p=this.player.body,live=this.player.active&&this.scene.sys.isActive()&&!this.scene.physics.world.isPaused&&document.visibilityState==='visible';
-  if(!live){this.suspendedGap=true;for(const streak of this.windStreaks)streak.setVisible(false);return;}
+  if(!live){this.suspendedGap=true;for(const streak of this.windStreaks)streak.setVisible(false);for(const specials of this.specials.values())for(const special of specials)special.deck?.setVisible(false);return;}
   const resumed=this.suspendedGap;this.suspendedGap=false;
   const stepMs=qualityTrapDeltaMs(deltaMs,true);this.clockMs=advanceQualityTrapClock(this.clockMs,stepMs,true);
   const now=this.clockMs,factor=CHAPTER_DIFFICULTY[this.kind],section=Math.floor(p.center.x/SECTION_WIDTH),encounterIndex=activeTrapEncounterIndex(section,this.sectionCount),roomStart=encounterIndex===undefined?this.sectionCount:Math.max(0,section-1),roomEnd=encounterIndex===undefined?-1:Math.min(this.sectionCount-1,section+1);
@@ -122,7 +127,7 @@ export class ChapterTraps {
  private inWindow(section:number,x:number,y:number,playerSection:number,playerY:number):boolean{return Math.abs(section-playerSection)<=1&&Math.abs(x-this.player.body.center.x)<=ACTIVE_X&&Math.abs(y-playerY)<=ACTIVE_Y;}
  private updateSpecial(special:Special,now:number,p:Phaser.Physics.Arcade.Body,playerSection:number):void {
   const {shape,art,ledge}=special.surface;
-  if(!this.inWindow(special.section,special.x,special.y,playerSection,p.center.y)){special.visible=false;return;}
+  if(!this.inWindow(special.section,special.x,special.y,playerSection,p.center.y)){special.visible=false;special.deck?.setVisible(false);return;}
   special.justRevealed=!special.visible;special.visible=true;
   if(special.justRevealed){
    if(special.type==='ferry'||special.type==='lift'){
@@ -133,6 +138,8 @@ export class ChapterTraps {
   if(special.type==='shutters')return;
   const body=shape.body as Phaser.Physics.Arcade.StaticBody;
   if(special.type==='conveyor'){
+   const deck=special.deck;
+   if(deck){const active=body.enable&&art.visible;deck.setVisible(active);if(active)deck.tilePositionX=((-special.direction*special.strength*now/1000*2)%40+40)%40;}
    const standing=body.enable&&this.player.grounded&&Math.abs(p.bottom-body.top)<10&&p.right>body.left&&p.left<body.right;
    const dx=special.direction*special.strength*qualityTrapDeltaMs(this.scene.game.loop.delta,true)/1000;
    if(standing&&!this.player.usingUltimate){p.position.x+=dx;p.prev.x+=dx;this.player.sprite.x+=dx;}
@@ -252,12 +259,12 @@ export class ChapterTraps {
  private suspendRoom(section:number,now:number,factor:number):void {
   const texts=this.effects.get(section);if(texts)for(const cue of texts)cue.setAlpha(.16);
   const presses=this.presses.get(section);if(presses)for(const press of presses){press.phase='idle';press.at=now+trapIdleCadenceMs(factor);press.hit=false;press.warning.clear();press.art.setVisible(false).setPosition(press.x,press.ground-480);}
-  const specials=this.specials.get(section);if(specials)for(const special of specials)special.visible=false;
+  const specials=this.specials.get(section);if(specials)for(const special of specials){special.visible=false;special.deck?.setVisible(false);}
   const disappearing=this.disappearingRooms.get(section);if(disappearing)this.resetDisappearingRoom(disappearing);
  }
  private enterRoom(section:number,now:number):void {
   const presses=this.presses.get(section);if(presses)for(const press of presses){press.phase='idle';press.at=now;press.hit=false;press.warning.clear();press.art.setVisible(false).setPosition(press.x,press.ground-480);}
-  const specials=this.specials.get(section);if(specials)for(const special of specials)special.visible=false;
+  const specials=this.specials.get(section);if(specials)for(const special of specials){special.visible=false;special.deck?.setVisible(false);}
   const disappearing=this.disappearingRooms.get(section);if(disappearing){for(const entry of disappearing.entries)entry.surface.art.clearTint().setAlpha(1);}
  }
 }

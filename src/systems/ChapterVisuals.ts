@@ -104,6 +104,28 @@ export function addIdentityBlock(scene:Phaser.Scene,chapter:IdentityChapter,{x,t
  assertFrame(scene,chapter,frame);
  return addFinishedStrip(scene,chapter,frame,width,height,depth).setPosition(x,top).setOrigin(.5,0).setScale(1/PIXELS_PER_WORLD);
 }
+const BELT_DECK_CROPS:Partial<Record<IdentityChapter,{x:number;y:number;width:number;height:number}>>={outside:{x:84,y:4,width:56,height:22},crimson:{x:96,y:11,width:45,height:18},jail:{x:86,y:5,width:41,height:16}};
+export function conveyorBeltDeckOffset(chapter:IdentityChapter,displayHeight:number,beltFrameHeight:number):number{
+ const crop=BELT_DECK_CROPS[chapter];if(!crop)throw new Error(`Missing measured conveyor deck crop for ${chapter}.`);
+ return crop.y*displayHeight/beltFrameHeight;
+}
+/** A narrow, cached repeat of the authored belt tread, independent of platform physics and art. */
+export function addConveyorBeltDeck(scene:Phaser.Scene,chapter:IdentityChapter,{x,y,width,depth}:{x:number;y:number;width:number;depth:number}):Phaser.GameObjects.TileSprite{
+ assertFrame(scene,chapter,'belt');
+ const key=`conveyor-deck-${chapter}`;
+ if(!scene.textures.exists(key)){
+  const crop=BELT_DECK_CROPS[chapter],texture=scene.textures.get(identityTexture(chapter)),frame=texture.get('belt');
+  if(!crop)throw new Error(`Missing measured conveyor deck crop for ${chapter}.`);
+  const canvas=scene.textures.createCanvas(key,40,16);if(!canvas)throw new Error(`Could not create conveyor deck texture ${key}.`);
+  const context=canvas.getContext(),source=texture.getSourceImage() as HTMLImageElement;
+  context.drawImage(source,frame.cutX+crop.x,frame.cutY+crop.y,crop.width,crop.height,0,0,40,16);
+  // A tiny dark seam at the repeat edge makes the source material read as linked treads.
+  context.fillStyle='rgba(8, 12, 16, 0.36)';context.fillRect(39,0,1,16);
+  context.fillStyle='rgba(255, 255, 255, 0.18)';context.fillRect(0,0,40,1);
+  canvas.add('deck',0,0,0,40,16);canvas.refresh();
+ }
+ return scene.add.tileSprite(x,y,width,8,key,'deck').setOrigin(.5,0).setTileScale(.5,.5).setDepth(depth);
+}
 export function addIdentityFloor(scene:Phaser.Scene,chapter:IdentityChapter,{x,top,width,height,frame}:{x:number;top:number;width:number;height:number;frame:CapFrame}):{cap:Phaser.GameObjects.Image;foundation?:Phaser.GameObjects.Container;backing?:Phaser.GameObjects.Rectangle}{
  assertFrame(scene,chapter,'foundation');assertFrame(scene,chapter,frame);const key=identityTexture(chapter),tile=addFinishedStrip(scene,chapter,frame,width,Math.min(48,height),1).setPosition(x,top);
  const foundationHeight=height;

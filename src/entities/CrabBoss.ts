@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage,ownsUltimateFreeze,hasUltimateFreeze} from '../systems/ultimateFreeze';
 import {damp} from '../systems/atmosphereMath';
 import type {Player} from './Player';
 import {CRAB_RULES,crabDamage,pillarTargets,type CrabPhase,nextCrabPhase,crabPhaseDuration,canCrabDashDamage,crabPillarActiveAt,crabChargeDistance,crabChargeDuration,resolveEmergeDestination,snapshotBurrowTarget,crabBurrowImmune,crabBurrowContactActive,crabActiveZone,crabCanAct,crabEmergenceTop,crabResumePhase} from '../systems/CrabRules';
@@ -67,14 +68,16 @@ export class CrabBoss extends Dashable {
   this.barFrame=scene.add.image(411,32,'quality-chapter-hud','chapter-hud-boss-frame').setOrigin(0).setDisplaySize(216,22).setScrollFactor(0).setDepth(52).setVisible(false);
   this.name=scene.add.text(518,18,'CRIMSON CLAW · 20 / 20',{fontSize:'10px',color:'#ffc5b4'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
   for(let i=0;i<CRAB_RULES.pillarCount;i++){this.pillars.push(scene.add.image(0,-400,'rock-pillar-kit','pillar').setDisplaySize(62,260).setTint(0xf06169).setDepth(13).setVisible(false));this.pillarZones.push({left:0,right:0,top:100,bottom:360});}
-  const strike=(strike:UltimateStrike)=>{if(strike.player===this.player&&this.player.usingUltimate&&this.canAct()&&!this.resumeNoDamage&&this.clockMs>=this.hitUntil&&this.image.visible&&this.image.alpha>0&&strike.tryHit(this,this.image.getBounds()))this.damage('ultimate');};
+  const strike=(strike:UltimateStrike)=>{if(strike.player===this.player&&this.player.usingUltimate&&canUltimateDamage(this.scene,this.player)&&this.hp>0&&this.engaged&&!this.resumeNoDamage&&this.clockMs>=this.hitUntil&&this.image.visible&&this.image.alpha>0&&strike.tryHit(this,this.image.getBounds()))this.damage('ultimate');};
   const markGap=()=>{this.suspendedGap=true;};
+  const markSceneGap=()=>{if(!(hasUltimateFreeze(this.scene,this.player)&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible'))markGap();};
   const visibility=()=>{if(document.visibilityState!=='visible')markGap();};
-  const shutdown=()=>{scene.events.off('ultimate-strike',strike);scene.events.off(Phaser.Scenes.Events.PAUSE,markGap);scene.events.off(Phaser.Scenes.Events.SLEEP,markGap);scene.game.events.off(Phaser.Core.Events.BLUR,markGap);document.removeEventListener('visibilitychange',visibility);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,shutdown);};
-  scene.events.on('ultimate-strike',strike);scene.events.on(Phaser.Scenes.Events.PAUSE,markGap);scene.events.on(Phaser.Scenes.Events.SLEEP,markGap);scene.game.events.on(Phaser.Core.Events.BLUR,markGap);document.addEventListener('visibilitychange',visibility);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,shutdown);
+  const shutdown=()=>{scene.events.off('ultimate-strike',strike);scene.events.off(Phaser.Scenes.Events.PAUSE,markSceneGap);scene.events.off(Phaser.Scenes.Events.SLEEP,markSceneGap);scene.game.events.off(Phaser.Core.Events.BLUR,markGap);document.removeEventListener('visibilitychange',visibility);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,shutdown);};
+  scene.events.on('ultimate-strike',strike);scene.events.on(Phaser.Scenes.Events.PAUSE,markSceneGap);scene.events.on(Phaser.Scenes.Events.SLEEP,markSceneGap);scene.game.events.on(Phaser.Core.Events.BLUR,markGap);document.addEventListener('visibilitychange',visibility);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,shutdown);
   this.draw(0);
  }
  update(delta:number):void{
+  if(ownsUltimateFreeze(this.scene,this.player))return;
   if(this.hp<=0||!this.player.active)return;
   const p=this.player,dtMs=Math.min(50,Math.max(0,Number.isFinite(delta)?delta:0)),dt=dtMs/1000;
   if(!this.engaged){if(p.sprite.x<this.left+100)return;this.engaged=true;this.name.setVisible(true);this.enter('rest',this.clockMs);}
@@ -204,7 +207,7 @@ export class CrabBoss extends Dashable {
  protected dashBounds():Rect|null{return this.canAct()&&!this.resumeNoDamage&&!crabBurrowImmune(this.phase)?(this.phase==='emerge-active'&&this.activeRect.top<this.activeRect.bottom&&this.image.alpha>=.9?this.activeRect:this.phase==='emerge-active'?null:this.shellBounds):null;}
  protected onDash():void{if(this.canAct()&&canCrabDashDamage(this.hp>0,this.engaged,this.phase))this.damage('dash');}
  private damage(attack:'dash'|'ultimate'):void{
-  const now=this.clockMs;if(!this.canAct()||this.resumeNoDamage||(attack==='dash'?crabBurrowImmune(this.phase):!this.image.visible||this.image.alpha<=0)||now<this.hitUntil)return;
+  const now=this.clockMs;if(!(attack==='ultimate'?canUltimateDamage(this.scene,this.player)&&this.hp>0&&this.engaged:this.canAct())||this.resumeNoDamage||(attack==='dash'?crabBurrowImmune(this.phase):!this.image.visible||this.image.alpha<=0)||now<this.hitUntil)return;
   if(attack!=='dash')hitSpark(this.scene,this.image.x,300,1.4);
   this.hp=Math.max(0,this.hp-crabDamage(attack));this.hitUntil=now+500;this.name.setText(`CRIMSON CLAW · ${this.hp} / 20`);
   if(attack==='dash')this.player.chargeUltimate(5);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage} from '../systems/ultimateFreeze';
 import { TUNING } from '../config/tuning';
 import type {Player} from './Player';
 import {rectsOverlap, type Rect} from '../systems/contactRules';
@@ -65,7 +66,7 @@ export class BasicEnemy extends Dashable {
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
     this.strike=(strike:UltimateStrike)=>{
-      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||this.defeated||!this.body.enable||scene.time.now<this.hurtUntil||document.visibilityState!=='visible'||!scene.sys.isActive()||scene.physics.world.isPaused)return;
+      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||this.defeated||!this.body.enable||scene.time.now<this.hurtUntil||!canUltimateDamage(scene,strike.player))return;
       const horn=this.boarHornBounds;
       if(this.hurtboxes.some(bounds=>strike.tryHit(this,bounds))||horn&&strike.tryHit(this,horn)){
         const dx=this.sprite.x-strike.hand.x,dy=this.sprite.y-strike.hand.y,len=Math.hypot(dx,dy)||1;

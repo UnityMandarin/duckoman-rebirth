@@ -1,3 +1,4 @@
+import {beginUltimateFreeze} from '../src/systems/ultimateFreeze';
 import {afterEach,describe,expect,it,vi} from 'vitest';
 
 vi.mock('phaser',()=>({default:{Scenes:{Events:{POST_UPDATE:'post-update',SHUTDOWN:'shutdown'}}}}));
@@ -46,7 +47,7 @@ class FakeScene {
  add={rectangle:(x:number,y:number,w:number,h:number,_color:number)=>this.addObject(new FakeDisplay(x,y,w,h)),image:(x:number,y:number,key:string)=>this.addObject(new FakeDisplay(x,y,0,0,key)),
   graphics:()=>this.addObject(new FakeDisplay()),text:(x:number,y:number,text:string)=>{const o=this.addObject(new FakeDisplay(x,y));o.text=text;return o;}};
  sys={isActive:()=>true};
- physics={world:{isPaused:false},add:{existing:(o:FakeDisplay)=>{o.body=new FakeBody(o);return o.body;}}};
+ physics={world:{isPaused:false,pause(){this.isPaused=true;},resume(){this.isPaused=false;}},add:{existing:(o:FakeDisplay)=>{o.body=new FakeBody(o);return o.body;}}};
  tweens={add:(config:{onComplete?:()=>void})=>{config.onComplete?.();return {};}};
  private addObject<T extends FakeDisplay>(o:T):T{o.scene=this;this.objects.push(o);return o;}
 }
@@ -206,7 +207,7 @@ describe('animal combat integration',()=>{
  });
  it('keeps the real nearby ultimate-strike handler able to remove a two-HP boar',()=>{
   const scene=sceneFixture(),player=playerFixture(),enemy=makeAnimal(scene);enemy.hp=2;
-  vi.stubGlobal('document',{visibilityState:'visible'});Object.assign(player,{usingUltimate:true});player.sprite.scene=scene as any;const strike=new UltimateStrike(player,{x:100,y:100},1,220,22);strike.sweepTo(0);scene.events.emit('ultimate-strike',strike);
+  vi.stubGlobal('document',{visibilityState:'visible'});Object.assign(player,{usingUltimate:true});player.sprite.scene=scene as any;beginUltimateFreeze(scene as any,player);expect(scene.physics.world.isPaused).toBe(true);const strike=new UltimateStrike(player,{x:100,y:100},1,220,22);strike.sweepTo(0);scene.events.emit('ultimate-strike',strike);
   expect(enemy.hp).toBe(0);expect(enemy.defeated).toBe(true);expect(player.chargeUltimate).toHaveBeenCalledWith(10);
  });
  it.each(['thorn-boar','gloom-hare'] as const)('tracks %s health visuals and two separated hits through 2/2 then 1/2 HP',skin=>{

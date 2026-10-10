@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {beginUltimateFreeze} from './ultimateFreeze';
 import type {Player} from '../entities/Player';
 import {createUltimateSwordVisual,setSwordMeterCharge,SWORD_METER} from './SwordMeterArt';
 import {renderScale} from './renderScale';
@@ -71,7 +72,7 @@ const THROW_HOLD=80,THROW_MS=280;
 export interface HudSword {frame:Phaser.GameObjects.Image;fill:Phaser.GameObjects.Image;setVisible?:(visible:boolean)=>void;}
 
 /**
- * Super freeze: physics stops and the scene skips its update while `player.usingUltimate`,
+ * Super freeze: physics stops and bosses skip AI while this sword owns the pause,
  * so only the swing's own tweens run. Everything but Duckoman and the swing sits under a dim.
  */
 function superFreeze(scene:Phaser.Scene,p:Player):void {
@@ -80,8 +81,8 @@ function superFreeze(scene:Phaser.Scene,p:Player):void {
   const dim=scene.add.rectangle(cam.midPoint.x,cam.midPoint.y,cam.width/cam.zoom*3,cam.height/cam.zoom*3,0x000000,.5).setDepth(43);
   const depth=p.visual.depth;
   p.visual.setDepth(43.5);
-  scene.physics.world.pause();
-  scene.time.delayedCall(DURATION,()=>{dim.destroy();p.visual.setDepth(depth);scene.physics.world.resume();});
+  const releaseFreeze=beginUltimateFreeze(scene,p);
+  scene.time.delayedCall(DURATION,()=>{dim.destroy();p.visual.setDepth(depth);releaseFreeze();});
 }
 
 /**

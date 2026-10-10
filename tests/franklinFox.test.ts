@@ -1,3 +1,5 @@
+import {beginUltimateFreeze,ownsUltimateFreeze} from '../src/systems/ultimateFreeze';
+import {UltimateStrike} from '../src/systems/ultimateSwingMath';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: {
@@ -39,6 +41,7 @@ class Events {
 function fixture(takeDamage = false, intro = false, beat?:any) {
   const events = new Events();
   const created: Display[] = [];
+  const worldEvents=new Events();
   const scene: any = {
     add: {
       image: (x: number, y: number, texture = '', frame = '') => { const visual = new Display(); visual.x = x; visual.y = y; visual.texture = texture; visual.frame = frame; created.push(visual); return visual; },
@@ -51,7 +54,7 @@ function fixture(takeDamage = false, intro = false, beat?:any) {
     events,
     sys: { isActive: () => true },
     time: { now: 0 },
-    physics: { world: { isPaused: false } },
+    physics: { world: {isPaused:false,on:(event:string,fn:any)=>worldEvents.on(event,fn),off:(event:string,fn:any)=>worldEvents.off(event,fn),pause(){this.isPaused=true;worldEvents.emit('pause');},resume(){this.isPaused=false;worldEvents.emit('resume');}} },
     cameras: { main: { width:640,height:400,setScroll:vi.fn(),shake: vi.fn(),flash:vi.fn(),zoomTo:vi.fn(),setZoom:vi.fn(),pan:vi.fn(),stopFollow:vi.fn(),startFollow:vi.fn().mockReturnThis(),setDeadzone:vi.fn().mockReturnThis() } },
   };
   const player: any = {
@@ -68,11 +71,18 @@ function fixture(takeDamage = false, intro = false, beat?:any) {
 }
 
 describe('Franklin Fox runtime', () => {
+  it('accepts a real swept strike in its owned freeze without marking resume or advancing AI',()=>{
+    const f=fixture();f.player.usingUltimate=true;f.fox.controller.phase='tail';const elapsed=f.fox.controller.elapsed,clock=f.fox['visualClock'];const release=beginUltimateFreeze(f.scene,f.player);
+    expect(f.scene.physics.world.isPaused).toBe(true);expect(ownsUltimateFreeze(f.scene,f.player)).toBe(true);f.step(50);expect(f.fox.controller.elapsed).toBe(elapsed);expect(f.fox['visualClock']).toBe(clock);expect(f.fox['resumePending']).toBe(false);f.scene.sys.isActive=()=>false;f.events.emit('pause');expect(f.fox['resumePending']).toBe(false);f.scene.sys.isActive=()=>true;f.events.emit('resume');expect(f.fox['resumePending']).toBe(false);
+    const strike=new UltimateStrike(f.player,{x:650,y:330},1,220,22);strike.sweepTo(0);f.events.emit('ultimate-strike',strike);f.events.emit('ultimate-strike',strike);expect(f.fox.hp).toBe(30);
+    const blocked={player:f.player,tryHit:vi.fn(()=>true)};f.events.emit('ultimate-strike',blocked);expect(blocked.tryHit).not.toHaveBeenCalled();release();expect(f.scene.physics.world.isPaused).toBe(false);
+    f.scene.time.now=1000;f.scene.physics.world.pause();f.events.emit('ultimate-strike',blocked);expect(f.fox.hp).toBe(30);expect(blocked.tryHit).not.toHaveBeenCalled();f.events.emit('shutdown');
+  });
   it('breaks only the exposed chip with ultimate and performs the same reunion once',()=>{
     const f=fixture();f.player.usingUltimate=true;const tryHit=vi.fn(()=>true),strike={player:f.player,tryHit};
     for(const phase of ['intro','collapse','final-cue','final-charge','crash']){f.fox.controller.phase=phase as any;f.events.emit('ultimate-strike',strike);}
     expect(tryHit).not.toHaveBeenCalled();expect(f.rescued).not.toHaveBeenCalled();
-    f.fox.controller.phase='safe-chip';f.fox.controller.cleanCrashes=3;f.fox['applyPose']();f.events.emit('ultimate-strike',strike);f.events.emit('ultimate-strike',strike);
+    beginUltimateFreeze(f.scene,f.player);f.fox.controller.phase='safe-chip';f.fox.controller.cleanCrashes=3;f.fox['applyPose']();f.events.emit('ultimate-strike',strike);f.events.emit('ultimate-strike',strike);
     expect(tryHit).toHaveBeenCalledWith(f.fox,f.fox.chipTarget);expect(f.rescued).toHaveBeenCalledOnce();expect(f.fox.phase).toBe('rescued');expect(f.player.bounceFromStomp).not.toHaveBeenCalled();expect(f.fox['rescueMs']).toBe(0);f.events.emit('shutdown');
   });
   it('tears down idempotently after Phaser already removed the main camera',()=>{
@@ -231,7 +241,7 @@ describe('Franklin Fox runtime', () => {
     expect(f.fox.damage('stomp')).toBe(true);
     f.scene.time.now = 800;
     expect(f.fox.damage('throw')).toBe(true);
-    f.scene.time.now = 1200;
+    f.scene.time.now = 1200;f.player.usingUltimate=true;
     expect(f.fox.damage('ultimate')).toBe(true);
     expect(f.fox.hp).toBe(27);
     expect(f.player.chargeUltimate).toHaveBeenCalledTimes(4);
@@ -383,6 +393,7 @@ describe('Franklin Fox runtime', () => {
 
   it('requires three wall crashes and a descending stomp on the real mirrored chip anchor; callback fires once', () => {
     const f = fixture(false);
+    f.player.usingUltimate=true;
     for (let hit = 0; hit < 13; hit += 1) {
       f.scene.time.now = hit * 400;
       expect(f.fox.damage('ultimate')).toBe(true);

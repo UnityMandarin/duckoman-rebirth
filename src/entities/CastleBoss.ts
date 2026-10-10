@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage,ownsUltimateFreeze} from '../systems/ultimateFreeze';
 import { BasicEnemy } from './BasicEnemy';
 import type { Player } from './Player';
 import type { ThrowableObject } from './ThrowableObject';
@@ -53,7 +54,7 @@ export class CastleBoss extends Dashable {
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
     const strike=(s:UltimateStrike)=>{
-      if(s.player===this.player&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible'&&scene.sys.isActive()&&!scene.physics.world.isPaused&&!this.finished&&this.started!==undefined&&s.tryHit(this,{left:this.image.x-this.image.displayWidth/2,right:this.image.x+this.image.displayWidth/2,top:this.image.y-this.image.displayHeight/2,bottom:this.image.y+this.image.displayHeight/2})){
+      if(s.player===this.player&&canUltimateDamage(scene,this.player)&&!this.finished&&this.started!==undefined&&s.tryHit(this,{left:this.image.x-this.image.displayWidth/2,right:this.image.x+this.image.displayWidth/2,top:this.image.y-this.image.displayHeight/2,bottom:this.image.y+this.image.displayHeight/2})){
         this.health.damage(4);this.retreatUntil=scene.time.now+1400;hitSpark(scene,this.image.x,this.image.y,1.4);
         if(this.health.hp===0)this.finish();
       }
@@ -66,6 +67,7 @@ export class CastleBoss extends Dashable {
     if(alreadyDefeated){this.finished=true;this.gate.destroy();this.sealPillars.forEach(p=>p.destroy());this.sealPillars=[];this.image.destroy();this.core.destroy();this.wings.destroy();this.hud.clear();this.label.destroy();this.aftermath=new IronWingAftermath(scene,player,this.bossX,180,terrain);}
   }
   update(usePressed=false):void {
+    if(ownsUltimateFreeze(this.scene,this.player))return;
     const now=this.scene.time.now;
     if(this.finished){this.aftermath?.update(usePressed);return;}
     if(this.started===undefined) {

@@ -4,7 +4,7 @@ import { HITBOX_LEGEND } from '../DebugHitboxes';
 import { CASTLE_SECRET } from '../../data/castle';
 import { RELICS, grantRelic, ownedRelics, revokeRelic, type RelicId } from '../relics';
 import { DEBUG_TOGGLES, debugToggleSetting, setDebugToggle, type DebugToggle } from './debugSettings';
-import {markCampaignRunIneligible,debugModeOn} from './debugSettings';
+import {markCampaignRunIneligible} from './debugSettings';
 
 export interface DebugSection { title: string; body: HTMLElement; refresh?: () => void; }
 export type DebugSectionFactory = (game: Phaser.Game) => DebugSection;
@@ -42,7 +42,6 @@ const LEVELS: { label: string; scene: string; data?: object }[] = [
   { label: 'Crimson', scene: 'crimson' },
   { label: 'Crimson · Crimson Claw', scene: 'crimson', data: { checkpoint: 10 * SECTION_WIDTH + 120 } },
   { label: 'Hollow Prison', scene: 'rescue', data: { devPreview:true } },
-  { label: 'Hollow Prison · Warden (debug)', scene: 'rescue', data: { devPreview:true,bossPreview:true,wardenPreview:true } },
   { label: 'Hollow Prison · Franklin rescue', scene: 'rescue', data: { devPreview:true,bossPreview:true } }
 ];
 
@@ -51,7 +50,6 @@ const levelSelect: DebugSectionFactory = game => {
   for (const level of LEVELS) {
     const button = element('button', 'debug-link', level.label);
     button.onclick = () => {
-      if((level.data as {wardenPreview?:boolean}|undefined)?.wardenPreview&&!debugModeOn())return;
       markCampaignRunIneligible();
       // Phaser keeps a scene's previous start data unless new data is passed, which would reuse old checkpoints.
       const data = { ...level.data, devPreview:true };

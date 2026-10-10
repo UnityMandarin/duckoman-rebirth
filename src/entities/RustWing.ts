@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage,ownsUltimateFreeze} from '../systems/ultimateFreeze';
 import type { Player } from './Player';
 import { Dashable } from './Dashable';
 import { isStomp, rectsOverlap, type Point, type Rect } from '../systems/contactRules';
@@ -90,7 +91,7 @@ export class RustWing extends Dashable {
       .setOrigin(0).setDepth(RustWing.curtainDepth).setAlpha(RUSTWING_RULES.introDarkSteps[0]);
     this.shiftLayers(-RustWing.introSink);
     const strike = (s: UltimateStrike): void => {
-      if (s.player===this.player&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible'&&scene.sys.isActive()&&!scene.physics.world.isPaused&&!this.finished && this.engaged && this.dyingFrom === undefined &&scene.time.now>=this.contactGrace&&!this.transforming(scene.time.now)&& s.tryHit(this, this.sprite.getBounds())) {
+      if (s.player===this.player&&canUltimateDamage(scene,this.player)&&!this.finished && this.engaged && this.dyingFrom === undefined &&scene.time.now>=this.contactGrace&&!this.transforming(scene.time.now)&& s.tryHit(this, this.sprite.getBounds())) {
         this.hurt('ultimate');
       }
     };
@@ -98,6 +99,7 @@ export class RustWing extends Dashable {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off('ultimate-strike', strike));
   }
   update(delta: number): void {
+    if(ownsUltimateFreeze(this.scene,this.player))return;
     const now = this.scene.time.now;
     if (this.finished) return;
     if (this.dyingFrom !== undefined) { this.updateDeath(now); return; }

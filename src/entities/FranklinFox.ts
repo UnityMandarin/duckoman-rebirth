@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage,ownsUltimateFreeze,hasUltimateFreeze} from '../systems/ultimateFreeze';
 import type { Player } from './Player';
 import { Dashable } from './Dashable';
 import type { KillImpulse } from '../systems/debrisMath';
@@ -146,8 +147,8 @@ export class FranklinFox extends Dashable {
     this.fragments = Array.from({length:6},(_,i)=>scene.add.image(-1000,-1000,'franklin-control-chip',`fragment-${i}`).setDisplaySize(4,7).setDepth(16).setVisible(false));
     this.heart = scene.add.image(-1000,-1000,'quality-chapter-hud','chapter-hud-heart-full').setDisplaySize(10,9).setDepth(16).setVisible(false);
     this.strikeListener = strike => {
-      if(strike.player===player&&strike.player.usingUltimate&&this.canAct()&&!this.previewBeat&&this.controller.phase==='safe-chip'&&!this.resumePending){if(strike.tryHit(this,this.chipBounds))this.finalizeRescue(false);return;}
-      if (strike.player === player && strike.player.usingUltimate && this.canAct() && this.canReceiveDamage()) {
+      if(strike.player===player&&strike.player.usingUltimate&&this.alive&&canUltimateDamage(this.scene,player)&&!this.previewBeat&&this.controller.phase==='safe-chip'&&!this.resumePending){if(strike.tryHit(this,this.chipBounds))this.finalizeRescue(false);return;}
+      if (strike.player === player && strike.player.usingUltimate && this.alive&&canUltimateDamage(this.scene,player) && this.canReceiveDamage()) {
         if (strike.tryHit(this, this.image.getBounds())) this.acceptDamage('ultimate');
       }
     };
@@ -179,6 +180,7 @@ export class FranklinFox extends Dashable {
   }
 
   private readonly markResume = (): void => {
+    if(hasUltimateFreeze(this.scene,this.player)&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible')return;
     this.resumePending = true;
     if(this.inactive)return;
     this.inactive=true;this.clearHazards();
@@ -268,7 +270,7 @@ export class FranklinFox extends Dashable {
   }
 
   private acceptDamage(attack: 'dash' | 'stomp' | 'throw' | 'ultimate'): boolean {
-    if (!this.canAct() || !this.canReceiveDamage()) return false;
+    if (!(attack==='ultimate'?this.alive&&canUltimateDamage(this.scene,this.player):this.canAct()) || !this.canReceiveDamage()) return false;
     this.cooldownUntil = this.scene.time.now + FRANKLIN_RULES.hitCooldownMs;
     this.controller = damageFranklin(this.controller, franklinDamageAmount(attack));
     this.player.chargeUltimate(FRANKLIN_RULES.hitReward);
@@ -279,7 +281,7 @@ export class FranklinFox extends Dashable {
   }
 
   update(deltaMs: number, hidden = document.visibilityState !== 'visible'): void {
-    if(this.cleaned)return;
+    if(this.cleaned||!hidden&&ownsUltimateFreeze(this.scene,this.player))return;
     const body = this.player.body;
     if (!this.presentationActive() || hidden) {
       this.markResume();

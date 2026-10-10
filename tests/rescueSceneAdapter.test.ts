@@ -2,14 +2,12 @@ import {setDebugMode} from '../src/systems/debug/debugSettings';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const franklinConstruct = vi.fn();
-const wardenConstruct=vi.hoisted(()=>vi.fn(()=>({update:vi.fn(),checkDash:vi.fn(),hear:vi.fn()})));
-vi.mock('../src/systems/spawnPreservedWarden',()=>({spawnPreservedWarden:wardenConstruct}));
 vi.mock('phaser', () => ({ default: { Scene: class {}, Scenes: { Events: { SHUTDOWN: 'shutdown' } }, Core: { Events: { BLUR: 'blur' } }, Math: { Clamp: (v: number, min: number, max: number) => Math.min(max, Math.max(min, v)) } } }));
 vi.mock('../src/entities/FranklinFox', () => ({ FranklinFox: class { constructor(...args: unknown[]) { franklinConstruct(this, ...args); } } }));
 import { RescueScene } from '../src/scenes/RescueScene';
 
 describe('RescueScene Franklin encounter adapter', () => {
-  beforeEach(() => {franklinConstruct.mockClear();wardenConstruct.mockClear();setDebugMode(false);});
+  beforeEach(() => {franklinConstruct.mockClear();setDebugMode(false);});
   function fixture(stage: string) {
     const target = Object.create(RescueScene.prototype) as any;
     const player = { body: { center: { x: 432 } } };
@@ -18,11 +16,10 @@ describe('RescueScene Franklin encounter adapter', () => {
     return { target, player, camera };
   }
 
-  it('gates Warden before create, keeps Franklin independent and exits when debug turns off',()=>{
-    const f=fixture('released');f.target.scene={start:vi.fn()};expect(()=>f.target.create({wardenPreview:true,devPreview:true,bossPreview:true})).not.toThrow();expect(f.target.scene.start).toHaveBeenCalledWith('menu');expect(wardenConstruct).not.toHaveBeenCalled();expect(franklinConstruct).not.toHaveBeenCalled();
-    setDebugMode(true);f.target.wardenPreview=true;f.target.spawnFranklinBoss();f.target.spawnFranklinBoss();expect(wardenConstruct).toHaveBeenCalledOnce();expect(franklinConstruct).not.toHaveBeenCalled();expect(f.target.fox).toBeUndefined();
-    f.target.saveCampaign=vi.fn();setDebugMode(false);f.target.update(0,16);expect(f.target.leaving).toBe(true);expect(f.target.saveCampaign).not.toHaveBeenCalled();expect(f.target.warden.update).not.toHaveBeenCalled();
-    const normal=fixture('released');normal.target.spawnFranklinBoss();expect(franklinConstruct).toHaveBeenCalledOnce();
+  it('ignores a legacy Warden flag and always dispatches the released Franklin encounter',()=>{
+    const f=fixture('released');f.target.wardenPreview=true;f.target.spawnFranklinBoss();
+    expect(franklinConstruct).toHaveBeenCalledOnce();expect(f.target.fox).toBeDefined();
+    f.target.spawnFranklinBoss();expect(franklinConstruct).toHaveBeenCalledOnce();
   });
   it('consumes input during a cinematic while preserving vertical settle and the stomp bounce',()=>{
     vi.stubGlobal('document',{visibilityState:'visible'});

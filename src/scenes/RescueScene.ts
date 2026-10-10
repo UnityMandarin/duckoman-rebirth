@@ -2,8 +2,6 @@ import Phaser from 'phaser';
 import {Player} from '../entities/Player';
 import {BasicEnemy} from '../entities/BasicEnemy';
 import {ThrowableObject} from '../entities/ThrowableObject';
-import type {HollowWarden} from '../entities/HollowWarden';
-import {spawnPreservedWarden} from '../systems/spawnPreservedWarden';
 import {FranklinFox} from '../entities/FranklinFox';
 import {InputController} from '../systems/InputController';
 import {InteractionSystem} from '../systems/InteractionSystem';
@@ -23,7 +21,7 @@ import type {UltimateStrike} from '../systems/ultimateSwingMath';
 import {addIdentityBlock,addIdentityDoor,addIdentityFloor,identityTexture,openIdentityDoor,platformVisual,preloadChapterIdentity,registerChapterIdentity,type IdentityDoor} from '../systems/ChapterVisuals';
 import type {Ledge} from '../data/chapters';
 
-interface RescueStart {wardenPreview?:boolean;bossBeat?:FranklinBeat;devPreview?:boolean;bossPreview?:boolean;retry?:boolean;checkpoint?:number;opened?:number[];bossDefeated?:boolean;ultimateCharge?:number;infiniteHealth?:boolean;}
+interface RescueStart {bossBeat?:FranklinBeat;devPreview?:boolean;bossPreview?:boolean;retry?:boolean;checkpoint?:number;opened?:number[];bossDefeated?:boolean;ultimateCharge?:number;infiniteHealth?:boolean;}
 interface EnemyRuntime {enemy:BasicEnemy;colliders:Phaser.Physics.Arcade.Collider[];}
 
 export class RescueScene extends Phaser.Scene {
@@ -32,7 +30,6 @@ export class RescueScene extends Phaser.Scene {
  private franklin!:Phaser.GameObjects.Image;private chains:Phaser.GameObjects.Image[]=[];private seal!:Phaser.GameObjects.Rectangle;private exitGate!:Phaser.GameObjects.Rectangle;private sealDoor!:IdentityDoor;private exitDoor!:IdentityDoor;
  private objective!:Phaser.GameObjects.Text;private status!:Phaser.GameObjects.Text;private story!:Phaser.GameObjects.Text;private storyUntil=0;private compass!:Phaser.GameObjects.Text;
  private pendingGraphics:Phaser.GameObjects.Graphics[]=[];private pendingPortals:Phaser.GameObjects.Image[]=[];private pendingGeometry:(string|undefined)[]=[];private waves:RescueWaveController=createRescueWaveController();private stage:RescueStage='chained';private authorization:UltimateReleaseAuthorization={armed:false,consumed:false};private persistedCharge=0;
- private warden?:HollowWarden;private wardenPreview=false;
  private fox?:FranklinFox;private readonly spentSwings=new WeakSet<UltimateStrike>();private devPreview=false;private bossBeat?:FranklinBeat;private leaving=false;private dying=false;private ending=false;private pagehide=()=>this.saveCampaign();private menuKey=(event?:KeyboardEvent)=>{if(event?.repeat)return;this.openMenu();};private readonly ultimateStrike=(strike:UltimateStrike)=>{if(strike.player!==this.player||!strike.player.usingUltimate||this.spentSwings.has(strike))return;this.spentSwings.add(strike);const source=strike.player,used=consumeFranklinUltimate(this.authorization,{stage:this.stage,playerX:source.body.center.x,playerY:source.body.center.y,franklinX:540});this.authorization=used.authorization;if(used.released)this.releaseFranklin();};
  constructor(){super('rescue');}
  preload():void {
@@ -42,14 +39,13 @@ export class RescueScene extends Phaser.Scene {
   this.load.once('complete',()=>text.destroy());
  }
  create(data:RescueStart={}):void {
-  this.wardenPreview=!!data.wardenPreview;this.warden=undefined;if(this.wardenPreview&&!debugModeOn()){this.scene.start('menu');return;}
   registerCommonFrames(this);registerSharedPropFrames(this);registerChapterHudFrames(this);registerChapterIdentity(this,'rescue');this.addFrame('franklin-asleep','visible',95,168,1588,570);this.addFrame('franklin-fire-fox','visible',70,208,1095,838);this.addFrame('franklin-control-chip','visible',42,86,1038,1173);
   this.addFrame('franklin-pounce-trail','visible',67,384,1433,293);this.addFrame('franklin-fireball','visible',115,293,1019,669);this.addFrame('franklin-tail-wave','visible',85,108,1704,644);
-  this.addFrame('franklin-flame-pillar','visible',235,33,518,1529);this.addFrame('franklin-wall-impact','visible',90,98,1077,1031);this.addFrame('franklin-chip-charge','visible',34,204,1816,376);this.addFrame('hollow-warden','visible',250,43,563,1443);this.addRescueFrames();registerFranklinFrames(this);
-  this.devPreview=this.wardenPreview||!!data.devPreview||!!this.registry.get('devPreview');this.bossBeat=parseFranklinBeat(data.bossBeat,{local:import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname),devPreview:this.devPreview,bossPreview:!!data.bossPreview});this.leaving=false;this.dying=false;this.ending=false;this.authorization={armed:false,consumed:false};this.waves=createRescueWaveController();this.enemies=[];this.pendingGraphics=Array.from({length:3},()=>this.add.graphics().setDepth(7).setVisible(false));this.pendingPortals=Array.from({length:3},()=>this.add.image(0,0,'quality-concept-props','rescue-violet-portal').setDisplaySize(48,58).setDepth(6).setVisible(false));this.pendingGeometry=Array.from({length:3},()=>undefined);this.fox=undefined;
+  this.addFrame('franklin-flame-pillar','visible',235,33,518,1529);this.addFrame('franklin-wall-impact','visible',90,98,1077,1031);this.addFrame('franklin-chip-charge','visible',34,204,1816,376);this.addRescueFrames();registerFranklinFrames(this);
+  this.devPreview=!!data.devPreview||!!this.registry.get('devPreview');this.bossBeat=parseFranklinBeat(data.bossBeat,{local:import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname),devPreview:this.devPreview,bossPreview:!!data.bossPreview});this.leaving=false;this.dying=false;this.ending=false;this.authorization={armed:false,consumed:false};this.waves=createRescueWaveController();this.enemies=[];this.pendingGraphics=Array.from({length:3},()=>this.add.graphics().setDepth(7).setVisible(false));this.pendingPortals=Array.from({length:3},()=>this.add.image(0,0,'quality-concept-props','rescue-violet-portal').setDisplaySize(48,58).setDepth(6).setVisible(false));this.pendingGeometry=Array.from({length:3},()=>undefined);this.fox=undefined;
   if(!this.devPreview&&!loadProgress().unlocked.includes('rescue')){this.scene.start('menu');return;}
   const saved=loadProgress();let record=rescueEntryRecord({devPreview:this.devPreview,retry:data.retry,bossPreview:data.bossPreview,checkpoint:data.checkpoint,charge:data.ultimateCharge,opened:data.opened,bossDefeated:data.bossDefeated,saved:saved.chapters.rescue});
-  let currentStage=this.wardenPreview?'released' as const:rescueStage(record);
+  let currentStage=rescueStage(record);
   const startCheckpoint=record.checkpoint;
   const entryCharge=rescueEntryCharge(currentStage,startCheckpoint,record.charge);this.persistedCharge=record.charge;
   if(!this.devPreview&&currentStage==='chained'&&startCheckpoint===0){record={...record,checkpoint:rescueEntryCheckpoint(currentStage),charge:0};this.persistChapter(record);}
@@ -94,7 +90,7 @@ export class RescueScene extends Phaser.Scene {
  private persistChapter(record:{checkpoint:number;charge:number;opened:number[];bossDefeated:boolean}):void {if(this.devPreview||!this.canPersist())return;const p=loadProgress();saveProgress(updateChapter(p,'rescue',{checkpoint:record.checkpoint,charge:record.charge,opened:record.opened,secrets:[],discoveries:[],bossDefeated:record.bossDefeated}));this.persistedCharge=record.charge;}
  private saveCampaign():void {if(this.devPreview||this.leaving||!this.player||!this.canPersist())return;const p=loadProgress(),record={checkpoint:this.stage==='chained'?180:540,charge:this.stage==='chained'?this.player.ultimateCharge:0,opened:this.stage==='chained'?[]:[0],bossDefeated:this.stage==='cleared'};saveProgress(updateChapter(p,'rescue',{...record,secrets:[],discoveries:[]}));this.persistedCharge=record.charge;}
  private updateStageText():void {const chained=this.stage==='chained';this.objective.setVisible(chained);this.status.setVisible(false);this.story.setVisible(false);this.compass.setVisible(false);if(chained)this.objective.setText(this.player.ultimateCharge>=100?'U':'');}
- private spawnFranklinBoss():void {if(this.wardenPreview){if(!this.warden&&debugModeOn())this.warden=spawnPreservedWarden(this,this.player,()=>{this.leaving=true;this.scene.start('menu');});return;}if(this.fox||this.stage!=='released')return;this.fox=new FranklinFox(this,this.player,()=>this.onFranklinRescued(),790,this.bossBeat);}
+ private spawnFranklinBoss():void {if(this.fox||this.stage!=='released')return;this.fox=new FranklinFox(this,this.player,()=>this.onFranklinRescued(),790,this.bossBeat);}
  private resolveFranklinCakeHit():boolean {if(!this.fox||!this.cake.isThrown||!this.fox.canBeHit()||!this.fox.overlapsCake(this.cake.sprite.x,this.cake.sprite.y,TUNING.throwable.radius)||!this.cake.registerEnemyHit())return false;return this.fox.damage('throw');}
  private showFriendlyFranklin():void {if(this.children.getByName('franklin-friendly'))return;this.add.image(540,360,'franklin-story-poses','friendly').setOrigin(.5,1).setDisplaySize(66,66*FRANKLIN_POSES.friendly.height/FRANKLIN_POSES.friendly.width).setDepth(13).setName('franklin-friendly');}
  private onFranklinRescued():void {if(this.stage==='cleared')return;this.stage='cleared';if(!this.devPreview&&this.canPersist())saveProgress(clearRescue(loadProgress()));this.removeChainsAndSeal();this.openEasternExit();this.updateStageText();}
@@ -128,9 +124,8 @@ export class RescueScene extends Phaser.Scene {
  private replay():void {this.physics.world.resume();let preview=this.devPreview;if(!preview){if(!this.hasPracticeAssist())resetCampaignRunEligibility();if(this.canPersist())saveProgress(replayRescue(loadProgress()));else preview=true;}this.scene.restart({devPreview:preview,retry:false,bossPreview:false,freshReplay:true,checkpoint:0,ultimateCharge:0,opened:[],bossDefeated:false});}
  private openMenu():boolean {if(this.ending){this.scene.start('menu');return true;}return requestPauseMenu(this,()=>this.saveCampaign(),'rescue');}
  update(_time:number,delta:number):void {
-  if(this.wardenPreview&&!debugModeOn()){this.leaving=true;this.scene.start('menu');return;}
-  if(!this.player||this.leaving||this.ending)return;const input=this.controls.read();if(document.visibilityState!=='visible'){this.fox?.update(delta,true);this.warden?.update(delta,true);return;}const locked=!!this.bossBeat||!!this.fox?.cinematicLocked;if(locked){maskFranklinInput(input);this.player.body.setVelocityX(0);this.player.facing=(this.fox?.image.x??790)<this.player.body.center.x?-1:1;}if(input.godModePressed){markCampaignRunIneligible();this.player.infiniteHealth=!this.player.infiniteHealth;if(this.player.infiniteHealth)this.player.health=3;}if(this.hasPracticeAssist())markCampaignRunIneligible();
-  if(!this.player.active){if(!this.dying){this.dying=true;this.fox?.stopHazards();this.cake.drop();this.saveCampaign();this.physics.world.pause();const retry=rescueRetryRecord(this.stage,this.player.ultimateCharge);this.time.delayedCall(550,()=>this.scene.restart({wardenPreview:this.wardenPreview,devPreview:this.devPreview,retry:true,bossPreview:false,...retry,ultimateCharge:retry.charge,infiniteHealth:this.player.infiniteHealth}));}return;}
+  if(!this.player||this.leaving||this.ending)return;const input=this.controls.read();if(document.visibilityState!=='visible'){this.fox?.update(delta,true);return;}const locked=!!this.bossBeat||!!this.fox?.cinematicLocked;if(locked){maskFranklinInput(input);this.player.body.setVelocityX(0);this.player.facing=(this.fox?.image.x??790)<this.player.body.center.x?-1:1;}if(input.godModePressed){markCampaignRunIneligible();this.player.infiniteHealth=!this.player.infiniteHealth;if(this.player.infiniteHealth)this.player.health=3;}if(this.hasPracticeAssist())markCampaignRunIneligible();
+  if(!this.player.active){if(!this.dying){this.dying=true;this.fox?.stopHazards();this.cake.drop();this.saveCampaign();this.physics.world.pause();const retry=rescueRetryRecord(this.stage,this.player.ultimateCharge);this.time.delayedCall(550,()=>this.scene.restart({devPreview:this.devPreview,retry:true,bossPreview:false,...retry,ultimateCharge:retry.charge,infiniteHealth:this.player.infiniteHealth}));}return;}
   this.hud.update();if(locked)this.player.body.setAllowGravity(true).setVelocityX(0);else this.player.update(input,delta);
   const acceptedU=input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100;
   if(acceptedU){if(this.stage==='chained')this.authorization=authorizeFranklinUltimate(this.authorization,true,this.player.ultimateCharge);this.hud.useUltimate();}
@@ -139,7 +134,6 @@ export class RescueScene extends Phaser.Scene {
   if(this.stage==='chained')this.updateWaves(delta);else this.pruneEnemies();
   this.interactEnemies(delta);
   if(this.stage==='chained'&&this.player.ultimateCharge!==this.persistedCharge)this.saveCampaign();
-  if(this.warden){if(input.horizontal||input.jumpPressed||input.dashPressed||input.throwPressed||input.ultimatePressed)this.warden.hear(this.player.body.center.x);this.warden.update(delta);this.warden.checkDash(this.player);}
   if(this.fox){this.fox.update(delta);this.fox.checkDash(this.player);this.resolveFranklinCakeHit();}
   if(this.stage==='chained'){const breath=1+Math.sin(this.time.now*.003)*.025;this.franklin.setDisplaySize(150,150*570/1588*breath).setY(360);this.chains.forEach((chain,i)=>chain.setAngle(Math.sin(this.time.now*.002+i)*2));const franklinZ=this.children.getByName('franklin-breath-z') as Phaser.GameObjects.Text|undefined;franklinZ?.setAlpha(.35+.35*(1+Math.sin(this.time.now*.004))/2);const ready=this.player.ultimateCharge>=100?'U':'';if(this.objective.text!==ready)this.objective.setText(ready);}
   if(this.player.sprite.x>=1960)this.completeExit();

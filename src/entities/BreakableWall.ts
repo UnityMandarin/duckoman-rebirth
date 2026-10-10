@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import {canUltimateDamage} from '../systems/ultimateFreeze';
 import { Dashable } from './Dashable';
 import type { Player } from './Player';
 import type { Rect } from '../systems/contactRules';
@@ -17,7 +18,7 @@ export class BreakableWall extends Dashable {
   constructor(private readonly scene: Phaser.Scene, readonly solid: Phaser.GameObjects.GameObject, private readonly visuals: Phaser.GameObjects.GameObject[]) {
     super();
     this.strike=strike=>{
-      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||document.visibilityState!=='visible'||!scene.sys.isActive()||scene.physics.world.isPaused)return;
+      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||!canUltimateDamage(scene,strike.player))return;
       const bounds=this.dashBounds();if(bounds&&strike.tryHit(this,bounds))this.break();
     };
     this.cleanup=()=>{scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);};

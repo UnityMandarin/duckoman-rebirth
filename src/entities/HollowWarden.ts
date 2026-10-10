@@ -3,6 +3,7 @@ import type {Player} from './Player';
 import {Dashable} from './Dashable';
 import type {KillImpulse} from '../systems/debrisMath';
 import {WARDEN_RULES,WARDEN_WALK_SPEED,chooseWardenPortal,createWardenController,damageWarden,recheckWardenPortal,resumeWardenWarning,tickWarden,wardenAcceptedDamage,wardenCanAct,wardenClawShape,wardenDashTouchesRibs,wardenLineHitsRect,wardenRibBounds,wardenSonicLine,wardenVulnerable,type WardenController,type WardenPhase} from '../systems/HollowWardenRules';
+import {debugModeOn} from '../systems/debug/debugSettings';
 import type {UltimateStrike} from '../systems/ultimateSwingMath';
 
 export class HollowWarden extends Dashable {
@@ -51,9 +52,8 @@ export class HollowWarden extends Dashable {
   this.bossBarFill=scene.add.image(414,64,'quality-chapter-hud','chapter-hud-boss-fill').setOrigin(0).setDisplaySize(210,11).setCrop(0,0,535,188).setScrollFactor(0).setDepth(51);
   this.bossBarFrame=scene.add.image(414,64,'quality-chapter-hud','chapter-hud-boss-frame').setOrigin(0).setDisplaySize(210,11).setScrollFactor(0).setDepth(52);
   this.strikeListener=(strike)=>{
-   if(strike.player!==this.player||!this.alive||!strike.player.usingUltimate)return;
-   const r=wardenRibBounds(this.image.x);
-   if(!strike.tryHit(this,{left:r.x,right:r.x+r.width,top:r.y,bottom:r.y+r.height}))return;
+   if(strike.player!==this.player||!strike.player.usingUltimate||!this.canAct()||this.lifecycleGap||this.resumeGuard||this.scene.time.now<this.cooldownUntil||this.controller.phase==='introduction'||this.controller.phase==='defeated')return;
+   if(!strike.tryHit(this,{left:this.image.x-563/1443*120,right:this.image.x+563/1443*120,top:this.image.y-240,bottom:this.image.y}))return;
    this.accept('ultimate');
   };
   this.shutdownListener=()=>this.shutdown();scene.events.on('ultimate-strike',this.strikeListener);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.shutdownListener);scene.events.on(Phaser.Scenes.Events.PAUSE,this.pauseListener);scene.events.on(Phaser.Scenes.Events.RESUME,this.resumeListener);document.addEventListener('visibilitychange',this.visibilityListener);
@@ -63,7 +63,7 @@ export class HollowWarden extends Dashable {
  get hp():number{return this.controller.hp;}
  get phase():WardenPhase{return this.controller.phase;}
  get isAlive():boolean{return this.alive;}
- private canAct(hidden=document.visibilityState!=='visible'):boolean{return this.alive&&wardenCanAct({hidden,playerActive:this.player.active,sceneActive:this.scene.sys.isActive(),paused:this.scene.physics.world.isPaused});}
+ private canAct(hidden=document.visibilityState!=='visible'):boolean{return debugModeOn()&&this.alive&&wardenCanAct({hidden,playerActive:this.player.active,sceneActive:this.scene.sys.isActive(),paused:this.scene.physics.world.isPaused});}
  get directionTargetX():number {return ['portal-feint','portal-cue','portal-transfer'].includes(this.controller.phase)?this.controller.lockedPortalX??this.image.x:this.image.x;}
  hear(x:number):void {if(!this.canAct()||!Number.isFinite(x))return;this.lastHeardX=Phaser.Math.Clamp(x,100,1900);this.quietMs=0;this.heardUntil=this.scene.time.now+1000;this.sniffed=false;this.addNoise(this.lastHeardX);}
  update(deltaMs:number,hidden=document.visibilityState!=='visible'):void {
@@ -81,7 +81,7 @@ export class HollowWarden extends Dashable {
  }
  protected dashBounds(){if(!this.canAct()||this.lifecycleGap||this.resumeGuard||!wardenVulnerable(this.controller)||this.scene.time.now<this.cooldownUntil)return null;const r=wardenRibBounds(this.image.x);return {left:r.x,right:r.x+r.width,top:r.y,bottom:r.y+r.height};}
  protected onDash(source:Player,_impulse:KillImpulse):void {if(!this.accept('dash'))return;source.chargeUltimate(10);}
- private accept(attack:'dash'|'ultimate'):boolean {if(!this.canAct()||this.lifecycleGap||this.resumeGuard)return false;const damage=wardenAcceptedDamage(this.controller,{attack,bossX:this.image.x,playerX:this.player.body.center.x,playerY:this.player.body.center.y,cooldownMs:Math.max(0,this.cooldownUntil-this.scene.time.now)});if(damage<=0)return false;this.cooldownUntil=this.scene.time.now+WARDEN_RULES.hitCooldownMs;this.controller=damageWarden(this.controller,damage);this.healthText.setText(`WARDEN · ${this.controller.hp} / 32`);this.bossBarFill.setCrop(0,0,535*this.controller.hp/WARDEN_RULES.hp,188);if(this.controller.phase==='defeated')this.finishDefeat();return true;}
+ private accept(attack:'dash'|'ultimate'):boolean {if(!this.canAct()||this.lifecycleGap||this.resumeGuard)return false;const damage=attack==='ultimate'?(this.controller.phase!=='introduction'&&this.controller.phase!=='defeated'&&this.scene.time.now>=this.cooldownUntil?WARDEN_RULES.damage.ultimate:0):wardenAcceptedDamage(this.controller,{attack,bossX:this.image.x,playerX:this.player.body.center.x,playerY:this.player.body.center.y,cooldownMs:Math.max(0,this.cooldownUntil-this.scene.time.now)});if(damage<=0)return false;this.cooldownUntil=this.scene.time.now+WARDEN_RULES.hitCooldownMs;this.controller=damageWarden(this.controller,damage);this.healthText.setText(`WARDEN · ${this.controller.hp} / 32`);this.bossBarFill.setCrop(0,0,535*this.controller.hp/WARDEN_RULES.hp,188);if(this.controller.phase==='defeated')this.finishDefeat();return true;}
  private finishDefeat():void {if(!this.alive)return;this.alive=false;this.onDefeated();this.warning.clear();this.ribs.clear();this.portalRings.forEach(g=>g.setVisible(false));this.bossBarFill.setCrop(0,0,0,188);this.image.setTint(0x788b92).setAlpha(.5);}
  private resolveAttack():void {
   const phase=this.controller.phase;if(phase!=='claw-active'&&phase!=='sonic-active'&&phase!=='portal-claw-active')return;

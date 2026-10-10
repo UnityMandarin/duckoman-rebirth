@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { TUNING } from '../config/tuning';
 import type {Player} from './Player';
-import type {Rect} from '../systems/contactRules';
+import {rectsOverlap, type Rect} from '../systems/contactRules';
 import {hitSpark} from '../systems/HitSpark';
 import type {KillImpulse} from '../systems/debrisMath';
 import {scatterDebris} from '../systems/DebrisBurst';
@@ -65,8 +65,9 @@ export class BasicEnemy extends Dashable {
     this.body.setMaxVelocity(TUNING.enemy.moveSpeed, TUNING.enemy.maxFallVelocity);
     this.body.setVelocityX(this.direction * TUNING.enemy.moveSpeed);
     this.strike=(strike:UltimateStrike)=>{
-      const bounds=this.dashBounds();
-      if(bounds&&strike.tryHit(this,bounds)){
+      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||this.defeated||!this.body.enable||scene.time.now<this.hurtUntil||document.visibilityState!=='visible'||!scene.sys.isActive()||scene.physics.world.isPaused)return;
+      const horn=this.boarHornBounds;
+      if(this.hurtboxes.some(bounds=>strike.tryHit(this,bounds))||horn&&strike.tryHit(this,horn)){
         const dx=this.sprite.x-strike.hand.x,dy=this.sprite.y-strike.hand.y,len=Math.hypot(dx,dy)||1;
         if(this.hit(2,{x:dx/len*500,y:dy/len*500}))strike.player.chargeUltimate(10);
       }
@@ -80,13 +81,21 @@ export class BasicEnemy extends Dashable {
   setPatrolBounds(bounds:{left:number;right:number}):void { this.patrol={...bounds}; }
 
   get isAnimal():boolean { return this.skin==='thorn-boar'||this.skin==='gloom-hare'; }
+  get isThornBoar():boolean { return this.skin==='thorn-boar'; }
+  get facingDirection():-1|1 { return this.isThornBoar?this.boarState.direction:this.direction; }
+  /** Small logical danger zone aligned to the visible front tusk. */
+  get boarHornBounds():Rect|null {
+    if(!this.isThornBoar)return null;
+    const b=this.body, left=this.facingDirection>0?this.sprite.x+31:this.sprite.x-48;
+    return {left,right:left+17,top:b.bottom-40,bottom:b.bottom-19};
+  }
 
   configureAnimal(player:Player,surfaces:readonly AnimalSurface[],speedFactor:number):void {
     if(!this.isAnimal)return;
     this.animalPlayer=player;this.animalSurfaces=surfaces;this.animalSpeedFactor=Math.max(.01,speedFactor);
     this.animalRoom=Math.floor(this.sprite.x/1440);
     if(this.skin==='thorn-boar'){
-      this.boarState=createBoarState(-1);this.boarTell=false;this.body.setVelocityX(0);
+      this.boarState=createBoarState(-1);this.direction=-1;this.boarTell=false;this.visual.setFlipX(true);this.body.setVelocityX(0);
       this.body.setMaxVelocity(260*this.animalSpeedFactor,TUNING.enemy.maxFallVelocity);
     }else this.body.setMaxVelocity(210*this.animalSpeedFactor,TUNING.enemy.maxFallVelocity);
   }
@@ -98,7 +107,7 @@ export class BasicEnemy extends Dashable {
     this.body.setEnable(awake);this.visual.setVisible(awake);
     this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
     if(this.skin==='thorn-boar'){
-      this.boarState=resetBoarPause(this.boarState);this.boarTell=false;this.animalClockMs=0;this.body.setVelocityX(0);
+      this.boarState=resetBoarPause(this.boarState);this.direction=this.boarState.direction;this.visual.setFlipX(this.facingDirection<0);this.boarTell=false;this.animalClockMs=0;this.body.setVelocityX(0);
     }
   }
 
@@ -119,9 +128,12 @@ export class BasicEnemy extends Dashable {
   }
 
   private updateBoar(deltaMs:number):void {
+    if(!this.body.enable)return;
     const bounds=this.patrol??{left:this.sprite.x-180,right:this.sprite.x+180};
     const step=stepBoar(this.boarState,{deltaMs,x:this.sprite.x,left:bounds.left,right:bounds.right,blockedLeft:this.body.blocked.left,blockedRight:this.body.blocked.right});
-    this.boarState=step.state;this.boarTell=step.tell;this.body.setVelocityX(step.velocityX);
+    this.boarState=step.state;this.direction=this.boarState.direction;this.visual.setFlipX(this.facingDirection<0);this.boarTell=step.tell;this.body.setVelocityX(step.velocityX);
+    const player=this.animalPlayer;
+    if(player?.active&&player.body.enable&&this.body.enable&&rectsOverlap(player.body,this.boarHornBounds!))player.takeDamage(this.sprite.x);
   }
 
   private updateHare(deltaMs:number):void {
@@ -193,6 +205,19 @@ export class BasicEnemy extends Dashable {
     if(this.hit(1,impulse,false))player.chargeUltimate(10);
   }
 
+  override receiveDash(player:Player):void {
+    if(!this.isThornBoar){super.receiveDash(player);return;}
+    if(this.defeated||!this.body.enable||!player.active)return;
+    const horn=this.boarHornBounds!;
+    if(rectsOverlap(player.body,horn)){player.takeDamage(this.sprite.x);return;}
+    const rear=(player.body.center.x-this.body.center.x)*this.facingDirection<0;
+    if(!rear||player.dashVelocity.x*this.facingDirection<=0){
+      if(rectsOverlap(player.body,{left:this.body.left,right:this.body.right,top:this.body.top,bottom:this.body.bottom}))player.takeDamage(this.sprite.x);
+      return;
+    }
+    super.receiveDash(player);
+  }
+
   /** `spark` is off for dash hits, which already spark at the contact point. */
   hit(amount=1,impulse?:KillImpulse,spark=true):boolean {
     const now=this.sprite.scene.time.now;
@@ -234,11 +259,11 @@ export class BasicEnemy extends Dashable {
   private syncVisual(): void {
     if (this.defeated || !this.body.enable) return;
     const phase = this.sprite.scene.time.now * 0.012;
-    if(Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
+    if(!this.isThornBoar&&Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
     const width=this.skin?(this.jumper?110:100):this.pointed?SPIKE.displayWidth:this.jumper?72:88;
     const height=this.skin?width/1.5:this.pointed?SPIKE.displayHeight:this.jumper?108:88;
     this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
-    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?this.direction<0:this.direction>0);
+    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?(this.isThornBoar?this.facingDirection:this.direction)<0:this.direction>0);
     if(this.skin||this.pointed)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035) + (this.skin==='thorn-boar'&&this.boarTell?-0.075:0));
     this.maxHp=Math.max(this.maxHp,this.hp);

@@ -67,7 +67,7 @@ export class CrabBoss extends Dashable {
   this.barFrame=scene.add.image(411,32,'quality-chapter-hud','chapter-hud-boss-frame').setOrigin(0).setDisplaySize(216,22).setScrollFactor(0).setDepth(52).setVisible(false);
   this.name=scene.add.text(518,18,'CRIMSON CLAW · 20 / 20',{fontSize:'10px',color:'#ffc5b4'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
   for(let i=0;i<CRAB_RULES.pillarCount;i++){this.pillars.push(scene.add.image(0,-400,'rock-pillar-kit','pillar').setDisplaySize(62,260).setTint(0xf06169).setDepth(13).setVisible(false));this.pillarZones.push({left:0,right:0,top:100,bottom:360});}
-  const strike=(strike:UltimateStrike)=>{if(this.canAct()&&!this.resumeNoDamage&&!crabBurrowImmune(this.phase)&&strike.tryHit(this,this.shellBounds))this.damage('ultimate');};
+  const strike=(strike:UltimateStrike)=>{if(strike.player===this.player&&this.player.usingUltimate&&this.canAct()&&!this.resumeNoDamage&&this.clockMs>=this.hitUntil&&this.image.visible&&this.image.alpha>0&&strike.tryHit(this,this.image.getBounds()))this.damage('ultimate');};
   const markGap=()=>{this.suspendedGap=true;};
   const visibility=()=>{if(document.visibilityState!=='visible')markGap();};
   const shutdown=()=>{scene.events.off('ultimate-strike',strike);scene.events.off(Phaser.Scenes.Events.PAUSE,markGap);scene.events.off(Phaser.Scenes.Events.SLEEP,markGap);scene.game.events.off(Phaser.Core.Events.BLUR,markGap);document.removeEventListener('visibilitychange',visibility);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,shutdown);};
@@ -204,7 +204,7 @@ export class CrabBoss extends Dashable {
  protected dashBounds():Rect|null{return this.canAct()&&!this.resumeNoDamage&&!crabBurrowImmune(this.phase)?(this.phase==='emerge-active'&&this.activeRect.top<this.activeRect.bottom&&this.image.alpha>=.9?this.activeRect:this.phase==='emerge-active'?null:this.shellBounds):null;}
  protected onDash():void{if(this.canAct()&&canCrabDashDamage(this.hp>0,this.engaged,this.phase))this.damage('dash');}
  private damage(attack:'dash'|'ultimate'):void{
-  const now=this.clockMs;if(!this.canAct()||this.resumeNoDamage||crabBurrowImmune(this.phase)||now<this.hitUntil)return;
+  const now=this.clockMs;if(!this.canAct()||this.resumeNoDamage||(attack==='dash'?crabBurrowImmune(this.phase):!this.image.visible||this.image.alpha<=0)||now<this.hitUntil)return;
   if(attack!=='dash')hitSpark(this.scene,this.image.x,300,1.4);
   this.hp=Math.max(0,this.hp-crabDamage(attack));this.hitUntil=now+500;this.name.setText(`CRIMSON CLAW · ${this.hp} / 20`);
   if(attack==='dash')this.player.chargeUltimate(5);

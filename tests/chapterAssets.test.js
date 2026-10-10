@@ -1,8 +1,16 @@
 import {readFileSync} from 'node:fs';
 import {inflateSync} from 'node:zlib';
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
+vi.mock('phaser',()=>({default:{Scenes:{Events:{}},Math:{}}}));
 import {CHAPTER_ART} from '../src/data/chapters';
+import {sceneAssetEntries} from '../src/scenes/SceneAssets';
 describe('chapter art packaging',()=>{
+ it('maps thorn-boar to the transparent mask sprite',()=>{
+  const entry=['gate-1','jail','outside','crimson','rescue'].map(profile=>sceneAssetEntries(profile).find(item=>item.key==='thorn-boar')).find(Boolean);
+  expect(entry.path).toBe('assets/chapters/thorn-boar-front-spike-v4.png');
+  const png=readFileSync(`public/${entry.path}`);expect(png.subarray(1,4).toString()).toBe('PNG');expect(png[25]).toBe(6);
+  expect(png.readUInt32BE(16)).toBe(1536);expect(png.readUInt32BE(20)).toBe(1024);
+ });
  it('ships every referenced concept as a valid PNG',()=>{
   for(const key of CHAPTER_ART){const png=readFileSync(`public/assets/chapters/${key}.png`);expect(png.subarray(1,4).toString()).toBe('PNG');expect(png.readUInt32BE(16)).toBeGreaterThan(1000);}
  });

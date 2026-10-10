@@ -1,0 +1,49 @@
+# Franklin rescue encounter
+
+Franklin owns the released stage of Hollow Prison. `rescue.bossDefeated` still means the control chip broke and the eastern gate opened. Franklin survives. Existing save, retry, replay, ultimate release and campaign eligibility paths are retained; a cleared save shows the same friendly pose without a chip.
+
+The presentation uses twelve tight alpha frames in two unchanged generated atlases. Width is 66 world pixels with per-frame aspect preserved, small eased squash and a visible-bottom origin. The logical 46×40 combat bounds, movement speeds, pounce arc, frozen aim, projectile rhythm/trajectory, low 60×28 wave, and 44×140 active pillars are unchanged. `FranklinPresentation` writes into one reusable sample; the existing Franklin update owns its clock and attachments.
+
+The 10.8-second intro shows recognition and a shared heart, chip wake, red electrical control reaching the real eye, resistance, forced cast/flames, then a wide return before a full pounce warning. Intro and 4.2-second rescue input locks consume controls every frame, stop only horizontal motion, and preserve gravity and the descending stomp bounce. Intro uses eased focus sampled in rendered world coordinates, with local top-left scroll compensation for the render-scale camera convention. A safe crash recovery briefly frames the wall reached, then returns to player follow at 950ms, 250ms before the next cue. Damaging attacks keep player follow. Camera multipliers and framing follow render scale on resize. Inactive entry restores the camera once; repeated inactive frames do not reset it. Pause, hidden state and death clear hazards, stop acting time and cancel camera effects; interrupted attacks restart full warnings.
+
+At HP 16, a once-only, hittable, non-damaging 1.2-second overdrive shows hurt → resistance → forced cast/crouch before a full pounce cue. HP 6 takes priority and enters the existing finale. Real crouch/lunge/landing, rhythmic spit/recoil, articulated tail turn, cast, hurt, resistance, exhaustion and friendly poses replace static body transforms. Control is red throughout. Two preallocated image lights share one static 32px radial texture so the chip and eye retain bright, readable centers at arena zoom. Resistance softens eyes before a visible red override. Local paw/tail flames are pooled and follow pose transforms.
+
+Three clean wall crashes reduce chip health 6→4→2→1 and persist cracks, dim hardware pips and loosen the actual chip. Failed crashes add no chip damage. The final stable opening shows a pulsing gold/cyan ring and a downward chevron. The shared 22×18 target is centered on the actual drawn chip after pose, flip, rotation and 7-pixel detach, computed before stomp collision. An ordinary held jump reaches it. On a valid descending stomp or an ultimate strike touching the exposed chip, six preallocated hardware slices scatter, electrical lines collapse, eyes/flames shut off immediately, and a restrained flash/shake signals release. Exhausted breathing, friendly rise and a gentle reunion hop/heart finish the rescue. The safe ending camera frames both friends together while Franklin turns toward Duckoman; player follow resumes when the acting ends.
+
+Boss HUD uses only a chip icon, compact HP bar and three hardware pips. Story/objective/status/compass lines are hidden after release; world signs use pictograms. Completion shows Duckoman, friendly Franklin and a heart with MENU/REPLAY buttons. Standard player controls/HUD stay available; the chained stage retains a single `U` cue when charged.
+
+## Local review
+
+Run the development server. Normal fight: `http://127.0.0.1:5174/duckoman-rebirth/?chapter=rescue&boss=1`.
+
+Append `&bossBeat=intro`, `overdrive`, `resistance`, `tail`, `barrage`, `crash`, `safe-chip`, or `rescued` for looping visual review. The whitelist requires a local development build, `devPreview` and `bossPreview`. Beat previews never run combat, completion callbacks or persistence. The rescued preview uses the actual exposed chip as fragment origin and the same reunion-hop interpolation as the real ending. Production/campaign does not accept them.
+
+Manual checks: recognition/control close shot and wide return; crouch/lunge/landing readability; spit timing; low tail jump timing and full active pillar visibility; first/second/third clean crash versus failed crash; chip cue/descending stomp alignment facing both directions; reunion and cleared-save pose; pause/hidden/retry behavior and camera/input restoration; responsive render scale.
+
+## Warden preservation
+
+`HollowWardenRules` and Warden artwork preserve the original AI and assets. The adapter now requires runtime debug mode, and HollowWarden ultimate acceptance uses its full visible body during active combat. Hollow Prison and Franklin remain accessible normally. The following hashes record the historical baseline, not the current entity/adapter:
+
+- HollowWarden.ts: `5b2f9a68ddb23b51e5e84a207e8b05e03b916723f41796b5d8221a09a0222979`
+- HollowWardenRules.ts: `442817555d28d79e8fef58232a9528f96200432d45ab168c297055053d3ec288`
+- spawnPreservedWarden.ts: `6688bc8a235f3e78768caef75a11fd6da10dbe95f878b1fef5dd91045bdda9e9`
+- hollow-warden.png: `1fd73e29f70850a999e28e33efc52472978f39a85949067b77522fff41de7453`
+
+
+The introduction has a single centered two-line caption: “Franklin Fox — one of Duckoman’s best friends.” and “A control chip is forcing him to fight.” It fades in over 400ms and out at 9200–10200ms, then disappears. This requested narrative is the only text exception. Acting and camera sample the intro at half elapsed time; player follow returns at 9200ms, while protection lasts the full 10800ms and the first pounce retains its full warning. Pause freezes the intro clock instead of replaying it. Reunion acting, movement and camera advance at actual time / 1.5, ending the logical 2800ms sequence after 4200ms. The reunion gallery loops after 4950 actual milliseconds.
+
+All persistent Franklin status hardware uses images: a 220×24 transparent brushed-metal frame, a 202×10 ruby energy strip, three 8×10 gold hardware fuses and the existing chip icon at 16×20. The fill is cropped from its left edge, never squeezed; crash charge and rescue semantics are unchanged. Authored assets are `franklin-chip-hp-frame.svg`, `franklin-chip-hp-fill.svg` and `franklin-chip-hp-fuse.svg`.
+
+The original SVG barrage sight has been superseded by the raster eye-mounted scope described below. Its frozen fireball launch helper and projectile physics remain unchanged.
+
+Tail windup and the cyan resistance paw brace now use two preallocated authored warning images (`franklin-tail-warning.svg`, 180×8; `franklin-resistance-warning.svg`, 65×8), replacing only their previous Graphics lines. The tail strip pivots at the frozen wave origin and rotates left or right with its existing direction. The brace follows Franklin’s feet. Both retain phase timing and alpha and clear on inactivity and cleanup. The barrage laser remains image-based. Stationary intro, resistance, overdrive, collapse, exposed-chip and reunion poses face Duckoman on either side, with mirrored attachments; locked attack and frozen barrage facing remain unchanged.
+
+
+Death retry previously threw in `FranklinFox.restoreCamera`: Phaser had already removed `cameras.main` before Franklin’s shutdown listener ran. That exception aborted cleanup during scene restart. Shutdown now explicitly skips camera restoration, detaches listeners and releases every pooled image; manual teardown retains guarded camera restoration. Repeated teardown and post-cleanup updates are inert. The scene schedules one 550ms death retry and preserves the existing released-stage retry record. Sleeping fox, chains and Z animate only while chained; unchanged stage text is no longer rewritten each frame, while the chained ultimate-ready prompt updates only when its value changes.
+
+Barrage aiming uses the actual generated transparent PNG `franklin-eye-scope.png` (2172×724), one native texture with beam `(200,286,1640,140)`, emitter `(25,261,190,190)` and reticle `(1830,196,340,320)` frames. Three preallocated images show a 14px emitter at the animated mirrored eye, a thin beam and a 24px target near the locked aim on the existing clamped fireball ray. The eye-to-dot line is a visual sight; projectile origin, velocity, frozen aim and damage remain unchanged. Gallery barrage faces the frozen aim. All three disappear on firing, inactivity, death and shutdown; the former SVG laser assets remain dormant.
+
+
+Ultimate coverage now includes each live visible enemy hurtbox (including the Thorn-Boar horn), full visible boss bodies and existing breakable walls in the sword’s unchanged sweep. Enemy/boss damage values are unchanged: Franklin 2, Regent/Crab/Castle 4, Warden 8, and RustWing’s existing rules. Dash, stomp and throw defenses remain intact. Hidden underground Crab, inactive/dead actors, protected introductions/transformations and Franklin’s pre-exposure finale remain excluded. Exposed chip ultimate calls the same single rescue finalization as the stomp after all three crashes. Permanent scenery/floors are not destructible targets. Walls use a scoped strike listener and disable collision through their existing break path.
+
+The debug level menu includes “Hollow Prison · Warden (debug)”. The button, RescueScene entry and preserved adapter each check actual runtime debug mode; preview flags and save unlocks cannot grant access. Warden alone spawns in that preview, runs its original hearing/attack schedule and remains unable to write Franklin rescue progress. Turning debug off exits to the menu and normal scene shutdown cleans the encounter. Normal Hollow Prison and Franklin routes remain available.

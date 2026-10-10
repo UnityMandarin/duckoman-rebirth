@@ -63,7 +63,7 @@ const journeyCommon: readonly SceneAssetEntry[] = [
   entry('bronze-wing', 'assets/gate3/bronze-wing.png'),
 ];
 const chapterCommon: readonly SceneAssetEntry[] = [
-  entry('thorn-boar', 'assets/chapters/thorn-boar.png'),
+  entry('thorn-boar', 'assets/chapters/thorn-boar-front-spike-v4.png'),
   entry('gloom-hare', 'assets/chapters/gloom-hare.png'),
 ];
 const withCommon = (...items: SceneAssetEntry[]): readonly SceneAssetEntry[] => [...journeyCommon, ...items];
@@ -98,6 +98,24 @@ const profiles: Readonly<Record<SceneAssetProfile, readonly SceneAssetEntry[]>> 
     ...journeyCommon.filter(({ key }) => key !== 'cracked-stone-wall' && key !== 'sealed-dispatch'),
     entry('identity-rescue', 'assets/identity/rescue.png'),
     entry('franklin-asleep', 'assets/chapter5/franklin-asleep.png'),
+    entry('franklin-fire-fox', 'assets/chapter5/franklin-fire-fox.png'),
+    entry('franklin-combat-poses', 'assets/chapter5/franklin-combat-poses.png'),
+    entry('franklin-story-poses', 'assets/chapter5/franklin-story-poses.png'),
+    entry('franklin-chip-hp-frame', 'assets/chapter5/franklin-chip-hp-frame.svg'),
+    entry('franklin-chip-hp-fill', 'assets/chapter5/franklin-chip-hp-fill.svg'),
+    entry('franklin-chip-hp-fuse', 'assets/chapter5/franklin-chip-hp-fuse.svg'),
+    entry('franklin-tail-warning', 'assets/chapter5/franklin-tail-warning.svg'),
+    entry('franklin-resistance-warning', 'assets/chapter5/franklin-resistance-warning.svg'),
+    entry('franklin-eye-scope', 'assets/chapter5/franklin-eye-scope.png'),
+    entry('franklin-laser-strip', 'assets/chapter5/franklin-laser-strip.svg'),
+    entry('franklin-laser-reticle', 'assets/chapter5/franklin-laser-reticle.svg'),
+    entry('franklin-control-chip', 'assets/chapter5/franklin-control-chip.png'),
+    entry('franklin-pounce-trail', 'assets/chapter5/franklin-pounce-trail.png'),
+    entry('franklin-fireball', 'assets/chapter5/franklin-fireball.png'),
+    entry('franklin-tail-wave', 'assets/chapter5/franklin-tail-wave.png'),
+    entry('franklin-flame-pillar', 'assets/chapter5/franklin-flame-pillar.png'),
+    entry('franklin-wall-impact', 'assets/chapter5/franklin-wall-impact.png'),
+    entry('franklin-chip-charge', 'assets/chapter5/franklin-chip-charge.png'),
     entry('hollow-warden', 'assets/chapter5/hollow-warden.png'),
     entry('quality-rescue-prison', 'assets/quality/hollow-prison.png'),
     entry('quality-concept-props', 'assets/quality/concept-props.png'),

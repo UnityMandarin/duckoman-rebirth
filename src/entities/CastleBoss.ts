@@ -53,7 +53,7 @@ export class CastleBoss extends Dashable {
     this.hud=scene.add.graphics().setScrollFactor(0).setDepth(25);
     this.label=scene.add.text(520,20,'',{fontSize:'13px',color:'#d7b5ff',stroke:'#080d19',strokeThickness:3}).setOrigin(.5).setScrollFactor(0).setDepth(26);
     const strike=(s:UltimateStrike)=>{
-      if(!this.finished&&this.started!==undefined&&s.tryHit(this,this.bodyBounds)){
+      if(s.player===this.player&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible'&&scene.sys.isActive()&&!scene.physics.world.isPaused&&!this.finished&&this.started!==undefined&&s.tryHit(this,{left:this.image.x-this.image.displayWidth/2,right:this.image.x+this.image.displayWidth/2,top:this.image.y-this.image.displayHeight/2,bottom:this.image.y+this.image.displayHeight/2})){
         this.health.damage(4);this.retreatUntil=scene.time.now+1400;hitSpark(scene,this.image.x,this.image.y,1.4);
         if(this.health.hp===0)this.finish();
       }

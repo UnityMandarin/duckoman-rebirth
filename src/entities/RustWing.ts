@@ -90,7 +90,7 @@ export class RustWing extends Dashable {
       .setOrigin(0).setDepth(RustWing.curtainDepth).setAlpha(RUSTWING_RULES.introDarkSteps[0]);
     this.shiftLayers(-RustWing.introSink);
     const strike = (s: UltimateStrike): void => {
-      if (!this.finished && this.engaged && this.dyingFrom === undefined && s.tryHit(this, this.bodyBounds)) {
+      if (s.player===this.player&&this.player.active&&this.player.usingUltimate&&document.visibilityState==='visible'&&scene.sys.isActive()&&!scene.physics.world.isPaused&&!this.finished && this.engaged && this.dyingFrom === undefined &&scene.time.now>=this.contactGrace&&!this.transforming(scene.time.now)&& s.tryHit(this, this.sprite.getBounds())) {
         this.hurt('ultimate');
       }
     };
@@ -396,7 +396,7 @@ export class RustWing extends Dashable {
   }
   private hurt(attack: 'dash' | 'stomp' | 'ultimate'): void {
     const now = this.scene.time.now;
-    if (this.charging || now < this.contactGrace || this.health.hp <= 0 || this.dyingFrom !== undefined) return;
+    if ((attack!=='ultimate'&&this.charging) || now < this.contactGrace || this.health.hp <= 0 || this.dyingFrom !== undefined) return;
     this.health.damage(rustDamage(attack));
     this.flinch(now);
     hitSpark(this.scene, this.x, this.y, 1.3);

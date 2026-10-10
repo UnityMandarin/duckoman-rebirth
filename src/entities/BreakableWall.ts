@@ -4,21 +4,30 @@ import type { Player } from './Player';
 import type { Rect } from '../systems/contactRules';
 import type { KillImpulse } from '../systems/debrisMath';
 import { hitSpark } from '../systems/HitSpark';
+import type {UltimateStrike} from '../systems/ultimateSwingMath';
 import { scatterDebris } from '../systems/DebrisBurst';
 
 /** A static obstacle that crumbles when dashed (or hit by a thrown cake). */
 export class BreakableWall extends Dashable {
   private broken = false;
+  private readonly strike:(strike:UltimateStrike)=>void;
+  private readonly cleanup:()=>void;
 
   /** `solid` must already have a static physics body; `visuals` fade out when it breaks. */
   constructor(private readonly scene: Phaser.Scene, readonly solid: Phaser.GameObjects.GameObject, private readonly visuals: Phaser.GameObjects.GameObject[]) {
     super();
+    this.strike=strike=>{
+      if(strike.player.sprite.scene!==scene||!strike.player.active||!strike.player.usingUltimate||document.visibilityState!=='visible'||!scene.sys.isActive()||scene.physics.world.isPaused)return;
+      const bounds=this.dashBounds();if(bounds&&strike.tryHit(this,bounds))this.break();
+    };
+    this.cleanup=()=>{scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);};
+    scene.events.on('ultimate-strike',this.strike);scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
   }
 
   get isBroken(): boolean { return this.broken; }
 
   protected dashBounds(): Rect | null {
-    if (this.broken) return null;
+    if (this.broken||!this.solid.body||(this.solid.body as Phaser.Physics.Arcade.StaticBody).enable===false) return null;
     const b = this.solid.body as Phaser.Physics.Arcade.StaticBody;
     return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
   }
@@ -29,6 +38,7 @@ export class BreakableWall extends Dashable {
   break(impulse?: KillImpulse, spark = true): void {
     if (this.broken) return;
     this.broken = true;
+    this.cleanup();
     const body = this.solid.body as Phaser.Physics.Arcade.StaticBody;
     if (spark) hitSpark(this.scene, body.center.x, body.center.y);
     body.enable = false;

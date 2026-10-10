@@ -1,5 +1,6 @@
 export const RESCUE_RULES={franklinX:540,releaseRangeX:160,releaseRangeY:90,chargePerHit:10,maxCharge:100,maxEnemies:3,arrivalCueMs:700,minPlayerDistance:140,waveDelayMs:900,firstCheckpoint:180,releasedCheckpoint:540} as const;
 export type RescueStage='chained'|'released'|'cleared';
+/** `bossDefeated` is the rescue encounter-completion slot; for this route it means Franklin's chip was destroyed and Franklin survived. It does not identify or flag the preserved Hollow Warden. */
 export interface RescueProgressRecord {checkpoint:number;charge:number;opened:number[];bossDefeated:boolean;}
 export interface RescueEntryInput {devPreview:boolean;retry?:boolean;bossPreview?:boolean;checkpoint?:number;charge?:number;opened?:readonly number[];bossDefeated?:boolean;saved:RescueProgressRecord;}
 export function rescueEntryRecord(input:RescueEntryInput):RescueProgressRecord {

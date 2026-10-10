@@ -72,7 +72,7 @@ export const CHAPTER_SIGNS:Readonly<Record<IdentityChapter,readonly IdentitySign
   {room:10,x:145,text:'CRIMSON CLAW / K OR U: SHELL'},
   {room:11,x:145,text:'UNDER THE THRONE / FRANKLIN BELOW'}
  ],
- rescue:[{room:0,x:435,bottomY:360,text:'HOLLOW PRISON / U BREAKS CHAINS'},{room:0,x:720,bottomY:360,text:'RUNE SEAL / SAVE FRANKLIN'},{room:0,x:1750,bottomY:360,text:'EASTERN PASSAGE / DEFEAT THE WARDEN'}]
+ rescue:[{room:0,x:435,bottomY:360,text:'HOLLOW PRISON / U BREAKS CHAINS'},{room:0,x:720,bottomY:360,text:'RUNE SEAL / SAVE FRANKLIN'},{room:0,x:1750,bottomY:360,text:'EASTERN PASSAGE / FREE FRANKLIN'}]
 };
 
 export const CHAPTER_DOORS:Readonly<Record<IdentityChapter,DoorMode>>={jail:{kind:'lift',duration:650,distance:560},outside:{kind:'fold',duration:700},crimson:{kind:'lift-fade',duration:700,distance:560},rescue:{kind:'dissolve',duration:520}};

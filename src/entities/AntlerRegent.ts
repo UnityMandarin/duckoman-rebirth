@@ -35,7 +35,7 @@ export class AntlerRegent extends Dashable {
   this.barFrame=scene.add.image(411,32,'quality-chapter-hud','chapter-hud-boss-frame').setOrigin(0).setDisplaySize(216,22).setScrollFactor(0).setDepth(52).setVisible(false);
   this.name=scene.add.text(520,19,'THE BROKEN REGENT',{fontSize:'10px',color:'#dcc398'}).setOrigin(.5).setScrollFactor(0).setDepth(52).setVisible(false);
   this.warning=scene.add.graphics().setDepth(8);
-  this.strike=(strike)=>{if(this.canAct()&&this.engaged&&strike.tryHit(this,this.hittable))this.damage(4);};
+  this.strike=(strike)=>{if(strike.player===this.player&&this.player.usingUltimate&&this.canAct()&&this.engaged&&!this.lifecycleGap&&this.hp>0&&this.clockMs>=this.hurtUntil&&strike.tryHit(this,{left:this.image.x-this.image.displayWidth/2,right:this.image.x+this.image.displayWidth/2,top:this.image.y-this.image.displayHeight,bottom:this.image.y}))this.damage(4);};
   scene.events.on('ultimate-strike',this.strike);scene.events.on(Phaser.Scenes.Events.PAUSE,this.pauseListener);scene.events.on(Phaser.Scenes.Events.RESUME,this.resumeListener);document.addEventListener('visibilitychange',this.visibilityListener);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{scene.events.off('ultimate-strike',this.strike);scene.events.off(Phaser.Scenes.Events.PAUSE,this.pauseListener);scene.events.off(Phaser.Scenes.Events.RESUME,this.resumeListener);document.removeEventListener('visibilitychange',this.visibilityListener);});
  }

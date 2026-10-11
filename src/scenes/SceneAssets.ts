@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { LETTER_TEXTURE } from '../entities/CreatorLetter';
 
-export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'rescue' | 'castle-secret';
+export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'furnace' | 'rescue' | 'castle-secret';
 export interface SceneAssetEntry {
   readonly key: string;
   readonly path: string;
@@ -94,9 +94,18 @@ const profiles: Readonly<Record<SceneAssetProfile, readonly SceneAssetEntry[]>> 
     entry('quality-crimson-vault', 'assets/quality/crimson-vault.png'),
     entry('rock-pillar-kit', 'assets/gate3/rock-pillar-kit.png'),
   ),
+  furnace: withCommon(entry('identity-crimson','assets/identity/crimson.png'),...chapterCommon,
+    entry('crimson-crab','assets/chapters/crimson-crab.png'),entry('quality-ruined-kingdom','assets/chapters/ruined-kingdom.png'),entry('quality-crimson-vault','assets/quality/crimson-vault.png'),entry('rock-pillar-kit','assets/gate3/rock-pillar-kit.png'),
+    entry('furnace-backdrop','assets/chapter5/furnace-art/backdrop.webp'),entry('furnace-lava-basin','assets/chapter5/furnace-art/lava-basin.png'),entry('furnace-lava-glow','assets/chapter5/furnace-art/lava-glow.png'),entry('furnace-lava-surface','assets/chapter5/furnace-art/lava-surface.png'),entry('furnace-lava-spit','assets/chapter5/furnace-art/lava-spit.png'),entry('furnace-lava-feed','assets/chapter5/furnace-art/lava-feed.png'),entry('furnace-utility','assets/chapter5/furnace-art/utility.webp'),entry('furnace-climax','assets/chapter5/furnace-art/climax.webp'),entry('chapter5-typography','assets/chapter5/furnace-art/typography.png'),entry('chapter5-ultimate-label','assets/chapter5/furnace-art/ultimate.png'),entry('chapter5-ultimate-ready-label','assets/chapter5/furnace-art/ultimate-ready.png')),
   rescue: [
     ...journeyCommon.filter(({ key }) => key !== 'cracked-stone-wall' && key !== 'sealed-dispatch'),
     entry('identity-rescue', 'assets/identity/rescue.png'),
+    entry('furnace-backdrop', 'assets/chapter5/furnace-art/backdrop.webp'),
+    entry('furnace-utility', 'assets/chapter5/furnace-art/utility.webp'),
+    entry('furnace-climax', 'assets/chapter5/furnace-art/climax.webp'),
+    entry('chapter5-typography','assets/chapter5/furnace-art/typography.png'),
+    entry('chapter5-ultimate-label','assets/chapter5/furnace-art/ultimate.png'),
+    entry('chapter5-ultimate-ready-label','assets/chapter5/furnace-art/ultimate-ready.png'),
     entry('franklin-asleep', 'assets/chapter5/franklin-asleep.png'),
     entry('franklin-fire-fox', 'assets/chapter5/franklin-fire-fox.png'),
     entry('franklin-combat-poses', 'assets/chapter5/franklin-combat-poses.png'),

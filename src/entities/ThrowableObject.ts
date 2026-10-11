@@ -14,14 +14,15 @@ export class ThrowableObject {
   private readonly spawn: Phaser.Math.Vector2;
   private hasHitEnemyThisThrow = false;
   private settledSince: number | undefined;
-  private readonly actionHint:Phaser.GameObjects.Text;
+  private readonly actionHint:Phaser.GameObjects.Text|Phaser.GameObjects.Image;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.spawn = new Phaser.Math.Vector2(x, y);
     this.sprite = scene.add.circle(x, y, TUNING.throwable.radius, 0xffca28);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, 'cake').setDisplaySize(50, 50).setDepth(6);
-    this.actionHint=scene.add.text(x,y-40,'J · THROW',{fontSize:'10px',color:'#ffdf60',backgroundColor:'#17202bcc',padding:{x:5,y:3}}).setOrigin(.5).setDepth(18).setVisible(false);
+    const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
+    this.actionHint=chapterFive?scene.add.image(x,y-40,'chapter5-typography','throw').setDisplaySize(86,30).setDepth(18).setVisible(false):scene.add.text(x,y-40,'J · THROW',{fontSize:'10px',color:'#ffdf60',backgroundColor:'#17202bcc',padding:{x:5,y:3}}).setOrigin(.5).setDepth(18).setVisible(false);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCircle(TUNING.throwable.radius);

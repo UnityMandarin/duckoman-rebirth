@@ -16,6 +16,7 @@ main > h1, main > p { display:none; }
 .game-hud-sword,.game-hud-ultimate,.game-hud-dash,.game-hud-duck { position:absolute; z-index:2; margin:0; border:0; box-shadow:none; pointer-events:none; }
 .game-hud-sword { left:67px; top:8px; width:300px; height:64px; }
 .game-hud-ultimate { left:82px; top:58px; color:#dfceaa; font:10px/normal Courier,monospace; white-space:nowrap; }
+.chapter5-hud-type { width:auto; max-width:130px; height:12px; object-fit:contain; }
 .game-hud-dash { left:220px; top:58px; width:97px; height:13px; }
 .game-hud-duck { left:232.5px; top:59.5px; width:11px; height:10px; object-fit:contain; filter:brightness(0) invert(1); transform:rotate(.18rad); }
 .game-hud-dom.ultimate-in-flight .game-hud-sword { visibility:hidden; }
@@ -25,6 +26,9 @@ main > h1, main > p { display:none; }
 .game-controls kbd { padding:2px 4px; color:#f4e3bd; background:rgba(31,43,50,.62); border:1px solid rgba(235,225,205,.2); border-radius:3px; font:inherit; }
 .game-menu-control { position:static; min-width:0; min-height:24px; height:24px; padding:2px 6px; border:1px solid rgba(235,225,205,.22); border-radius:4px; color:#ffedc4; background:rgba(31,43,50,.62); font:10px system-ui,sans-serif; cursor:pointer; white-space:nowrap; pointer-events:auto; }
 @container (max-width:700px) {
+.chapter5-image-controls { border:0; border-radius:8px; padding:8px 10px; background:var(--chapter5-panel) center / 100% 100% no-repeat; }
+.chapter5-image-controls kbd,.chapter5-image-controls .game-menu-control { border:0; border-radius:4px; background:var(--chapter5-panel) center / 100% 100% no-repeat; }
+.chapter5-hud .game-hud-glass { background:var(--chapter5-panel) center / 100% 100% no-repeat; opacity:.15; }
  .game-controls { gap:3px 4px; font-size:9px; }
  .game-controls kbd { padding:2px 3px; }
  .game-controls .game-menu-control { min-height:22px; height:22px; padding:2px 5px; font-size:9px; }

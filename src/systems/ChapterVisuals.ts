@@ -120,8 +120,8 @@ export function addConveyorBeltDeck(scene:Phaser.Scene,chapter:IdentityChapter,{
   const context=canvas.getContext(),source=texture.getSourceImage() as HTMLImageElement;
   context.drawImage(source,frame.cutX+crop.x,frame.cutY+crop.y,crop.width,crop.height,0,0,40,16);
   // A tiny dark seam at the repeat edge makes the source material read as linked treads.
-  context.fillStyle='rgba(8, 12, 16, 0.36)';context.fillRect(39,0,1,16);
-  context.fillStyle='rgba(255, 255, 255, 0.18)';context.fillRect(0,0,40,1);
+  const chapterFive=scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss';
+  if(!chapterFive){context.fillStyle='rgba(8, 12, 16, 0.36)';context.fillRect(39,0,1,16);context.fillStyle='rgba(255, 255, 255, 0.18)';context.fillRect(0,0,40,1);}
   canvas.add('deck',0,0,0,40,16);canvas.refresh();
  }
  return scene.add.tileSprite(x,y,width,8,key,'deck').setOrigin(.5,0).setTileScale(.5,.5).setDepth(depth);
@@ -130,7 +130,7 @@ export function addIdentityFloor(scene:Phaser.Scene,chapter:IdentityChapter,{x,t
  assertFrame(scene,chapter,'foundation');assertFrame(scene,chapter,frame);const key=identityTexture(chapter),tile=addFinishedStrip(scene,chapter,frame,width,Math.min(48,height),1).setPosition(x,top);
  const foundationHeight=height;
  let foundation:Phaser.GameObjects.Container|undefined,backing:Phaser.GameObjects.Rectangle|undefined;
- if(foundationHeight>0){const fill={jail:0x172633,outside:0x35281e,crimson:0x1b1119,rescue:0x36313b}[chapter],f=scene.textures.get(key).get('foundation'),scale=128/f.height,unitWidth=f.width*scale,unitHeight=128,xSegments=planTerrainAxis(width,unitWidth),ySegments=planTerrainAxis(foundationHeight,unitHeight);backing=scene.add.rectangle(x,top+foundationHeight/2,width,foundationHeight,fill,1).setDepth(-1);
+ if(foundationHeight>0){const c5=scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss';const fill={jail:0x172633,outside:0x35281e,crimson:0x1b1119,rescue:0x36313b}[chapter],f=scene.textures.get(key).get('foundation'),scale=128/f.height,unitWidth=f.width*scale,unitHeight=128,xSegments=planTerrainAxis(width,unitWidth),ySegments=planTerrainAxis(foundationHeight,unitHeight);if(!c5)backing=scene.add.rectangle(x,top+foundationHeight/2,width,foundationHeight,fill,1).setDepth(-1);
   const xStart=x-width/2;let xOffset=0;foundation=scene.add.container(0,0).setDepth(0);
   for(const xSegment of xSegments){let yOffset=0;for(const ySegment of ySegments){const groupWidth=xSegment.width,groupHeight=ySegment.width,groupX=xStart+xOffset+groupWidth/2,groupTop=top+yOffset,group=addFoundationGroup(scene,chapter,f,groupX,groupTop,0,scale,unitWidth,unitHeight,xSegment,ySegment).setDepth(0);foundation.add(group);yOffset+=groupHeight;}xOffset+=xSegment.width;}
  }

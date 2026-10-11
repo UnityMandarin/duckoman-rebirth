@@ -3,6 +3,11 @@ import { airJumpWind } from './airJumpMath';
 
 /** A soft puff of wind under the duck on a midair jump. */
 export function airJumpShockwave(scene: Phaser.Scene, x: number, y: number): void {
+  if(scene.sys.settings.key==='rescue'||scene.sys.settings.key==='rescue-boss'){
+    const puff=scene.add.image(x,y,'furnace-utility','electric').setDisplaySize(56,24).setTint(0xffffff).setAlpha(.55).setDepth(9.4);
+    scene.tweens.add({targets:puff,alpha:0,y:y+8,duration:300,onComplete:()=>puff.destroy()});
+    return;
+  }
   const g = scene.add.graphics().setPosition(x, y).setDepth(9.4);
   scene.tweens.addCounter({
     from: 0,

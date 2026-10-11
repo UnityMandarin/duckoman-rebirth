@@ -1,3 +1,4 @@
+import { FURNACE_TYPOGRAPHY } from './FurnaceTypography';
 import Phaser from 'phaser';
 import type {Player} from '../entities/Player';
 import {alignSwordMeterFill,setSwordMeterCharge,SWORD_METER} from './SwordMeterArt';
@@ -36,7 +37,7 @@ const key=(label:string,description:string):string=>`<span class="game-control">
 export class ChapterHud {
  private fullHearts:Phaser.GameObjects.Image[]=[];
  private emptyHearts:Phaser.GameObjects.Image[]=[];
- private healthText:Phaser.GameObjects.Text;
+ private healthText:Phaser.GameObjects.Text|Phaser.GameObjects.Image;
  private abilityText?:HTMLElement;
  private displayedHealth=-1;
  private healthChangedAt=0;
@@ -58,7 +59,7 @@ export class ChapterHud {
  constructor(private scene:Phaser.Scene,private player:Player){
   scene.add.image(43,40,'duckoman').setDisplaySize(35,35).setScrollFactor(0).setDepth(50);
   scene.add.image(43,40,'quality-chapter-hud','chapter-hud-portrait').setDisplaySize(48,48).setScrollFactor(0).setDepth(51);
-  this.healthText=scene.add.text(185,10,'DUCKOMAN',{fontSize:'11px',color:'#e8d8b7'}).setScrollFactor(0).setDepth(51);
+  this.healthText=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss'?scene.add.image(185,10,'chapter5-typography','duckoman').setOrigin(0).setDisplaySize(FURNACE_TYPOGRAPHY.duckoman.width/2,FURNACE_TYPOGRAPHY.duckoman.height/2):scene.add.text(185,10,'DUCKOMAN',{fontSize:'11px',color:'#e8d8b7'})).setScrollFactor(0).setDepth(51);
   for(let i=0;i<3;i++){
    const x=82+i*28,y=8;
    this.emptyHearts.push(scene.add.image(x,y,'quality-chapter-hud','chapter-hud-heart-empty').setOrigin(0).setDisplaySize(22,21).setScrollFactor(0).setDepth(51));
@@ -79,11 +80,13 @@ export class ChapterHud {
   const parent=document.getElementById('game');if(!parent)return;
   parent.classList.add('game-hud-root');
   const layer=document.createElement('div');layer.className='game-hud-dom';
-  layer.innerHTML='<div class="game-hud-glass" aria-hidden="true"></div><canvas class="game-hud-sword" width="600" height="128" aria-hidden="true"></canvas><span class="game-hud-ultimate">U · ULTIMATE</span><canvas class="game-hud-dash" width="194" height="26" aria-hidden="true"></canvas><img class="game-hud-duck" src="'+(import.meta.env.BASE_URL||'/')+'assets/gate3/duckoman.png" alt="">';
+  const chapterFive=this.scene.sys?.settings?.key==='rescue'||this.scene.sys?.settings?.key==='rescue-boss';
+  layer.innerHTML='<div class="game-hud-glass" aria-hidden="true"></div><canvas class="game-hud-sword" width="600" height="128" aria-hidden="true"></canvas>'+(chapterFive?'<img class="game-hud-ultimate chapter5-hud-type" src="'+(import.meta.env.BASE_URL||'/')+'assets/chapter5/furnace-art/ultimate.png" alt="U ultimate">':'<span class="game-hud-ultimate">U · ULTIMATE</span>')+'<canvas class="game-hud-dash" width="194" height="26" aria-hidden="true"></canvas><img class="game-hud-duck" src="'+(import.meta.env.BASE_URL||'/')+'assets/gate3/duckoman.png" alt="">';
   parent.appendChild(layer);this.domLayer=layer;this.swordCanvas=layer.querySelector('.game-hud-sword') as HTMLCanvasElement;this.dashCanvas=layer.querySelector('.game-hud-dash') as HTMLCanvasElement;this.dashDuck=layer.querySelector('.game-hud-duck') as HTMLImageElement;this.abilityText=layer.querySelector('.game-hud-ultimate') as HTMLElement;
   const updateScale=():void=>{if(this.domLayer)this.domLayer.style.transform=`scale(${parent.clientWidth/640})`;};updateScale();
   if(typeof ResizeObserver!=='undefined'){this.resizeObserver=new ResizeObserver(updateScale);this.resizeObserver.observe(parent);}
   const controls=document.createElement('nav');controls.className='game-controls';controls.setAttribute('aria-label','Game controls');
+  if(chapterFive){controls.classList.add('chapter5-image-controls');layer.classList.add('chapter5-hud');const panel=`url("${import.meta.env.BASE_URL}assets/chapter5/furnace-art/panel.webp")`;controls.style.setProperty('--chapter5-panel',panel);layer.style.setProperty('--chapter5-panel',panel);}
   controls.innerHTML=key('A/D · ←/→','Move')+key('L Shift','Sprint')+key('Space / L','Jump')+key('K','Dash')+key('S','Tuck/slam')+key('J','Interact/throw')+key('U','Ultimate');
   parent.appendChild(controls);this.controls=controls;
   this.listen('pause',()=>this.setDomHidden(true));this.listen('sleep',()=>this.setDomHidden(true));
@@ -111,7 +114,7 @@ export class ChapterHud {
    this.fullHearts[i].setPosition(82+i*28,y).setVisible(amount>0).setCrop(0,0,Math.max(1,265*amount),232);
   }
  }
- private updateAbilityHud():void {const ready=this.player.ultimateCharge>=100;if(this.abilityReady===ready)return;this.abilityReady=ready;if(this.abilityText)this.abilityText.textContent=ready?'U · ULTIMATE READY':'U · ULTIMATE';}
+ private updateAbilityHud():void {const ready=this.player.ultimateCharge>=100;if(this.abilityReady===ready)return;this.abilityReady=ready;if(this.abilityText){if(typeof HTMLImageElement!=='undefined'&&this.abilityText instanceof HTMLImageElement){const base=import.meta.env.BASE_URL||'/';this.abilityText.src=base+`assets/chapter5/furnace-art/ultimate${ready?'-ready':''}.png`;this.abilityText.alt=ready?'U ultimate ready':'U ultimate';}else this.abilityText.textContent=ready?'U · ULTIMATE READY':'U · ULTIMATE';}}
  useUltimate():void{playUltimateSwing(this.scene,this.player,{frame:this.swordFrame,fill:this.swordFill,setVisible:visible=>{if(visible){this.domMeterKey='';this.update();}if(this.domLayer)this.domLayer.classList.toggle('ultimate-in-flight',!visible);}});}
  destroy():void{for(const[event,fn]of this.bindings)this.scene.events.off(event,fn);this.bindings.length=0;this.resizeObserver?.disconnect();this.resizeObserver=undefined;this.domLayer?.remove();this.domLayer=undefined;this.controls?.remove();this.controls=undefined;}
 }

@@ -1,6 +1,10 @@
 # Franklin rescue encounter
 
-Franklin owns the released stage of Hollow Prison. `rescue.bossDefeated` still means the control chip broke and the eastern gate opened. Franklin survives. Existing save, retry, replay, ultimate release and campaign eligibility paths are retained; a cleared save shows the same friendly pose without a chip.
+Chapter 5 is now Crimson Furnace: `FurnaceScene` owns the logical `rescue` route, with eleven 1,440-unit traversal rooms and 68 raised platforms. Its final safe checkpoint fades directly into `RescueScene` (`rescue-boss`), retaining Franklin's 2,000-unit arena and local combat coordinates. The old chain-release and sentry-wave ritual is dormant. `rescue.bossDefeated` still means Franklin's control chip broke and the eastern gate opened; Franklin survives.
+
+Numbered furnace platforms remain solid. One room-local clock cycles 1 → 2 → 3: 1,000ms safe warning, 1,200ms half-heart flames, 200ms safe cooling per circuit. Leaving an entrance apron starts the clock; returning to that apron permits observation. Room changes and retries reset it. Pause, hidden state, death and physical freezes suspend it without catch-up. Checkpoints are on permanent ground at rooms 1, 3, 5, 7, 9, 11 and the arena entrance.
+
+Schema 5 preserves earlier chapters, migrates untouched old Chapter 5 saves to room 1 and released/cleared saves to Franklin, and keeps completed saves complete. Replay returns to room 1. The arena entry banks earned ultimate charge; boss retries restore that bank instead of spent combat charge. Warden is intentionally preserved for a later level and has no current campaign, menu, URL or debug route.
 
 The presentation uses twelve tight alpha frames in two unchanged generated atlases. Width is 66 world pixels with per-frame aspect preserved, small eased squash and a visible-bottom origin. The logical 46×40 combat bounds, movement speeds, pounce arc, frozen aim, projectile rhythm/trajectory, low 60×28 wave, and 44×140 active pillars are unchanged. `FranklinPresentation` writes into one reusable sample; the existing Franklin update owns its clock and attachments.
 

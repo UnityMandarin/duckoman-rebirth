@@ -1,3 +1,6 @@
+import { FURNACE_TYPOGRAPHY } from '../systems/FurnaceTypography';
+import {FURNACE_BOSS_CHECKPOINT} from '../data/furnace';
+import {addFurnaceBackdrop,updateFurnaceBackdrop,type FurnaceBackdrop} from '../systems/FurnaceArt';
 import Phaser from 'phaser';
 import {Player} from '../entities/Player';
 import {BasicEnemy} from '../entities/BasicEnemy';
@@ -11,6 +14,7 @@ import {setupRenderScale} from '../systems/renderScale';
 import {registerFranklinFrames,parseFranklinBeat,maskFranklinInput,FRANKLIN_POSES,type FranklinBeat} from '../systems/FranklinPresentation';
 import {registerCommonFrames} from './CommonAssets';
 import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
+import {registerFurnaceFrames} from '../systems/FurnaceArt';
 import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign,releaseRescue,clearRescue,completeRescue,replayRescue} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible,debugModeOn,debugToggle,resetCampaignRunEligibility} from '../systems/debug/debugSettings';
@@ -25,62 +29,57 @@ interface RescueStart {bossBeat?:FranklinBeat;devPreview?:boolean;bossPreview?:b
 interface EnemyRuntime {enemy:BasicEnemy;colliders:Phaser.Physics.Arcade.Collider[];}
 
 export class RescueScene extends Phaser.Scene {
- private player!:Player;private controls!:InputController;private hud!:ChapterHud;private cake!:ThrowableObject;
+ private backdrop?:FurnaceBackdrop;private player!:Player;private controls!:InputController;private hud!:ChapterHud;private cake!:ThrowableObject;
  private enemies:EnemyRuntime[]=[];private platforms:Ledge[]=[];private terrain!:Phaser.Physics.Arcade.StaticGroup;
  private franklin!:Phaser.GameObjects.Image;private chains:Phaser.GameObjects.Image[]=[];private seal!:Phaser.GameObjects.Rectangle;private exitGate!:Phaser.GameObjects.Rectangle;private sealDoor!:IdentityDoor;private exitDoor!:IdentityDoor;
- private objective!:Phaser.GameObjects.Text;private status!:Phaser.GameObjects.Text;private story!:Phaser.GameObjects.Text;private storyUntil=0;private compass!:Phaser.GameObjects.Text;
+ private objective!:Phaser.GameObjects.Image;private status!:Phaser.GameObjects.Image;private story!:Phaser.GameObjects.Image;private storyUntil=0;private compass!:Phaser.GameObjects.Image;
  private pendingGraphics:Phaser.GameObjects.Graphics[]=[];private pendingPortals:Phaser.GameObjects.Image[]=[];private pendingGeometry:(string|undefined)[]=[];private waves:RescueWaveController=createRescueWaveController();private stage:RescueStage='chained';private authorization:UltimateReleaseAuthorization={armed:false,consumed:false};private persistedCharge=0;
  private fox?:FranklinFox;private readonly spentSwings=new WeakSet<UltimateStrike>();private devPreview=false;private bossBeat?:FranklinBeat;private leaving=false;private dying=false;private ending=false;private pagehide=()=>this.saveCampaign();private menuKey=(event?:KeyboardEvent)=>{if(event?.repeat)return;this.openMenu();};private readonly ultimateStrike=(strike:UltimateStrike)=>{if(strike.player!==this.player||!strike.player.usingUltimate||this.spentSwings.has(strike))return;this.spentSwings.add(strike);const source=strike.player,used=consumeFranklinUltimate(this.authorization,{stage:this.stage,playerX:source.body.center.x,playerY:source.body.center.y,franklinX:540});this.authorization=used.authorization;if(used.released)this.releaseFranklin();};
- constructor(){super('rescue');}
+ constructor(){super('rescue-boss');}
  preload():void {
   preloadSceneAssets(this,'rescue');
   preloadChapterIdentity(this,'rescue');
-  const text=this.add.text(320,200,'',{fontFamily:'Georgia',fontSize:'16px',color:'#d8c59c'}).setOrigin(.5).setScrollFactor(0);
-  this.load.once('complete',()=>text.destroy());
  }
  create(data:RescueStart={}):void {
-  registerCommonFrames(this);registerSharedPropFrames(this);registerChapterHudFrames(this);registerChapterIdentity(this,'rescue');this.addFrame('franklin-asleep','visible',95,168,1588,570);this.addFrame('franklin-fire-fox','visible',70,208,1095,838);this.addFrame('franklin-control-chip','visible',42,86,1038,1173);
+  registerCommonFrames(this);registerSharedPropFrames(this);registerChapterHudFrames(this);registerChapterIdentity(this,'rescue');registerFurnaceFrames(this);this.addFrame('franklin-asleep','visible',95,168,1588,570);this.addFrame('franklin-fire-fox','visible',70,208,1095,838);this.addFrame('franklin-control-chip','visible',42,86,1038,1173);
   this.addFrame('franklin-pounce-trail','visible',67,384,1433,293);this.addFrame('franklin-fireball','visible',115,293,1019,669);this.addFrame('franklin-tail-wave','visible',85,108,1704,644);
   this.addFrame('franklin-flame-pillar','visible',235,33,518,1529);this.addFrame('franklin-wall-impact','visible',90,98,1077,1031);this.addFrame('franklin-chip-charge','visible',34,204,1816,376);this.addRescueFrames();registerFranklinFrames(this);
-  this.devPreview=!!data.devPreview||!!this.registry.get('devPreview');this.bossBeat=parseFranklinBeat(data.bossBeat,{local:import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname),devPreview:this.devPreview,bossPreview:!!data.bossPreview});this.leaving=false;this.dying=false;this.ending=false;this.authorization={armed:false,consumed:false};this.waves=createRescueWaveController();this.enemies=[];this.pendingGraphics=Array.from({length:3},()=>this.add.graphics().setDepth(7).setVisible(false));this.pendingPortals=Array.from({length:3},()=>this.add.image(0,0,'quality-concept-props','rescue-violet-portal').setDisplaySize(48,58).setDepth(6).setVisible(false));this.pendingGeometry=Array.from({length:3},()=>undefined);this.fox=undefined;
+  this.devPreview=!!data.devPreview||!!this.registry.get('devPreview');this.bossBeat=parseFranklinBeat(data.bossBeat,{local:import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname),devPreview:this.devPreview,bossPreview:!!data.bossPreview});this.leaving=false;this.dying=false;this.ending=false;this.authorization={armed:false,consumed:false};this.waves=createRescueWaveController();this.enemies=[];this.pendingGraphics=[];this.pendingPortals=[];this.pendingGeometry=[];this.fox=undefined;
   if(!this.devPreview&&!loadProgress().unlocked.includes('rescue')){this.scene.start('menu');return;}
-  const saved=loadProgress();let record=rescueEntryRecord({devPreview:this.devPreview,retry:data.retry,bossPreview:data.bossPreview,checkpoint:data.checkpoint,charge:data.ultimateCharge,opened:data.opened,bossDefeated:data.bossDefeated,saved:saved.chapters.rescue});
-  let currentStage=rescueStage(record);
-  const startCheckpoint=record.checkpoint;
-  const entryCharge=rescueEntryCharge(currentStage,startCheckpoint,record.charge);this.persistedCharge=record.charge;
-  if(!this.devPreview&&currentStage==='chained'&&startCheckpoint===0){record={...record,checkpoint:rescueEntryCheckpoint(currentStage),charge:0};this.persistChapter(record);}
-  else if(!this.devPreview&&currentStage==='chained'&&record.checkpoint!==180){record={...record,checkpoint:180,charge:entryCharge};this.persistChapter(record);}
-  this.stage=currentStage;this.physics.world.resume();this.physics.world.setBounds(0,-120,2000,680);this.cameras.main.setBounds(0,-100,2000,560).setBackgroundColor(0x07141b);
-  const prison=this.textures.get('quality-rescue-prison'),h=650;this.add.image(0,360-h,'quality-rescue-prison','background').setOrigin(0).setDisplaySize(2000,h).setDepth(-20);
+  const saved=loadProgress(),savedRecord=saved.chapters.rescue;
+  this.persistedCharge=data.ultimateCharge??savedRecord.charge;
+  this.stage=(data.bossDefeated??savedRecord.bossDefeated)?'cleared':'released';
+  const entryCharge=this.persistedCharge;
+  this.physics.world.resume();this.physics.world.setBounds(0,-120,2000,680);this.cameras.main.setBounds(0,-100,2000,560).setBackgroundColor(0x160d0b);
+  this.backdrop=addFurnaceBackdrop(this,0,2000,360);
   this.terrain=this.physics.add.staticGroup();const floor=this.add.rectangle(1000,380,2000,40,0x111a20,0);this.physics.add.existing(floor,true);this.terrain.add(floor);addIdentityFloor(this,'rescue',{x:1000,top:360,width:2000,height:240,frame:'cap-a'});
   this.addRescueSigns();
   this.platforms=[{x:1000,y:380,width:2000,height:40},{x:260,y:276,width:180,height:32},{x:960,y:276,width:200,height:32},{x:1450,y:266,width:200,height:32}];
   for(const [index,p] of this.platforms.slice(1).entries()){const body=this.add.rectangle(p.x,p.y,p.width,p.height,0x102027,0);this.physics.add.existing(body,true);this.terrain.add(body);addIdentityBlock(this,'rescue',{x:p.x,top:p.y-16,width:p.width,height:48,frame:platformVisual('rescue',0,index)});}
-  const spawn=this.stage==='chained'?180:540;
+  const spawn=540;
   this.player=new Player(this,spawn,330);this.player.infiniteHealth=!!data.infiniteHealth;this.player.health=3;this.player.ultimateCharge=entryCharge;this.physics.add.collider(this.player.sprite,this.terrain);
   this.cake=new ThrowableObject(this,spawn+70,325);this.physics.add.collider(this.cake.sprite,this.terrain);
   this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.isIdle)this.cake.carry(this.player);});
   this.controls=new InputController(this);this.hud=new ChapterHud(this,this.player);
   this.events.on('ultimate-strike',this.ultimateStrike);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off('ultimate-strike',this.ultimateStrike));
   this.franklin=this.add.image(540,360,'franklin-asleep','visible').setOrigin(.5,1).setDisplaySize(150,150*570/1588).setDepth(8).setVisible(this.stage!=='released');
-  this.chains=[];if(this.stage==='chained')this.drawChains();
-  this.seal=this.add.rectangle(1180,180,46,360,0x263846,0);this.seal.setVisible(false);this.seal.setStrokeStyle(0,0x8a9b9e,0);this.seal.setDepth(12);this.physics.add.existing(this.seal,true);this.sealDoor=addIdentityDoor(this,'rescue',{x:1180,ground:360,width:46,height:360,opened:this.stage!=='chained'});this.sealDoor.frame.setDisplaySize(132,376);if(this.stage==='chained')this.physics.add.collider(this.player.sprite,this.seal);else{(this.seal.body as Phaser.Physics.Arcade.StaticBody).enable=false;}
+  this.chains=[];
+  this.seal=this.add.rectangle(1180,180,46,360,0x263846,0);this.seal.setVisible(false);this.seal.setStrokeStyle(0,0x8a9b9e,0);this.seal.setDepth(12);this.physics.add.existing(this.seal,true);this.sealDoor=addIdentityDoor(this,'rescue',{x:1180,ground:360,width:46,height:360,opened:true});this.sealDoor.frame.setDisplaySize(132,376);(this.seal.body as Phaser.Physics.Arcade.StaticBody).enable=false;
   this.physics.add.collider(this.cake.sprite,this.seal);
   this.exitGate=this.add.rectangle(1960,180,52,360,0x233a40,0);this.exitGate.setVisible(false);this.exitGate.setStrokeStyle(0,0x8eb3a6,0);this.exitDoor=addIdentityDoor(this,'rescue',{x:1960,ground:360,width:52,height:360,opened:this.stage==='cleared'});this.exitDoor.frame.setDisplaySize(132,376);this.physics.add.existing(this.exitGate,true);if(this.stage==='cleared')(this.exitGate.body as Phaser.Physics.Arcade.StaticBody).enable=false;this.physics.add.collider(this.player.sprite,this.exitGate);this.physics.add.collider(this.cake.sprite,this.exitGate);
-  this.objective=this.add.text(320,91,'',{fontFamily:'Georgia',fontSize:'10px',color:'#e4d1a8',stroke:'#071019',strokeThickness:3,align:'center',wordWrap:{width:500}}).setOrigin(.5).setScrollFactor(0).setDepth(62);
-  this.status=this.add.text(402,65,'',{fontFamily:'Georgia',fontSize:'9px',color:'#8ee0d8',stroke:'#071019',strokeThickness:2}).setScrollFactor(0).setDepth(62);
-  this.story=this.add.text(320,116,'',{fontFamily:'Georgia',fontSize:'13px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:510}}).setOrigin(.5,0).setScrollFactor(0).setDepth(63);
-  this.compass=this.add.text(620,76,'→ EAST EXIT',{fontFamily:'Georgia',fontSize:'9px',color:'#b9c5c1',stroke:'#071019',strokeThickness:3}).setOrigin(1,0).setScrollFactor(0).setDepth(62);
-  this.add.text(540,330,'Z',{fontFamily:'Georgia',fontSize:'13px',color:'#e0e6db'}).setOrigin(.5).setDepth(11).setName('franklin-breath-z').setVisible(this.stage!=='released');
+  this.objective=this.add.image(320,91,'chapter5-typography','ready').setDisplaySize(FURNACE_TYPOGRAPHY['ready'].width/2,FURNACE_TYPOGRAPHY['ready'].height/2).setScrollFactor(0).setDepth(62).setVisible(false);
+  this.status=this.add.image(403,30,'furnace-utility','gear').setDisplaySize(16,16).setScrollFactor(0).setDepth(62).setVisible(false);
+  this.story=this.add.image(320,116,'chapter5-typography','rescue-copy').setDisplaySize(FURNACE_TYPOGRAPHY['rescue-copy'].width/2,FURNACE_TYPOGRAPHY['rescue-copy'].height/2).setScrollFactor(0).setDepth(63).setVisible(false);
+  this.compass=this.add.image(520,76,'chapter5-typography','east-exit').setDisplaySize(FURNACE_TYPOGRAPHY['east-exit'].width/2,FURNACE_TYPOGRAPHY['east-exit'].height/2).setOrigin(1,0).setScrollFactor(0).setDepth(62);
+  this.add.image(540,330,'chapter5-typography','sleep-z').setDisplaySize(FURNACE_TYPOGRAPHY['sleep-z'].width/2,FURNACE_TYPOGRAPHY['sleep-z'].height/2).setOrigin(.5).setDepth(11).setName('franklin-breath-z').setVisible(this.stage!=='released');
   const hudCamera=setupRenderScale(this,'rescue-hud');new SceneLayerRouter(this,hudCamera);
   addMenuControl(this,()=>this.openMenu());
   this.cameras.main.startFollow(this.player.sprite,false,.14,.12).setDeadzone(120,130).fadeIn(700);
   this.input.keyboard?.on('keydown-ESC',this.menuKey);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',this.menuKey));
   window.addEventListener('pagehide',this.pagehide);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>window.removeEventListener('pagehide',this.pagehide));
   if(this.hasPracticeAssist())markCampaignRunIneligible();
-  if(this.stage==='chained')this.player.ultimateCharge=entryCharge;
-  if(this.stage==='released')this.spawnFranklinBoss();else if(this.stage==='cleared'){this.franklin.setVisible(false);const z=this.children.getByName('franklin-breath-z');if(z instanceof Phaser.GameObjects.Text)z.setVisible(false);this.showFriendlyFranklin();this.removeChainsAndSeal();this.openEasternExit();}
-  this.updateStageText();this.saveCampaign();
+  if(this.stage==='released')this.spawnFranklinBoss();else if(this.stage==='cleared'){this.franklin.setVisible(false);const z=this.children.getByName('franklin-breath-z');if(z instanceof Phaser.GameObjects.Image)z.setVisible(false);this.showFriendlyFranklin();this.removeChainsAndSeal();this.openEasternExit();}
+  this.updateStageText();this.saveCampaign();if(this.stage==='released'){this.story.setVisible(true);this.time.delayedCall(3600,()=>this.story.setVisible(false));}
  }
  private addFrame(key:string,name:string,x:number,y:number,w:number,h:number):void {if(!this.textures.exists(key))return;const texture=this.textures.get(key);if(!texture.has(name))texture.add(name,0,x,y,w,h);}
  private addRescueFrames():void {this.addFrame('quality-rescue-prison','background',0,0,1672,680);}
@@ -88,15 +87,15 @@ export class RescueScene extends Phaser.Scene {
  private addRescueSigns():void {this.add.image(435,342,identityTexture('rescue'),'chain').setDisplaySize(12,22).setDepth(4);this.add.image(1750,336,identityTexture('rescue'),'door-leaf').setDisplaySize(18,28).setDepth(4);}
  private canPersist():boolean{return canPersistCampaign({devPreview:this.devPreview,infiniteHealth:this.player?.infiniteHealth,runEligible:campaignRunEligible()});}
  private persistChapter(record:{checkpoint:number;charge:number;opened:number[];bossDefeated:boolean}):void {if(this.devPreview||!this.canPersist())return;const p=loadProgress();saveProgress(updateChapter(p,'rescue',{checkpoint:record.checkpoint,charge:record.charge,opened:record.opened,secrets:[],discoveries:[],bossDefeated:record.bossDefeated}));this.persistedCharge=record.charge;}
- private saveCampaign():void {if(this.devPreview||this.leaving||!this.player||!this.canPersist())return;const p=loadProgress(),record={checkpoint:this.stage==='chained'?180:540,charge:this.stage==='chained'?this.player.ultimateCharge:0,opened:this.stage==='chained'?[]:[0],bossDefeated:this.stage==='cleared'};saveProgress(updateChapter(p,'rescue',{...record,secrets:[],discoveries:[]}));this.persistedCharge=record.charge;}
- private updateStageText():void {const chained=this.stage==='chained';this.objective.setVisible(chained);this.status.setVisible(false);this.story.setVisible(false);this.compass.setVisible(false);if(chained)this.objective.setText(this.player.ultimateCharge>=100?'U':'');}
+ private saveCampaign():void {if(this.devPreview||this.leaving||!this.player||!this.canPersist())return;const p=loadProgress();saveProgress(updateChapter(p,'rescue',{checkpoint:FURNACE_BOSS_CHECKPOINT,charge:this.persistedCharge,opened:[0],bossDefeated:this.stage==='cleared',secrets:[],discoveries:[]}));}
+ private updateStageText():void {const chained=this.stage==='chained';this.objective.setVisible(chained&&this.player.ultimateCharge>=100);this.status.setVisible(false);this.story.setVisible(false);this.compass.setVisible(false);}
  private spawnFranklinBoss():void {if(this.fox||this.stage!=='released')return;this.fox=new FranklinFox(this,this.player,()=>this.onFranklinRescued(),790,this.bossBeat);}
  private resolveFranklinCakeHit():boolean {if(!this.fox||!this.cake.isThrown||!this.fox.canBeHit()||!this.fox.overlapsCake(this.cake.sprite.x,this.cake.sprite.y,TUNING.throwable.radius)||!this.cake.registerEnemyHit())return false;return this.fox.damage('throw');}
  private showFriendlyFranklin():void {if(this.children.getByName('franklin-friendly'))return;this.add.image(540,360,'franklin-story-poses','friendly').setOrigin(.5,1).setDisplaySize(66,66*FRANKLIN_POSES.friendly.height/FRANKLIN_POSES.friendly.width).setDepth(13).setName('franklin-friendly');}
  private onFranklinRescued():void {if(this.stage==='cleared')return;this.stage='cleared';if(!this.devPreview&&this.canPersist())saveProgress(clearRescue(loadProgress()));this.removeChainsAndSeal();this.openEasternExit();this.updateStageText();}
  private removeChainsAndSeal():void {if(this.chains.length){for(const chain of this.chains)this.tweens.add({targets:chain,y:chain.y-26,angle:(chain.x-540)*.12,alpha:0,duration:520,ease:'Cubic.Out',onComplete:()=>chain.destroy()});this.chains=[];}if(this.sealDoor.leaf.visible)openIdentityDoor(this,'rescue',this.sealDoor,520);if(this.seal.body)(this.seal.body as Phaser.Physics.Arcade.StaticBody).enable=false;}
- private openEasternExit():void {if(this.exitDoor.leaf.visible)openIdentityDoor(this,'rescue',this.exitDoor,520);(this.exitGate.body as Phaser.Physics.Arcade.StaticBody).enable=false;const glow=this.add.image(1960,350,'quality-concept-props','rescue-violet-portal').setDisplaySize(78,100).setDepth(6).setAlpha(.55);this.tweens.add({targets:glow,alpha:.25,duration:800,yoyo:true,repeat:-1});}
- private releaseFranklin():void {if(this.stage!=='chained')return;this.stage='released';if(!this.devPreview&&this.canPersist())saveProgress(releaseRescue(loadProgress()));this.persistedCharge=0;this.player.ultimateCharge=0;this.player.health=3;this.removeChainsAndSeal();this.clearSentries();this.waves=createRescueWaveController();this.franklin.setVisible(false);const z=this.children.getByName('franklin-breath-z');if(z instanceof Phaser.GameObjects.Text)z.setVisible(false);this.spawnFranklinBoss();this.updateStageText();}
+ private openEasternExit():void {if(this.exitDoor.leaf.visible)openIdentityDoor(this,'rescue',this.exitDoor,520);(this.exitGate.body as Phaser.Physics.Arcade.StaticBody).enable=false;const glow=this.add.image(1960,350,'quality-concept-props','rescue-violet-portal').setDisplaySize(78,100).setDepth(6).setTint(0xffb64b).setAlpha(.55);this.tweens.add({targets:glow,alpha:.25,duration:800,yoyo:true,repeat:-1});}
+ private releaseFranklin():void {if(this.stage!=='chained')return;this.stage='released';if(!this.devPreview&&this.canPersist())saveProgress(releaseRescue(loadProgress()));this.persistedCharge=0;this.player.ultimateCharge=0;this.player.health=3;this.removeChainsAndSeal();this.clearSentries();this.waves=createRescueWaveController();this.franklin.setVisible(false);const z=this.children.getByName('franklin-breath-z');if(z instanceof Phaser.GameObjects.Image)z.setVisible(false);this.spawnFranklinBoss();this.updateStageText();}
  private releaseEnemyColliders(runtime:EnemyRuntime):void {const colliders=runtime.colliders.splice(0);for(const collider of colliders)collider.destroy();}
  private clearSentries():void {for(const runtime of this.enemies){this.releaseEnemyColliders(runtime);runtime.enemy.defeat();}this.enemies=[];this.pendingGraphics.forEach(g=>{g.clear().setVisible(false);});this.pendingPortals.forEach(p=>p.setVisible(false));this.pendingGeometry.fill(undefined);this.waves=createRescueWaveController();}
  private spawnEnemy(spec:RescueSpawn):void {
@@ -120,12 +119,12 @@ export class RescueScene extends Phaser.Scene {
   this.syncPendingGraphics();
  }
  private interactEnemies(delta:number):void {for(const runtime of this.enemies){const e=runtime.enemy;if(e.defeated)continue;const awake=Math.abs(e.sprite.x-this.player.sprite.x)<850&&Math.abs(e.sprite.y-this.player.sprite.y)<650;e.setAwake(awake);if(!awake)continue;e.update(true,delta);e.body.setMaxVelocity(TUNING.enemy.moveSpeed*2.0736,TUNING.enemy.maxFallVelocity);e.body.setVelocityX(e.body.velocity.x*2.0736);e.checkDash(this.player);}}
- private completeExit():void {if(this.ending||this.stage!=='cleared'||this.bossBeat||this.fox?.cinematicLocked)return;this.ending=true;this.leaving=true;this.player.body.setVelocity(0,0);if(!this.devPreview&&this.canPersist())saveProgress(completeRescue(loadProgress()));this.physics.world.pause();this.add.rectangle(320,200,404,146,0x101722,.97).setStrokeStyle(2,0xc6a368).setScrollFactor(0).setDepth(75);this.add.image(277,177,'duckoman').setDisplaySize(46,42).setScrollFactor(0).setDepth(76);this.add.image(357,181,'franklin-story-poses','friendly').setDisplaySize(46,46*FRANKLIN_POSES.friendly.height/FRANKLIN_POSES.friendly.width).setScrollFactor(0).setDepth(76);this.add.image(320,163,'quality-chapter-hud','chapter-hud-heart-full').setDisplaySize(12,10).setScrollFactor(0).setDepth(76);const button=(x:number,label:string,action:()=>void)=>this.add.text(x,229,label,{fontSize:'10px',color:'#fff0cc',backgroundColor:'#352716',padding:{x:9,y:6}}).setOrigin(.5).setScrollFactor(0).setDepth(76).setInteractive({useHandCursor:true}).on('pointerdown',action);button(225,'MENU',()=>this.scene.start('menu'));button(415,'REPLAY',()=>this.replay());}
- private replay():void {this.physics.world.resume();let preview=this.devPreview;if(!preview){if(!this.hasPracticeAssist())resetCampaignRunEligibility();if(this.canPersist())saveProgress(replayRescue(loadProgress()));else preview=true;}this.scene.restart({devPreview:preview,retry:false,bossPreview:false,freshReplay:true,checkpoint:0,ultimateCharge:0,opened:[],bossDefeated:false});}
- private openMenu():boolean {if(this.ending){this.scene.start('menu');return true;}return requestPauseMenu(this,()=>this.saveCampaign(),'rescue');}
+ private completeExit():void {if(this.ending||this.stage!=='cleared'||this.bossBeat||this.fox?.cinematicLocked)return;this.ending=true;this.leaving=true;this.player.body.setVelocity(0,0);if(!this.devPreview&&this.canPersist())saveProgress(completeRescue(loadProgress()));this.physics.world.pause();this.add.image(320,200,'furnace-climax','panel').setDisplaySize(404,146).setScrollFactor(0).setDepth(75);this.add.image(320,128,'chapter5-typography','chapter-complete').setDisplaySize(FURNACE_TYPOGRAPHY['chapter-complete'].width/2,FURNACE_TYPOGRAPHY['chapter-complete'].height/2).setScrollFactor(0).setDepth(76);this.add.image(277,177,'duckoman').setDisplaySize(46,42).setScrollFactor(0).setDepth(76);this.add.image(357,181,'franklin-story-poses','friendly').setDisplaySize(46,46*FRANKLIN_POSES.friendly.height/FRANKLIN_POSES.friendly.width).setScrollFactor(0).setDepth(76);this.add.image(320,163,'quality-chapter-hud','chapter-hud-heart-full').setDisplaySize(12,10).setScrollFactor(0).setDepth(76);const button=(x:number,action:()=>void)=>this.add.image(x,229,'furnace-climax','panel').setDisplaySize(104,34).setScrollFactor(0).setDepth(76).setInteractive({useHandCursor:true}).on('pointerdown',action);button(225,()=>this.scene.start('menu'));button(415,()=>this.replay());this.add.image(225,229,'chapter5-typography','menu').setDisplaySize(FURNACE_TYPOGRAPHY['menu'].width/2,FURNACE_TYPOGRAPHY['menu'].height/2).setScrollFactor(0).setDepth(77);this.add.image(415,229,'chapter5-typography','replay').setDisplaySize(FURNACE_TYPOGRAPHY['replay'].width/2,FURNACE_TYPOGRAPHY['replay'].height/2).setScrollFactor(0).setDepth(77);}
+ private replay():void {this.physics.world.resume();let preview=this.devPreview;if(!preview){if(!this.hasPracticeAssist())resetCampaignRunEligibility();if(this.canPersist())saveProgress(replayRescue(loadProgress()));else preview=true;}this.scene.start('rescue',{devPreview:preview,retry:false,bossPreview:false,freshReplay:true,checkpoint:0,ultimateCharge:0,opened:[],bossDefeated:false});}
+ private openMenu():boolean {if(this.ending){this.scene.start('menu');return true;}return requestPauseMenu(this,()=>this.saveCampaign(),'rescue-boss');}
  update(_time:number,delta:number):void {
   if(!this.player||this.leaving||this.ending)return;const input=this.controls.read();if(document.visibilityState!=='visible'){this.fox?.update(delta,true);return;}const locked=!!this.bossBeat||!!this.fox?.cinematicLocked;if(locked){maskFranklinInput(input);this.player.body.setVelocityX(0);this.player.facing=(this.fox?.image.x??790)<this.player.body.center.x?-1:1;}if(input.godModePressed){markCampaignRunIneligible();this.player.infiniteHealth=!this.player.infiniteHealth;if(this.player.infiniteHealth)this.player.health=3;}if(this.hasPracticeAssist())markCampaignRunIneligible();
-  if(!this.player.active){if(!this.dying){this.dying=true;this.fox?.stopHazards();this.cake.drop();this.saveCampaign();this.physics.world.pause();const retry=rescueRetryRecord(this.stage,this.player.ultimateCharge);this.time.delayedCall(550,()=>this.scene.restart({devPreview:this.devPreview,retry:true,bossPreview:false,...retry,ultimateCharge:retry.charge,infiniteHealth:this.player.infiniteHealth}));}return;}
+  if(!this.player.active){if(!this.dying){this.dying=true;this.fox?.stopHazards();this.cake.drop();this.saveCampaign();this.physics.world.pause();const retry={checkpoint:FURNACE_BOSS_CHECKPOINT,charge:this.persistedCharge,opened:[0],bossDefeated:false};this.time.delayedCall(550,()=>this.scene.restart({devPreview:this.devPreview,retry:true,bossPreview:false,...retry,ultimateCharge:retry.charge,infiniteHealth:this.player.infiniteHealth}));}return;}
   this.hud.update();if(locked)this.player.body.setAllowGravity(true).setVelocityX(0);else this.player.update(input,delta);
   const acceptedU=input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100;
   if(acceptedU){if(this.stage==='chained')this.authorization=authorizeFranklinUltimate(this.authorization,true,this.player.ultimateCharge);this.hud.useUltimate();}
@@ -135,7 +134,8 @@ export class RescueScene extends Phaser.Scene {
   this.interactEnemies(delta);
   if(this.stage==='chained'&&this.player.ultimateCharge!==this.persistedCharge)this.saveCampaign();
   if(this.fox){this.fox.update(delta);this.fox.checkDash(this.player);this.resolveFranklinCakeHit();}
-  if(this.stage==='chained'){const breath=1+Math.sin(this.time.now*.003)*.025;this.franklin.setDisplaySize(150,150*570/1588*breath).setY(360);this.chains.forEach((chain,i)=>chain.setAngle(Math.sin(this.time.now*.002+i)*2));const franklinZ=this.children.getByName('franklin-breath-z') as Phaser.GameObjects.Text|undefined;franklinZ?.setAlpha(.35+.35*(1+Math.sin(this.time.now*.004))/2);const ready=this.player.ultimateCharge>=100?'U':'';if(this.objective.text!==ready)this.objective.setText(ready);}
+  if(this.stage==='chained'){const breath=1+Math.sin(this.time.now*.003)*.025;this.franklin.setDisplaySize(150,150*570/1588*breath).setY(360);this.chains.forEach((chain,i)=>chain.setAngle(Math.sin(this.time.now*.002+i)*2));const franklinZ=this.children.getByName('franklin-breath-z') as Phaser.GameObjects.Image|undefined;franklinZ?.setAlpha(.35+.35*(1+Math.sin(this.time.now*.004))/2);this.objective.setVisible(this.player.ultimateCharge>=100);}
+  if(this.backdrop&&!this.physics.world.isPaused)updateFurnaceBackdrop(this.backdrop,this.time.now);
   if(this.player.sprite.x>=1960)this.completeExit();
  }
  private hasPracticeAssist():boolean{return !!this.player?.infiniteHealth||debugModeOn()&&(['invincible','infiniteUltimate','infiniteJumps','infiniteDashes'] as const).some(toggle=>debugToggle(toggle));}

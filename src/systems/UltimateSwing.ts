@@ -33,6 +33,7 @@ function crescent(ctx:CanvasRenderingContext2D,from:number,to:number,thick:numbe
 }
 
 function ensureTextures(scene:Phaser.Scene):void {
+  if((scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss'))return;
   if(!scene.textures.exists(SLASH_KEY)) {
     const rows=Math.ceil(SWING.frames/COLS);
     const tex=scene.textures.createCanvas(SLASH_KEY,CELL_W*COLS,CELL_H*rows)!;
@@ -78,7 +79,8 @@ export interface HudSword {frame:Phaser.GameObjects.Image;fill:Phaser.GameObject
 function superFreeze(scene:Phaser.Scene,p:Player):void {
   const cam=scene.cameras.main;
   // World-space so the HUD camera's scroll-factor-0 layer doesn't draw it over the sword.
-  const dim=scene.add.rectangle(cam.midPoint.x,cam.midPoint.y,cam.width/cam.zoom*3,cam.height/cam.zoom*3,0x000000,.5).setDepth(43);
+  const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
+  const dim=chapterFive?scene.add.image(cam.midPoint.x,cam.midPoint.y,'furnace-backdrop').setDisplaySize(cam.width/cam.zoom*3,cam.height/cam.zoom*3).setTint(0x000000).setAlpha(.5).setDepth(43):scene.add.rectangle(cam.midPoint.x,cam.midPoint.y,cam.width/cam.zoom*3,cam.height/cam.zoom*3,0x000000,.5).setDepth(43);
   const depth=p.visual.depth;
   p.visual.setDepth(43.5);
   const releaseFreeze=beginUltimateFreeze(scene,p);
@@ -99,7 +101,8 @@ export function playUltimateSwing(scene:Phaser.Scene,p:Player,hud?:HudSword):voi
   const face=p.facing,hand={x:p.sprite.x+face*10,y:p.sprite.y-8};
   const start=scene.cameras.main.getWorldPoint(215*renderScale(),42*renderScale());
   const sword=createUltimateSwordVisual(scene,start.x,start.y,SWORD_LENGTH,SWORD_HEIGHT).setScale(HUD_SWORD_WIDTH/SWORD_LENGTH);
-  const slash=scene.add.image(hand.x,hand.y,SLASH_KEY,0).setOrigin(CENTER_X/CELL_W,CENTER_Y/CELL_H)
+  const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
+  const slash=chapterFive?scene.add.image(hand.x,hand.y,'furnace-climax','ultimate').setOrigin(.5,.5).setDisplaySize(520,480).setFlipX(face<0).setDepth(44).setVisible(false):scene.add.image(hand.x,hand.y,SLASH_KEY,0).setOrigin(CENTER_X/CELL_W,CENTER_Y/CELL_H)
     .setScale(face*TEX_SCALE,TEX_SCALE).setBlendMode(Phaser.BlendModes.ADD).setDepth(44).setVisible(false);
   scene.tweens.add({targets:sword,x:hand.x,y:hand.y,scaleX:face,scaleY:1,angle:bladeContainerAngle(face,SWING_START+20),duration:260,ease:'Cubic.InOut',onComplete:()=>{
     scene.tweens.add({targets:sword,angle:bladeContainerAngle(face,SWING_START),duration:110,ease:'Sine.easeOut',onComplete:()=>swing(scene,p,sword,slash,face,hand,hud)});
@@ -124,6 +127,7 @@ function throwBack(scene:Phaser.Scene,sword:Phaser.GameObjects.Container,face:nu
 }
 
 function swing(scene:Phaser.Scene,p:Player,sword:Phaser.GameObjects.Container,slash:Phaser.GameObjects.Image,face:number,hand:{x:number;y:number},hud?:HudSword):void {
+  const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
   let flashed=false,lastGhost=-1000;
   const strike=new UltimateStrike(p,hand,face,REACH,BLADE_HIT_RADIUS);
   slash.setVisible(true);
@@ -131,7 +135,7 @@ function swing(scene:Phaser.Scene,p:Player,sword:Phaser.GameObjects.Container,sl
     onUpdate:tween=>{
       const t=tween.getValue()??0,blade=bladeAt(t);
       sword.setAngle(bladeContainerAngle(face,blade));
-      if(slash.active)slash.setFrame(Math.min(SWING.sweepFrames-1,Math.floor(t*SWING.sweepFrames)));
+      if(slash.active){if(chapterFive)slash.setAlpha(.45+.5*Math.sin(t*Math.PI));else slash.setFrame(Math.min(SWING.sweepFrames-1,Math.floor(t*SWING.sweepFrames)));}
       if(scene.time.now-lastGhost>=24){lastGhost=scene.time.now;bladeGhost(scene,sword);}
       strike.sweepTo(blade);
       scene.events.emit('ultimate-strike',strike);
@@ -140,7 +144,7 @@ function swing(scene:Phaser.Scene,p:Player,sword:Phaser.GameObjects.Container,sl
     },
     onComplete:()=>{
       sparkles(scene,hand,face);
-      for(let i=0;i<SWING.frames-SWING.sweepFrames;i++)scene.time.delayedCall(i*40,()=>{if(slash.active)slash.setFrame(SWING.sweepFrames+i);});
+      if(!chapterFive)for(let i=0;i<SWING.frames-SWING.sweepFrames;i++)scene.time.delayedCall(i*40,()=>{if(slash.active)slash.setFrame(SWING.sweepFrames+i);});
       scene.time.delayedCall((SWING.frames-SWING.sweepFrames)*40,()=>{if(slash.active)slash.setVisible(false);});
       scene.time.delayedCall(THROW_HOLD,()=>{if(sword.active)throwBack(scene,sword,face,hud);});
     }});
@@ -155,10 +159,12 @@ function bladeGhost(scene:Phaser.Scene,sword:Phaser.GameObjects.Container):void 
 }
 
 function sparkles(scene:Phaser.Scene,hand:{x:number;y:number},face:number):void {
+  const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
   for(let i=0;i<16;i++) {
     const blade=Phaser.Math.Linear(SWING_START,SWING_END,Math.random())*DEG,r=REACH*Phaser.Math.FloatBetween(.55,1);
     const x=hand.x+face*Math.cos(blade)*r,y=hand.y+Math.sin(blade)*r;
-    const s=scene.add.image(x,y,SPARKLE_KEY).setBlendMode(Phaser.BlendModes.ADD).setDepth(46).setScale(Phaser.Math.FloatBetween(.6,1.4)).setAngle(Math.random()*90);
+    const s=chapterFive?scene.add.image(x,y,'furnace-utility','ember').setBlendMode(Phaser.BlendModes.ADD).setDepth(46).setDisplaySize(18,24).setAngle(Math.random()*90):scene.add.image(x,y,SPARKLE_KEY).setBlendMode(Phaser.BlendModes.ADD).setDepth(46).setScale(Phaser.Math.FloatBetween(.6,1.4)).setAngle(Math.random()*90);
+    if(chapterFive){const size=Phaser.Math.FloatBetween(.6,1.4);s.setScale(s.scaleX*size,s.scaleY*size);}
     scene.tweens.add({targets:s,x:x+face*Math.cos(blade)*40,y:y+Math.sin(blade)*40-20,angle:s.angle+90,alpha:0,scale:0,
       duration:Phaser.Math.Between(260,420),ease:'Cubic.easeOut',onComplete:()=>s.destroy()});
   }

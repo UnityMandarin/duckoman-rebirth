@@ -110,12 +110,12 @@ describe('Franklin Fox runtime', () => {
   });
   it('uses pooled image tail and cyan brace warnings with exact direction and cleanup',()=>{
     const f=fixture(),tail=f.fox['tailWarning'],brace=f.fox['resistanceWarning'],count=f.created.length;
-    expect((tail as any).texture).toBe('franklin-tail-warning');expect((brace as any).texture).toBe('franklin-resistance-warning');
+    expect((tail as any).texture).toBe('furnace-utility');expect((tail as any).frame).toBe('warning');expect((brace as any).texture).toBe('furnace-utility');expect((brace as any).frame).toBe('electric');
     for(const direction of [-1,1]){
       f.fox.controller={...createFranklinController(),phase:'tail-cue',direction,aimX:790};f.fox['draw']();
-      expect(tail.visible).toBe(true);expect(brace.visible).toBe(false);expect(tail.x).toBe(790);expect(tail.y).toBe(348);expect(tail.originX).toBe(0);expect(tail.width).toBe(180);expect(tail.height).toBe(6);expect(tail.rotation).toBe(direction<0?Math.PI:0);expect(tail.x+Math.cos(tail.rotation)*180).toBeCloseTo(790+direction*180);
+      expect(tail.visible).toBe(true);expect(brace.visible).toBe(false);expect(tail.x).toBe(790);expect(tail.y).toBe(348);expect(tail.originX).toBe(0);expect(tail.width).toBe(180);expect(tail.height).toBe(30);expect(tail.rotation).toBe(direction<0?Math.PI:0);expect(tail.x+Math.cos(tail.rotation)*180).toBeCloseTo(790+direction*180);
     }
-    f.fox.controller.phase='resistance';f.fox.image.x=1200;f.fox['draw']();expect(tail.visible).toBe(false);expect(brace.visible).toBe(true);expect(brace.x).toBe(1165);expect(brace.y).toBe(358);expect(brace.width).toBe(65);expect(brace.height).toBe(6);
+    f.fox.controller.phase='resistance';f.fox.image.x=1200;f.fox['draw']();expect(tail.visible).toBe(false);expect(brace.visible).toBe(true);expect(brace.x).toBe(1165);expect(brace.y).toBe(358);expect(brace.width).toBe(65);expect(brace.height).toBe(24);
     f.events.emit('pause');expect(brace.visible).toBe(false);expect(tail.visible).toBe(false);
     f.fox['inactive']=false;f.fox.controller.phase='tail-cue';f.fox['draw']();f.player.active=false;f.step();expect(tail.visible).toBe(false);expect(brace.visible).toBe(false);
     expect(f.created).toHaveLength(count);f.events.emit('shutdown');expect((tail as any).destroyed).toBe(true);expect((brace as any).destroyed).toBe(true);
@@ -127,7 +127,7 @@ describe('Franklin Fox runtime', () => {
   });
   it('crops authored image HP without rescaling and keeps intro text scoped and cleaned',()=>{
     const f=fixture(false,true);const fill=f.fox.healthFill as any;
-    for(const hp of [32,16,1]){f.fox.controller.hp=hp;f.fox['updateHud']();expect(fill.cropWidth).toBe(202*hp/32);expect(fill.width).toBe(202);}
+    for(const hp of [32,16,1]){f.fox.controller.hp=hp;f.fox['updateHud']();expect(fill.cropWidth).toBe(310*hp/32);expect(fill.width).toBe(202);}
     f.fox.controller.elapsed=400;f.fox['updateHud']();expect(f.fox['introText'].visible).toBe(true);expect(f.fox['introText'].alpha).toBe(1);
     f.fox.controller.elapsed=9700;f.fox['updateHud']();expect(f.fox['introText'].alpha).toBe(.5);
     f.fox.controller.phase='barrage-cue';f.fox['updateHud']();expect(f.fox['introText'].visible).toBe(false);
@@ -343,6 +343,12 @@ describe('Franklin Fox runtime', () => {
     expect(images.every(object => object.destroyed)).toBe(true);
   });
 
+  it('reuses the fixed Chapter 5 impact pool and destroys it on shutdown', () => {
+    const f=fixture(),pool=f.fox['imageFx'] as any[],created=f.created.length;
+    expect(pool).toHaveLength(16);expect(pool.every(image=>!image.visible)).toBe(true);
+    f.fox.controller={...createFranklinController(),phase:'safe-chip'};f.fox['draw']();expect(pool.some(image=>image.visible)).toBe(true);expect(f.created).toHaveLength(created);
+    f.events.emit('shutdown');expect(pool.every(image=>image.destroyed)).toBe(true);
+  });
   it('anchors the bright fireball core at the same mirrored center used for collision', () => {
     const f = fixture(false);
     f.fox.controller = { ...createFranklinController(), phase: 'barrage-cue', elapsed: 650, aimX: 1800, aimY: 320 };

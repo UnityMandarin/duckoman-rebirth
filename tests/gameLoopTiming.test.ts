@@ -14,6 +14,7 @@ vi.mock('../src/scenes/BootScene',()=>({BootScene:class{}}));
 vi.mock('../src/scenes/MenuScene',()=>({MenuScene:class{}}));
 vi.mock('../src/scenes/JournalScene',()=>({JournalScene:class{}}));
 vi.mock('../src/scenes/RouteSelectScene',()=>({RouteSelectScene:class{}}));
+vi.mock('../src/scenes/FurnaceScene',()=>({FurnaceScene:class{}}));
 vi.mock('../src/scenes/RescueScene',()=>({RescueScene:class{}}));
 
 import {gameConfig} from '../src/config/gameConfig';

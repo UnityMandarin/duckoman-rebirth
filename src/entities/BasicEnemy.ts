@@ -24,7 +24,8 @@ export class BasicEnemy extends Dashable {
   private maxHp=1;
   private readonly healthImage?:Phaser.GameObjects.Image;
   private readonly healthLabel?:Phaser.GameObjects.Text;
-  private readonly healthEmpty?:Phaser.GameObjects.Graphics;
+  private readonly healthTitle?:Phaser.GameObjects.Image;
+  private readonly healthEmpty?:Phaser.GameObjects.Image|Phaser.GameObjects.Graphics;
   readonly pointed: boolean;
   readonly jumper: boolean;
   private readonly cleanup:()=>void;
@@ -53,8 +54,10 @@ export class BasicEnemy extends Dashable {
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, skin??(pointed?'spike-robot':jumper?'jumper-robot':'robot')).setDepth(5);
     this.healthImage=scene.add.image(x,y-64,'robot-health').setDisplaySize(108,36).setDepth(12);
-    this.healthEmpty=scene.add.graphics().setDepth(13);
-    this.healthLabel=scene.add.text(x,y-84,'1 / 1 HP',{fontFamily:'Arial',fontSize:this.isAnimal?'9px':'11px',color:'#fff2dc',stroke:'#07111f',strokeThickness:this.isAnimal?2:3}).setOrigin(.5,this.isAnimal ? 0.5 : 1).setDepth(14);
+    const chapterFive=scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss';
+    this.healthEmpty=chapterFive?scene.add.image(x,y-64,'furnace-utility','vent').setDisplaySize(67,6).setDepth(13).setVisible(false):scene.add.graphics().setDepth(13);
+    this.healthLabel=scene.add.text(x,y-84,chapterFive?'1 / 1':'1 / 1 HP',{fontFamily:'Arial',fontSize:this.isAnimal?'9px':'11px',color:'#fff2dc',stroke:'#07111f',strokeThickness:this.isAnimal?2:3}).setOrigin(.5,this.isAnimal ? 0.5 : 1).setDepth(14);
+    this.healthTitle=chapterFive?scene.add.image(x+25,y-84,'chapter5-typography','hp').setDisplaySize(14,10).setDepth(14):undefined;
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.enemy.bodyWidth, TUNING.enemy.bodyHeight);
@@ -106,7 +109,7 @@ export class BasicEnemy extends Dashable {
     if(this.awake===awake)return;
     this.awake=awake;
     this.body.setEnable(awake);this.visual.setVisible(awake);
-    this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
+    this.healthTitle?.setVisible(awake);this.healthImage?.setVisible(awake);this.healthLabel?.setVisible(awake);this.healthEmpty?.setVisible(awake);
     if(this.skin==='thorn-boar'){
       this.boarState=resetBoarPause(this.boarState);this.direction=this.boarState.direction;this.visual.setFlipX(this.facingDirection<0);this.boarTell=false;this.animalClockMs=0;this.body.setVelocityX(0);
     }
@@ -236,21 +239,22 @@ export class BasicEnemy extends Dashable {
     this.defeated = true;
     this.cleanup();
     this.onDefeated?.();
-    this.healthImage?.destroy();this.healthLabel?.destroy();this.healthEmpty?.destroy();
+    this.healthImage?.destroy();this.healthLabel?.destroy();this.healthTitle?.destroy();this.healthEmpty?.destroy();
     this.sprite.scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     this.sprite.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.cleanup);
     this.body.setEnable(false);
     this.sprite.setVisible(false);
     const scene=this.sprite.scene,x=this.visual.x,y=this.visual.y;
-    const cracks=scene.add.graphics().setDepth(15).lineStyle(2,0xffd576)
+    const chapterFive=(this.sprite.scene.sys?.settings?.key==='rescue'||this.sprite.scene.sys?.settings?.key==='rescue-boss');
+    const cracks=chapterFive?scene.add.image(x,y,'furnace-utility','cracks').setDisplaySize(48,52).setDepth(15):scene.add.graphics().setDepth(15).lineStyle(2,0xffd576)
       .lineBetween(x-20,y-24,x+4,y-4).lineBetween(x+4,y-4,x-8,y+15).lineBetween(x+4,y-4,x+25,y+8);
     const shove=impulse?{x:impulse.x*.05,y:impulse.y*.05}:{x:0,y:0};
     scene.tweens.add({targets:[this.visual,cracks],alpha:0,x:`+=${shove.x}`,y:`+=${shove.y}`,duration:120,onComplete:()=>{this.visual.destroy();cracks.destroy();}});
     const gears=[];
     for(let i=0;i<7;i++){
-      const gear=scene.add.graphics().setPosition(x,y).setDepth(15);
-      gear.fillStyle(i%2?0xa88348:0x788896).fillCircle(0,0,this.skin?3:5).fillStyle(0x162231).fillCircle(0,0,2);
-      if(!this.skin)for(let j=0;j<8;j++){const a=j*Math.PI/4;gear.fillStyle(0xa88348).fillRect(Math.cos(a)*5-1,Math.sin(a)*5-1,3,3);}
+      const gear:Phaser.GameObjects.Image|Phaser.GameObjects.Graphics=chapterFive?scene.add.image(x,y,'furnace-utility','gear').setDisplaySize(this.skin?10:16,this.skin?10:16).setDepth(15):scene.add.graphics().setPosition(x,y).setDepth(15);
+      if(!chapterFive){const graphics=gear as Phaser.GameObjects.Graphics;graphics.fillStyle(i%2?0xa88348:0x788896).fillCircle(0,0,this.skin?3:5).fillStyle(0x162231).fillCircle(0,0,2);
+       if(!this.skin)for(let j=0;j<8;j++){const a=j*Math.PI/4;graphics.fillStyle(0xa88348).fillRect(Math.cos(a)*5-1,Math.sin(a)*5-1,3,3);}}
       gears.push(gear);
     }
     scatterDebris(scene,gears,impulse);
@@ -269,9 +273,11 @@ export class BasicEnemy extends Dashable {
     this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035) + (this.skin==='thorn-boar'&&this.boarTell?-0.075:0));
     this.maxHp=Math.max(this.maxHp,this.hp);
     const barY=this.visual.y-this.visual.displayHeight/2-20;
+    const chapterFive=(this.sprite.scene.sys?.settings?.key==='rescue'||this.sprite.scene.sys?.settings?.key==='rescue-boss');
     this.healthImage?.setPosition(this.sprite.x,barY);
-    this.healthLabel?.setPosition(this.isAnimal?this.sprite.x+11:this.sprite.x,this.isAnimal?barY+2:barY-19).setText(`${this.hp} / ${this.maxHp} HP`);
-    this.healthEmpty?.clear();
-    if(this.hp<this.maxHp)this.healthEmpty?.fillStyle(0x08131b,.95).fillRect(this.sprite.x-23+67*this.hp/this.maxHp,barY-1,67*(1-this.hp/this.maxHp),6);
+    this.healthLabel?.setPosition(this.isAnimal?this.sprite.x+11:this.sprite.x,this.isAnimal?barY+2:barY-19).setText(chapterFive?`${this.hp} / ${this.maxHp}`:`${this.hp} / ${this.maxHp} HP`);
+    this.healthTitle?.setPosition(this.isAnimal?this.sprite.x+36:this.sprite.x+25,this.isAnimal?barY+1:barY-25);
+    if(this.healthEmpty){if(chapterFive){const image=this.healthEmpty as Phaser.GameObjects.Image,depleted=this.hp<this.maxHp;image.setVisible(depleted).setPosition(this.sprite.x-23+67*this.hp/this.maxHp+67*(1-this.hp/this.maxHp)/2,barY+2).setDisplaySize(67*(1-this.hp/this.maxHp),6).setTint(0x211b20);}
+      else {const g=this.healthEmpty as Phaser.GameObjects.Graphics;g.clear();if(this.hp<this.maxHp)g.fillStyle(0x08131b,.95).fillRect(this.sprite.x-23+67*this.hp/this.maxHp,barY-1,67*(1-this.hp/this.maxHp),6);}}
   }
 }

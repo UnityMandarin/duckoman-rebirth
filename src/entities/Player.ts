@@ -11,6 +11,7 @@ import { hitSpark } from '../systems/HitSpark';
 import { debugToggle } from '../systems/debug/debugSettings';
 import { ownedRelics, relicAirJumps } from '../systems/relics';
 import { airJumpShockwave } from '../systems/AirJumpShockwave';
+import { CHAPTER5_DASH_ART_SIZE } from '../systems/FurnaceArt';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -20,7 +21,7 @@ export class Player {
   readonly body: Phaser.Physics.Arcade.Body;
   /** Invisible zone whose circular body is the dash hitbox. */
   readonly dashHitboxZone: Phaser.GameObjects.Zone;
-  private readonly dashEffect: Phaser.GameObjects.Graphics;
+  private readonly dashEffect: Phaser.GameObjects.Image|Phaser.GameObjects.Graphics;
   readonly jumpAssist = new JumpAssist();
   readonly abilities = new PlayerAbilities({ dashCooldown: TUNING.player.dashCooldown });
   lifeState: PlayerLifeState = 'ACTIVE';
@@ -63,7 +64,8 @@ export class Player {
     this.dashHitboxBody.setCircle(radius).setAllowGravity(false).setEnable(false);
     tagBody(this.sprite, 'hurtbox');
     tagBody(this.dashHitboxZone, 'attack');
-    this.dashEffect = scene.add.graphics().setDepth(9.5).setVisible(false);
+    const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
+    this.dashEffect = chapterFive?scene.add.image(x,y,'furnace-utility','dash').setDepth(9.5).setVisible(false):scene.add.graphics().setDepth(9.5).setVisible(false);
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
   }
@@ -219,40 +221,20 @@ export class Player {
   }
 
   private drawDashEffect(dashing: boolean, now: number): void {
-    const g = this.dashEffect.clear().setVisible(dashing);
+    const g = this.dashEffect.setVisible(dashing);
     if (!dashing) return;
-    // Drawn along +x, then rotated to the dash direction.
-    g.setPosition(this.body.center.x, this.body.center.y).setRotation(this.facing < 0 ? Math.PI : 0);
+    if(g instanceof Phaser.GameObjects.Graphics){
+      g.clear();g.setPosition(this.body.center.x,this.body.center.y).setRotation(this.facing<0?Math.PI:0);
+      const linear=Phaser.Math.Clamp((now-this.dashStartedAt)/(TUNING.player.dashDuration*.5),0,1),grow=1-(1-linear)**3,width=.4+.6*grow;
+      g.fillStyle(0xffc93c,.28*grow).fillTriangle(16,-30*width,16,30*width,16-126*grow,0);g.fillStyle(0xfff4c4,.5*grow).fillTriangle(12,-19*width,12,19*width,12-90*grow,0);
+      const radius=TUNING.player.dashHitboxRadius*grow*(1+.03*Math.sin(now*.03));g.fillStyle(0xffc93c,.12*grow).slice(0,0,radius,-Math.PI/2,Math.PI/2).fillPath();
+      const bands:[number,number,number,number,number][]=[[0xffb020,.6,0,15,1],[0xffe27a,.85,2,9,.84],[0xfffbe8,1,3,4,.64]];for(const[color,alpha,inset,thickness,span]of bands)g.fillStyle(color,alpha*grow).fillPoints(this.crescentPoints(radius-inset*grow,thickness*grow,span*Math.PI/2),true);
+      for(let i=0;i<5;i++){const phase=(now*.004+i*.2)%1,angle=(i-2)*.32+Math.sin(now*.017+i)*.06,r=radius+2+phase*10,len=(8-phase*6)*grow,cos=Math.cos(angle),sin=Math.sin(angle);g.fillStyle(i%2?0xfffbe8:0xffc93c,(1-phase)*grow).fillTriangle(r*cos-sin*1.5,r*sin+cos*1.5,r*cos+sin*1.5,r*sin-cos*1.5,(r+len)*cos,(r+len)*sin);}
+      for(let i=0;i<4;i++){const phase=(now*.006+i*.37)%1,start=-26-phase*34*grow;g.lineStyle(2,i%2?0xffffff:0xffe27a,.85*(1-phase*.7)*grow).lineBetween(start,(-24+i*15)*width,start-(22+(i%2)*16)*grow,(-24+i*15)*width);}return;
+    }
     const linear = Phaser.Math.Clamp((now - this.dashStartedAt) / (TUNING.player.dashDuration * 0.5), 0, 1);
     const grow = 1 - (1 - linear) ** 3;
-    const width = 0.4 + 0.6 * grow;
-    g.fillStyle(0xffc93c, 0.28 * grow).fillTriangle(16, -30 * width, 16, 30 * width, 16 - 126 * grow, 0);
-    g.fillStyle(0xfff4c4, 0.5 * grow).fillTriangle(12, -19 * width, 12, 19 * width, 12 - 90 * grow, 0);
-    const radius = TUNING.player.dashHitboxRadius * grow * (1 + 0.03 * Math.sin(now * 0.03));
-    g.fillStyle(0xffc93c, 0.12 * grow).slice(0, 0, radius, -Math.PI / 2, Math.PI / 2).fillPath();
-    const bands: [number, number, number, number, number][] = [
-      [0xffb020, 0.6, 0, 15, 1],
-      [0xffe27a, 0.85, 2, 9, 0.84],
-      [0xfffbe8, 1, 3, 4, 0.64],
-    ];
-    for (const [color, alpha, inset, thickness, span] of bands) {
-      g.fillStyle(color, alpha * grow).fillPoints(this.crescentPoints(radius - inset * grow, thickness * grow, span * Math.PI / 2), true);
-    }
-    for (let i = 0; i < 5; i++) {
-      const phase = (now * 0.004 + i * 0.2) % 1;
-      const angle = (i - 2) * 0.32 + Math.sin(now * 0.017 + i) * 0.06;
-      const r = radius + 2 + phase * 10;
-      const len = (8 - phase * 6) * grow;
-      const cos = Math.cos(angle), sin = Math.sin(angle);
-      g.fillStyle(i % 2 ? 0xfffbe8 : 0xffc93c, (1 - phase) * grow)
-        .fillTriangle(r * cos - sin * 1.5, r * sin + cos * 1.5, r * cos + sin * 1.5, r * sin - cos * 1.5, (r + len) * cos, (r + len) * sin);
-    }
-    for (let i = 0; i < 4; i++) {
-      const phase = (now * 0.006 + i * 0.37) % 1;
-      const start = -26 - phase * 34 * grow;
-      g.lineStyle(2, i % 2 ? 0xffffff : 0xffe27a, 0.85 * (1 - phase * 0.7) * grow)
-        .lineBetween(start, (-24 + i * 15) * width, start - (22 + (i % 2) * 16) * grow, (-24 + i * 15) * width);
-    }
+    const baseX=CHAPTER5_DASH_ART_SIZE.width/339,baseY=CHAPTER5_DASH_ART_SIZE.height/324;g.setPosition(this.body.center.x,this.body.center.y).setFlipX(this.facing<0).setScale(baseX*(.35+.65*grow),baseY*(.6+.4*grow)).setAlpha(.28+.65*grow).setRotation(0);
   }
 
   private crescentPoints(radius: number, thickness: number, span: number): Phaser.Math.Vector2[] {
@@ -285,7 +267,8 @@ export class Player {
     const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
     if(moving && this.sprinting && now-this.lastSweatAt>160){
       this.lastSweatAt=now;
-      const drop=this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,feet-48,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
+      const chapterFive=this.sprite.scene.sys?.settings?.key==='rescue'||this.sprite.scene.sys?.settings?.key==='rescue-boss';
+      const drop=chapterFive?this.sprite.scene.add.image(this.sprite.x-this.facing*15,feet-48,'furnace-utility','ember').setDepth(11).setDisplaySize(9,12).setTint(0xa9e7ef).setAlpha(.8).setRotation(-this.facing*.4):this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,feet-48,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
       this.sprite.scene.tweens.add({targets:drop,x:drop.x-this.facing*22,y:drop.y+20,alpha:0,duration:360,onComplete:()=>drop.destroy()});
     }
     const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);

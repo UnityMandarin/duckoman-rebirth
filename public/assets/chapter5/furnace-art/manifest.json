@@ -1,0 +1,16 @@
+{
+  "tool": "Built-in imagegen",
+  "direction": "Authored painterly 2.5D charcoal masonry, black iron, crimson enamel, brass and amber furnace light. Existing Duckoman identity art remains standard.",
+  "prompts": {
+    "backdrop": "Seamless horizontal industrial furnace prison background; charcoal masonry, black iron, crimson enamel, brass machinery, recessed amber furnace light. Straight-on game art. No foreground platforms, characters or text. Low contrast readable background.",
+    "lavaBasin": "Seamless horizontal painterly deep lava basin; cracked charcoal basalt crust with irregular flowing molten amber and crimson channels. Side view, no objects, characters or text. Tiled in fixed authored level-world pools beneath the surface.",
+    "lavaSurface": "Wide horizontal game texture with a clearly readable bright orange-yellow bubbling surface at the top border and dark molten volcanic depth below. No text. Fixed world-space lethal surface art.",
+    "lavaSpit": "Transparent atlas of four isolated hand-painted molten blobs with dark red crust and glowing orange-yellow cores. Used for visible prelaunch bubbling tells and pooled damaging world-space projectiles.",
+    "lavaFeed": "Transparent modular family of a compact black-iron/crimson/brass furnace pump with amber gauge and gear, separate straight iron conduit side rails and molten-window crop, and matching left- and right-facing enclosed outlet elbows. No background, text, or characters. Used only as fixed-depth scenery to show molten feed being pumped into higher fixed-world reservoirs.",
+    "lavaGlow": "Transparent wide painted wash of restrained amber and crimson upward light with faint smoky texture, strongest along the bottom and fading to transparent toward the top. Positioned above authored world-space lava pools.",
+    "utility": "Transparent reusable painted game atlas: vent strip; three flame poses; numbered circuit plaques 1, 2, 3; ember; warning chevrons; amber halo; red control glow; electrical arc; brass gear; cracks; impact burst; golden dash crescent. Match Duckoman crimson industrial art.",
+    "climax": "Transparent painted boss VFX and UI family: golden ultimate sword arc, vulnerable chip target ring with downward pointer, cyan gold chip break burst, blank black iron crimson brass completion panel. Match Franklin and Duckoman style."
+  },
+  "frames": "frames.json; lava and feed crops are registered with native measured bounds in FurnaceArt.ts.",
+  "note": "Lava pools, surfaces, glow, supported retaining walls, pump/feed scenery, warnings and damaging blobs occupy fixed authored world coordinates. Unequal reservoirs remain static and their visible lethal boundaries do not move; high basins are visually supplied by enclosed furnace feed machinery. Damage comes only from projectile overlap."
+}

@@ -44,11 +44,14 @@ function shutdown(s: any): void { s.events.emit('shutdown'); }
 
 describe('scene asset profiles and leases', () => {
   it('keeps menu art separate from gameplay, with every catalogue path present', () => {
-    const menu = sceneAssetEntries('menu'), gameplayProfiles: SceneAssetProfile[] = ['gate-1', 'jail', 'outside', 'crimson', 'rescue', 'castle-secret'];
+    const menu = sceneAssetEntries('menu'), gameplayProfiles: SceneAssetProfile[] = ['gate-1', 'jail', 'outside', 'crimson', 'furnace', 'rescue', 'castle-secret'];
     const gameplay = gameplayProfiles.flatMap(profile => sceneAssetEntries(profile));
     const menuKeys = new Set(menu.map(entry => entry.key));
     expect(menu.some(entry => entry.key === 'menu-ruined-kingdom')).toBe(true);
     expect(gameplay.some(entry => entry.key === 'menu-ruined-kingdom')).toBe(false);
+    expect(sceneAssetEntries('crimson').some(entry=>entry.key.startsWith('furnace-'))).toBe(false);
+    expect(sceneAssetEntries('furnace').filter(entry=>entry.key.startsWith('furnace-')).map(entry=>entry.key)).toEqual(['furnace-backdrop','furnace-lava-basin','furnace-lava-glow','furnace-lava-surface','furnace-lava-spit','furnace-lava-feed','furnace-utility','furnace-climax']);
+    expect(sceneAssetEntries('rescue').some(entry=>entry.key==='furnace-lava-basin'||entry.key==='furnace-lava-glow')).toBe(false);
     expect(menu.filter(entry => entry.key.startsWith('menu-')).length).toBe(5);
     for (const item of [...menu, ...gameplay]) expect(existsSync(join(process.cwd(), 'public', item.path))).toBe(true);
   });

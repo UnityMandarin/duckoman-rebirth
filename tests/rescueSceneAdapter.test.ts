@@ -35,10 +35,10 @@ describe('RescueScene Franklin encounter adapter', () => {
   it('schedules one death retry, preserving released record and stopping all advancing work',()=>{
     vi.stubGlobal('document',{visibilityState:'visible'});const f=fixture('released');
     Object.assign(f.player,{active:false,ultimateCharge:77,infiniteHealth:false});
-    Object.assign(f.target,{controls:{read:()=>({})},hasPracticeAssist:()=>false,devPreview:true,fox:{stopHazards:vi.fn(),update:vi.fn(),checkDash:vi.fn()},cake:{drop:vi.fn(),update:vi.fn()},saveCampaign:vi.fn(),physics:{world:{pause:vi.fn()}},time:{delayedCall:vi.fn()},scene:{restart:vi.fn()},hud:{update:vi.fn()}});
+    Object.assign(f.target,{controls:{read:()=>({})},hasPracticeAssist:()=>false,devPreview:true,persistedCharge:63,fox:{stopHazards:vi.fn(),update:vi.fn(),checkDash:vi.fn()},cake:{drop:vi.fn(),update:vi.fn()},saveCampaign:vi.fn(),physics:{world:{pause:vi.fn()}},time:{delayedCall:vi.fn()},scene:{restart:vi.fn()},hud:{update:vi.fn()}});
     for(let i=0;i<5;i++)f.target.update(i*16,16);
     expect(f.target.time.delayedCall).toHaveBeenCalledTimes(1);expect(f.target.fox.stopHazards).toHaveBeenCalledTimes(1);expect(f.target.fox.update).not.toHaveBeenCalled();expect(f.target.cake.update).not.toHaveBeenCalled();expect(f.target.hud.update).not.toHaveBeenCalled();
-    const [delay,retry]=f.target.time.delayedCall.mock.calls[0];expect(delay).toBe(550);retry();expect(f.target.scene.restart).toHaveBeenCalledWith(expect.objectContaining({retry:true,checkpoint:540,charge:0,ultimateCharge:0,opened:[0],bossDefeated:false}));
+    const [delay,retry]=f.target.time.delayedCall.mock.calls[0];expect(delay).toBe(550);retry();expect(f.target.scene.restart).toHaveBeenCalledWith(expect.objectContaining({retry:true,checkpoint:15840,charge:63,ultimateCharge:63,opened:[0],bossDefeated:false}));
   });
   it('spawns Franklin once in the released stage at the authored location', () => {
     const f = fixture('released');

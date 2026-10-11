@@ -1,3 +1,7 @@
+# Historical blueprint
+
+This document describes the retired Hollow Prison approach. Current Chapter 5 uses Crimson Furnace and Franklin; see `FRANKLIN_RESCUE_ENCOUNTER.md`. Warden is preserved for later reuse and must not be reconnected to the current campaign or debug routes.
+
 # Chapter 5 — The Hollow Prison
 
 Astra owns this design; GPT-6 Luna low implements bounded tasks. Extend the exact local version published in PR32. Preserve existing dirty files and the published backups. Finish with a local preview; do not deploy this new chapter or play it.
@@ -76,3 +80,6 @@ Menu has5 equal cards: centers64+128*i, panel116×190 center y153; art106×76; w
 ## Acceptance
 
 Test migrations including a completed version3 Crimson ending; charge drain only first entry/replay; reload/death before/after release; impossible release without a real full ultimate near Franklin; wasted ultimate can recharge; bounded safe waves; saved release skips grind on boss retry; boss pause/long-frame warnings; portal safety before and after cue; one attack at a time; locked beam geometry; phase2 second warning; damage only gold recovery; chapter progression/ending/replay and preview isolation. Build/tests and actual rendered assets/initial scene must be verified; gameplay feel remains owner playtest. Leave localhost accessible.
+# Historical blueprint
+
+This document describes the retired Hollow Prison approach. Current Chapter 5 uses Crimson Furnace and Franklin; see `FRANKLIN_RESCUE_ENCOUNTER.md`. Warden is preserved for later reuse and must not be reconnected to the current campaign or debug routes.

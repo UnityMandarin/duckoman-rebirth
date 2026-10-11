@@ -1,7 +1,21 @@
+import ultimateSource from '../src/systems/UltimateSwing.ts?raw';
 import { describe, expect, it } from 'vitest';
 import { bladeAt, bladeCircles, bladeContainerAngle, slashFrameAt, sweptBladeHits, SWING, SWING_END, SWING_START, UltimateStrike } from '../src/systems/ultimateSwingMath';
 
 describe('ultimate swing', () => {
+  it('mirrors the authored Chapter 5 slash by facing without changing its native footprint',()=>{
+    const chain=ultimateSource.match(/const slash=chapterFive\?(scene\.add\.image[^:]+):scene\.add\.image/)?.[1];
+    expect(chain).toBeDefined();
+    for(const face of [-1,1]){
+      const state={width:0,height:0,flipX:false,scaleX:1,scaleY:1};
+      const image={setOrigin:()=>image,setDisplaySize:(w:number,h:number)=>{state.width=w;state.height=h;state.scaleX=w/750;state.scaleY=h/690;return image;},setFlipX:(flip:boolean)=>{state.flipX=flip;return image;},setDepth:()=>image,setVisible:()=>image};
+      const scene={add:{image:()=>image}};
+      new Function('scene','hand','face',`return ${chain}`)(scene,{x:0,y:0},face);
+      expect(state.flipX).toBe(face<0);expect([state.width,state.height]).toEqual([520,480]);
+      expect(state.scaleX).toBeCloseTo(520/750);expect(state.scaleY).toBeCloseTo(480/690);
+    }
+  });
+
   it('keeps the blade in front of Duckoman for the whole swing', () => {
     for (let t = 0; t <= 1; t += 0.05) {
       const blade = bladeAt(t);

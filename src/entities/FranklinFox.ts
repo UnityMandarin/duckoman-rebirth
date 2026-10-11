@@ -1,3 +1,5 @@
+import { FURNACE_TYPOGRAPHY } from '../systems/FurnaceTypography';
+import { furnaceFxTexture, type FurnaceFxFrame } from '../systems/FurnaceArt';
 import Phaser from 'phaser';
 import {canUltimateDamage,ownsUltimateFreeze,hasUltimateFreeze} from '../systems/ultimateFreeze';
 import type { Player } from './Player';
@@ -22,6 +24,7 @@ import {
 } from '../systems/FranklinFireFoxRules';
 import { createFranklinActing, sampleFranklinPresentation, franklinAttachment, franklinIntroZoom, sampleFranklinIntroFocus, sampleFranklinCrashFocus, franklinFocusScroll, franklinEase, FRANKLIN_POSES, type FranklinPose, type FranklinBeat, FRANKLIN_PACING, franklinIntroTime, franklinIntroTextAlpha, franklinFireballRay } from '../systems/FranklinPresentation';
 import { renderScale } from '../systems/renderScale';
+import { FRANKLIN_IMAGE_FX_POOL_SIZE } from '../systems/FurnaceArt';
 
 const FRANKLIN_PLAYER_FACING_PHASES:ReadonlySet<string>=new Set(['intro','resistance','overdrive','collapse','safe-chip','rescued']);
 
@@ -90,7 +93,8 @@ export class FranklinFox extends Dashable {
   private readonly eyeLight: Phaser.GameObjects.Image;
   private readonly chipLight: Phaser.GameObjects.Image;
   private readonly hudChip: Phaser.GameObjects.Image;
-  private readonly introText: Phaser.GameObjects.Text;
+  private readonly introText: Phaser.GameObjects.Image;
+  private readonly introName: Phaser.GameObjects.Image;
   private readonly laserBeam: Phaser.GameObjects.Image;
   private readonly tailWarning: Phaser.GameObjects.Image;
   private readonly resistanceWarning: Phaser.GameObjects.Image;
@@ -98,6 +102,7 @@ export class FranklinFox extends Dashable {
   private readonly laserReticle: Phaser.GameObjects.Image;
   private readonly fireballRay = {x:0,y:0,dx:0,dy:0,length:0,endX:0,endY:0};
   private readonly pips: Phaser.GameObjects.Image[];
+  private readonly imageFx: Phaser.GameObjects.Image[];
   private readonly afterPlayerVisual = (): void => {
     if (!this.cinematicLocked || !this.presentationActive()) return;
     this.player.facing = this.image.x < this.player.body.center.x ? -1 : 1;
@@ -106,6 +111,11 @@ export class FranklinFox extends Dashable {
   private strikeListener: (strike: UltimateStrike) => void;
   private shutdownListener: () => void;
   private readonly onRescued: () => void;
+
+  private fx(slot:number,frame:FurnaceFxFrame,x:number,y:number,w:number,h:number,alpha=1,rotation=0):void {
+    const image=this.imageFx[slot];if(!image)return;
+    image.setTexture(furnaceFxTexture(frame),frame).setPosition(x,y).setDisplaySize(Math.min(640,Math.max(1,w)),Math.min(400,Math.max(1,h))).setAlpha(alpha).setRotation(rotation).setVisible(true);
+  }
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -120,26 +130,18 @@ export class FranklinFox extends Dashable {
       .setOrigin(0.5, 1).setDisplaySize(FRANKLIN_VISUAL.referenceWidth, FRANKLIN_VISUAL.referenceHeight).setDepth(13);
     this.chipImage = scene.add.image(-1000, -1000, 'franklin-control-chip', 'visible')
       .setOrigin(0.5).setDisplaySize(FRANKLIN_VISUAL.chipPlateWidth, FRANKLIN_VISUAL.chipPlateHeight).setDepth(14);
-    this.graphics = scene.add.graphics().setDepth(17);
-    // Static light texture: image overlays retain readable, soft cores at arena scale.
-    const lightKey='franklin-control-light';
-    if(!scene.textures.exists(lightKey)) {
-      const light=scene.textures.createCanvas(lightKey,32,32)!;
-      const ctx=light.context,halo=ctx.createRadialGradient(16,16,4,16,16,16);
-      halo.addColorStop(0,'rgba(255,24,62,.65)');halo.addColorStop(1,'rgba(255,24,62,0)');
-      ctx.fillStyle=halo;ctx.fillRect(0,0,32,32);
-      ctx.fillStyle='#ff294f';ctx.beginPath();ctx.arc(16,16,7,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffd0d6';ctx.beginPath();ctx.arc(16,16,2.5,0,Math.PI*2);ctx.fill();light.refresh();
-    }
-    this.eyeLight=scene.add.image(0,0,lightKey).setDisplaySize(16,16).setDepth(16).setVisible(false);
-    this.chipLight=scene.add.image(0,0,lightKey).setDisplaySize(10,10).setDepth(15).setVisible(false);
+    this.graphics = scene.add.graphics().setDepth(17).setVisible(false);
+    this.imageFx=Array.from({length:FRANKLIN_IMAGE_FX_POOL_SIZE},()=>scene.add.image(-1000,-1000,'furnace-utility','electric').setDepth(17).setVisible(false));
+    this.eyeLight=scene.add.image(0,0,'furnace-utility','electric').setDisplaySize(16,16).setDepth(16).setVisible(false);
+    this.chipLight=scene.add.image(0,0,'furnace-utility','control-glow').setDisplaySize(10,10).setDepth(15).setVisible(false);
     this.hudChip = scene.add.image(403, 30, 'franklin-control-chip', 'visible').setDisplaySize(16, 20).setScrollFactor(0).setDepth(63);
-    this.healthBack = scene.add.image(414, 18, 'franklin-chip-hp-frame').setOrigin(0).setDisplaySize(220,24).setScrollFactor(0).setDepth(62);
-    this.healthFill = scene.add.image(423, 25, 'franklin-chip-hp-fill').setOrigin(0).setDisplaySize(202,10).setScrollFactor(0).setDepth(63);
-    this.pips = Array.from({length:3}, (_,i)=>scene.add.image(590+i*12,46,'franklin-chip-hp-fuse').setDisplaySize(8,10).setScrollFactor(0).setDepth(63));
-    this.introText=scene.add.text(320,94,'Franklin Fox — one of Duckoman’s best friends.\nA control chip is forcing him to fight.',{fontFamily:'Georgia',fontSize:'13px',color:'#f3e6cc',align:'center',stroke:'#211821',strokeThickness:2,lineSpacing:4,wordWrap:{width:390},shadow:{offsetX:1,offsetY:2,color:'#160e17',blur:2,fill:true}}).setOrigin(.5).setScrollFactor(0).setDepth(64).setVisible(false);
-    this.tailWarning=scene.add.image(-1000,-1000,'franklin-tail-warning').setOrigin(0,.5).setDisplaySize(180,6).setDepth(17).setAlpha(.75).setVisible(false);
-    this.resistanceWarning=scene.add.image(-1000,-1000,'franklin-resistance-warning').setOrigin(0,.5).setDisplaySize(65,6).setDepth(17).setAlpha(.9).setVisible(false);
+    this.healthBack = scene.add.image(414, 18, 'furnace-utility','vent').setOrigin(0).setDisplaySize(220,24).setScrollFactor(0).setDepth(62).setAlpha(.38);
+    this.healthFill = scene.add.image(423, 25, 'furnace-utility','vent').setOrigin(0).setDisplaySize(202,10).setScrollFactor(0).setDepth(63);
+    this.pips = Array.from({length:3}, (_,i)=>scene.add.image(590+i*12,46,'furnace-utility','gear').setDisplaySize(8,10).setScrollFactor(0).setDepth(63));
+    this.introName=scene.add.image(320,72,'chapter5-typography','franklin-name').setDisplaySize(FURNACE_TYPOGRAPHY['franklin-name'].width/2,FURNACE_TYPOGRAPHY['franklin-name'].height/2).setScrollFactor(0).setDepth(64).setVisible(false);
+    this.introText=scene.add.image(320,96,'chapter5-typography','franklin-copy').setDisplaySize(FURNACE_TYPOGRAPHY['franklin-copy'].width/2,FURNACE_TYPOGRAPHY['franklin-copy'].height/2).setScrollFactor(0).setDepth(64).setVisible(false);
+    this.tailWarning=scene.add.image(-1000,-1000,'furnace-utility','warning').setOrigin(0,.5).setDisplaySize(180,30).setDepth(17).setAlpha(.75).setVisible(false);
+    this.resistanceWarning=scene.add.image(-1000,-1000,'furnace-utility','electric').setOrigin(0,.5).setDisplaySize(65,24).setDepth(17).setAlpha(.9).setVisible(false);
     this.laserEmitter=scene.add.image(-1000,-1000,'franklin-eye-scope','emitter').setDisplaySize(14,14).setDepth(17).setVisible(false);
     this.laserBeam=scene.add.image(-1000,-1000,'franklin-eye-scope','beam').setOrigin(0,.5).setDepth(17).setVisible(false);
     this.laserReticle=scene.add.image(-1000,-1000,'franklin-eye-scope','reticle').setDisplaySize(24,24).setDepth(17).setVisible(false);
@@ -540,8 +542,7 @@ export class FranklinFox extends Dashable {
       this.graphics.clear();
       const bounds=this.chipBounds;
       const centerX = (bounds.left + bounds.right) / 2;
-      this.graphics.fillStyle(0x53d7ff, 0.9).fillCircle(centerX, bounds.top, 13);
-      this.graphics.fillStyle(0xf7cb73, 0.8).fillCircle(centerX, bounds.top, 6);
+      this.fx(15,'chip-burst',centerX,bounds.top,44,44,.95);
       this.image.clearTint();
       this.scene.cameras.main.flash(60,255,225,175);
       this.scene.cameras.main.shake(120,.002);
@@ -615,7 +616,7 @@ export class FranklinFox extends Dashable {
   private clearHazards(): void {
     this.clearProjectiles();
     this.tailWarning?.setVisible(false);this.resistanceWarning?.setVisible(false);
-    this.laserBeam?.setVisible(false);this.laserEmitter?.setVisible(false);this.laserReticle?.setVisible(false);this.introText?.setVisible(false);
+    this.laserBeam?.setVisible(false);this.laserEmitter?.setVisible(false);this.laserReticle?.setVisible(false);this.introName?.setVisible(false);this.introText?.setVisible(false);
     this.trailClockMs = 0;
     this.hideEffectPool(this.trailImages);
     this.hideEffectPool(this.pillarImages);
@@ -641,6 +642,7 @@ export class FranklinFox extends Dashable {
   private draw(): void {
     this.syncAttachments();
     const g=this.graphics.clear(),phase=this.controller.phase,a=this.acting;
+    for(const image of this.imageFx)image.setVisible(false);
     const chip=this.chipBounds,chipX=this.chipPoint.x,chipY=this.chipPoint.y;
     const pulse=.8+.2*Math.sin(this.visualClock*.025);
     this.eyeLight.setPosition(this.eyePoint.x,this.eyePoint.y).setAlpha(a.eye).setVisible(phase!=='rescued'&&a.eye>0);
@@ -648,14 +650,10 @@ export class FranklinFox extends Dashable {
     if(phase!=='rescued') {
       if(a.arc>0){
         const midX=(chipX+this.eyePoint.x)/2,midY=(chipY+this.eyePoint.y)/2-3;
-        g.lineStyle(1,0xff5264,a.arc*pulse).lineBetween(chipX,chipY,midX,midY).lineBetween(midX,midY,this.eyePoint.x,this.eyePoint.y).lineBetween(midX,midY,midX-2,midY+5);
+        this.fx(0,'electric',midX,midY,Math.max(12,Math.hypot(this.eyePoint.x-chipX,this.eyePoint.y-chipY)/2),12,a.arc*pulse,Math.atan2(this.eyePoint.y-chipY,this.eyePoint.x-chipX));
       }
       const cracks=Math.min(3,this.controller.cleanCrashes),sign=this.image.flipX?-1:1;
-      g.lineStyle(.9,0x20141b,.95);
-      if(cracks>=1)g.lineBetween(chipX-3,chipY-6,chipX+1,chipY-1).lineBetween(chipX+1,chipY-1,chipX-2,chipY+3);
-      if(cracks>=2)g.lineBetween(chipX+4,chipY-5,chipX,chipY+1).lineBetween(chipX,chipY+1,chipX+4,chipY+5);
-      if(cracks>=3)g.lineBetween(chipX-4,chipY+1,chipX+4,chipY-2);
-      if(cracks>0){g.lineStyle(.8,0xc88d71,.7).lineBetween(chipX-sign*4,chipY+4,chipX-sign*7,chipY+7+cracks);}
+      if(cracks>0)this.fx(1,'cracks',chipX,chipY,FRANKLIN_VISUAL.chipPlateWidth,FRANKLIN_VISUAL.chipPlateHeight,.65+.1*cracks,sign<0?Math.PI:0);
     }
     for(let i=0;i<this.localFlames.length;i++) {
       const flame=this.localFlames[i],visible=a.fire>.05&&phase!=='rescued';
@@ -664,10 +662,10 @@ export class FranklinFox extends Dashable {
     }
     this.heart.setVisible(a.heart>0);
     if(a.heart>0)this.heart.setPosition((this.image.x+this.player.body.center.x)/2,Math.min(this.image.y,360)-48-Math.sin(this.visualClock*.004)*2).setAlpha(a.heart);
-    if(a.mouthFlash>0)g.fillStyle(0xffd27d,a.mouthFlash).fillCircle(this.mouthPoint.x,this.mouthPoint.y,3);
+    if(a.mouthFlash>0)this.fx(2,'impact',this.mouthPoint.x,this.mouthPoint.y,14,14,a.mouthFlash);
     if((phase==='tail'&&this.controller.elapsed<340)||phase==='tail-cue'&&a.pose==='tail-sweep'){
       const x=this.tailPoint.x,y=this.tailPoint.y,sign=this.image.flipX?-1:1;
-      g.lineStyle(2,0xffab51,.75).lineBetween(x-sign*8,y-8,x+sign*4,y-3).lineBetween(x+sign*4,y-3,x+sign*11,y+5);
+      this.fx(3,'dash',x,y,32,16,.75,sign<0?Math.PI:0);
     }
     this.tailWaveImage.setVisible(phase === 'tail');
     if (phase === 'tail') {
@@ -685,8 +683,8 @@ export class FranklinFox extends Dashable {
     } else this.chipChargeImage.setVisible(false);
     if (phase === 'wallbounce-cue' || phase === 'final-cue') {
       const wall = this.controller.direction < 0 ? 155 : 1845;
-      g.lineStyle(2, 0xffa65e, 0.8).lineBetween(wall, 280, wall, 360);
-      if(phase==='final-cue')g.lineStyle(1,0xffb96f,.3).lineBetween(this.image.x,354,wall,354);
+      this.fx(4,'warning',wall,320,38,96,.8);
+      if(phase==='final-cue')this.fx(5,'warning',(this.image.x+wall)/2,354,Math.abs(this.image.x-wall),22,.3);
     }
     const sight=phase==='barrage-cue'&&!this.inactive&&this.presentationActive();
     this.laserBeam.setVisible(sight);this.laserEmitter.setVisible(sight);this.laserReticle.setVisible(sight);
@@ -714,28 +712,22 @@ export class FranklinFox extends Dashable {
           }
         } else {
           const pulse = 0.2 + 0.12 * (1 + Math.sin(this.controller.elapsed * 0.012));
-          g.fillStyle(0xffd08a, pulse).fillRect(
-            x - FRANKLIN_RULES.pillarWidth / 2, 354,
-            FRANKLIN_RULES.pillarWidth, 6,
-          );
-          g.lineStyle(1, 0xffe2ad, 0.68).lineBetween(x - 22, 353, x + 22, 353);
+          this.fx(6+this.controller.hazards.indexOf(x),'warning',x,354,FRANKLIN_RULES.pillarWidth,28,pulse);
         }
       }
       if (phase === 'pillars-cue') this.hideEffectPool(this.pillarImages);
     } else this.hideEffectPool(this.pillarImages);
     this.resistanceWarning.setVisible(phase==='resistance'&&warningActive).setPosition(this.image.x-35,358);
     if (phase === 'safe-chip') {
-      g.lineStyle(1, 0x59ddff, .55+.25*pulse).strokeRoundedRect(chip.left, chip.top, chip.right-chip.left, chip.bottom-chip.top,4);
-      g.lineStyle(1,0xf5ce75,.9).strokeCircle(chipX,chipY,10+Math.sin(this.visualClock*.006));
+      this.fx(10,'chip-target',chipX,chipY,chip.right-chip.left+28,chip.bottom-chip.top+28,.7+.2*pulse);
       const y=chip.top-9+Math.sin(this.visualClock*.006)*2;
-      g.lineStyle(1.5,0xffdd8b,.95).lineBetween(chipX-4,y-3,chipX,y+1).lineBetween(chipX,y+1,chipX+4,y-3);
+      this.fx(11,'chip-target',chipX,y+2,16,20,.95);
     }
     if (phase === 'crash') {
       const chipX = (chip.left + chip.right) / 2;
       const chipY = (chip.top + chip.bottom) / 2;
       const flicker = 0.35 + 0.5 * Math.abs(Math.sin(this.controller.elapsed / 60));
-      g.fillStyle(0xffe2a2, flicker).fillCircle(chipX - 13, chipY - 10, 2)
-        .fillCircle(chipX + 13, chipY + 7, 2).fillCircle(chipX + 5, chipY - 14, 2);
+      this.fx(12,'impact',chipX-13,chipY-10,8,10,flicker);this.fx(13,'impact',chipX+13,chipY+7,8,10,flicker);this.fx(14,'impact',chipX+5,chipY-14,8,10,flicker);
     }
     if(phase==='rescued') {
       const t=this.rescueMs;
@@ -744,16 +736,15 @@ export class FranklinFox extends Dashable {
         image.setVisible(t<duration);
         if(t<duration){const direction=(i-2.5)*.65;image.setPosition(this.breakX+direction*24*u,this.breakY-18*Math.sin(Math.PI*u)+18*u*u).setRotation(direction*u*2).setAlpha(1-u);}
       }
-      if(t<80){const u=1-t/80;g.lineStyle(1,0xffdc88,u).lineBetween(this.breakX,this.breakY,this.breakX+(this.eyePoint.x-this.breakX)*u,this.breakY+(this.eyePoint.y-this.breakY)*u);}
-      if(t<300){const u=t/300;g.lineStyle(1,0xf5cd7c,1-u).strokeCircle(this.breakX,this.breakY,4+21*u);g.lineStyle(1,0x65e9f2,1-u).strokeCircle(this.breakX,this.breakY,3+16*u);}
+      if(t<300){const u=t/300;this.fx(15,'chip-burst',this.breakX,this.breakY,48+42*u,48+42*u,1-u);}
     } else for(const image of this.fragments)image.setVisible(false);
   }
 
   private updateHud(): void {
     const hp=franklinChipHealth(this.controller);
-    this.healthFill.setCrop(0,0,202*hp/FRANKLIN_RULES.hp,10);
+    this.healthFill.setCrop(0,0,310*hp/FRANKLIN_RULES.hp,90);
     const narrative=this.controller.phase==='intro'&&!this.inactive&&this.presentationActive();
-    this.introText.setVisible(narrative).setAlpha(franklinIntroTextAlpha(this.controller.elapsed));
+    this.introName.setVisible(narrative).setAlpha(franklinIntroTextAlpha(this.controller.elapsed));this.introText.setVisible(narrative).setAlpha(franklinIntroTextAlpha(this.controller.elapsed));
     for(let i=0;i<3;i++)this.pips[i].setAlpha(i<this.controller.cleanCrashes ? .2 : 1);
     const visible=this.controller.phase!=='rescued';
     this.hudChip.setVisible(visible);this.healthBack.setVisible(visible);this.healthFill.setVisible(visible&&hp>0);for(const pip of this.pips)pip.setVisible(visible);
@@ -774,6 +765,7 @@ export class FranklinFox extends Dashable {
     this.fireballs.forEach(shot => shot.image.destroy());
     this.trailImages.forEach(effect => effect.image.destroy());
     this.pillarImages.forEach(effect => effect.image.destroy());
+    this.imageFx.forEach(image=>image.destroy());
     this.wallImpactImage.image.destroy();
     this.tailWaveImage.destroy();
     this.chipChargeImage.destroy();
@@ -787,7 +779,7 @@ export class FranklinFox extends Dashable {
     this.fragments.forEach(image=>image.destroy());
     this.heart.destroy();
     this.tailWarning.destroy();this.resistanceWarning.destroy();
-    this.introText.destroy();this.laserBeam.destroy();this.laserEmitter.destroy();this.laserReticle.destroy();
+    this.introName.destroy();this.introText.destroy();this.laserBeam.destroy();this.laserEmitter.destroy();this.laserReticle.destroy();
     this.healthBack.destroy();
     this.healthFill.destroy();
 

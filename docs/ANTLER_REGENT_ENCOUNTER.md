@@ -1,0 +1,7 @@
+# Antler Regent encounter
+
+The Regent keeps its ten-heart health pool and existing dash, stomp, cake, and ultimate hit routes. Royal Fury begins once at five hearts and uses fixed attack groups: charge→sweep, slam→thorns, charge, and thorns→sweep. Every move retains its full warning; each group ends with at least 1.1 seconds of recovery, with a longer recovery after a charge wall impact. Hazards use authored, arena-bounded world rectangles, and contact/wave hits retain the game's half-heart damage and invulnerability behavior.
+
+The original player physics were measured through real `Player.update` and Arcade Body update/post-update at 30, 60, and 120 Hz. Normal-jump apex was 112.47, 117.375, and 119.8275 pixels; airtime was about 0.8 seconds; feet stayed at least 64 pixels above the floor for 0.50, 0.55, and 0.55 seconds. A 64-pixel wave moving at 240 pixels per second occupies a crossing lane for about 267 ms. Sweep and charge use a 64-pixel floor band, so a normal jump clears that band with a broad timing window. These figures validate geometry and timing against measured physics; they do not claim a full playthrough or user playtest.
+
+Pose and defeat atlases are loaded as native Phaser frames from `public/assets/bosses/regent/manifest.json`. Effects are pooled. The generated grove plate sits behind the existing collision floor and ledges; no arena geometry or player tuning changed. Encounter camera zoom and position ease across both actors, scale with the world render multiplier, and restore the player-follow camera before progression callbacks.

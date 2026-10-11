@@ -81,6 +81,10 @@ const profiles: Readonly<Record<SceneAssetProfile, readonly SceneAssetEntry[]>> 
   outside: withCommon(
     entry('identity-outside', 'assets/identity/outside.png'), ...chapterCommon,
     entry('antler-regent', 'assets/chapters/antler-regent.png'),
+    spritesheet('regent-poses', 'assets/bosses/regent/poses-v1.png', 384, 256),
+    spritesheet('regent-defeat-poses', 'assets/bosses/regent/defeat-v1.png', 512, 341),
+    entry('regent-effects', 'assets/bosses/regent/effects-v1.png'),
+    entry('regent-arena', 'assets/bosses/regent/arena-v1.png'),
     entry('quality-ruined-kingdom', 'assets/chapters/ruined-kingdom.png'),
     entry('quality-wildwood', 'assets/chapters/wildwood.png'),
     entry('quality-deepwood', 'assets/chapters/deepwood.png'),

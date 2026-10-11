@@ -118,7 +118,7 @@ export class JourneyScene extends Phaser.Scene {
    }
   }
   const bossPreview=this.kind!=='jail'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&new URLSearchParams(window.location.search).has('boss');
-  const spawn=this.routeCourse?routeStart+100:this.practice?arenaStart+120:this.devPreview&&data.previewSection!==undefined?previewStart+40:this.state.checkpoint??(bossPreview?(this.kind==='crimson'?10:22)*1440+120:100),spawnSurface=this.platforms.filter(surface=>surface.role==='floor'&&spawn>=surface.x-surface.width/2&&spawn<=surface.x+surface.width/2).sort((a,b)=>a.y-a.height/2-(b.y-b.height/2))[0],spawnY=spawnSurface?spawnSurface.y-spawnSurface.height/2-20:335;
+  const spawn=this.routeCourse?routeStart+100:this.practice?arenaStart+120:this.devPreview&&data.previewSection!==undefined?previewStart+40:bossPreview?(this.kind==='crimson'?10:22)*1440+120:this.state.checkpoint??100,spawnSurface=this.platforms.filter(surface=>surface.role==='floor'&&spawn>=surface.x-surface.width/2&&spawn<=surface.x+surface.width/2).sort((a,b)=>a.y-a.height/2-(b.y-b.height/2))[0],spawnY=spawnSurface?spawnSurface.y-spawnSurface.height/2-20:335;
   this.player=new Player(this,spawn,spawnY);this.player.infiniteHealth=!!data.infiniteHealth;this.player.health=this.routeCourse?3:this.player.health;this.player.ultimateCharge=this.routeCourse?0:data.ultimateCharge??this.state.ultimateCharge??saved.charge??0;
   this.shadow=this.add.ellipse(spawn,spawnY+25,54,9,0x000000,.35).setDepth(3);
   this.physics.add.collider(this.player.sprite,this.terrain);
@@ -136,7 +136,7 @@ export class JourneyScene extends Phaser.Scene {
    if(data.previewSection===undefined||data.previewSection===7)this.addGate(8,7*1440+1090,300,[{x:7*1440+805,y:72}]);
    if(data.previewSection===undefined||data.previewSection===11)this.addGate(12,12*1440-120,1740,[{x:11*1440+1120,y:1680}]);
   }else if(this.kind==='outside'){
-   if(this.practice&&!this.routeCourse)this.boss=new AntlerRegent(this,this.player,this.cake,arenaStart,arenaRight,()=>this.finishTrial());
+   if(this.practice&&!this.routeCourse)this.boss=new AntlerRegent(this,this.player,this.cake,arenaStart,arenaRight,()=>this.finishTrial(),true);
    else if(this.state.bossDefeated)this.state.opened!.push(99);
    if(!this.practice&&(!this.devPreview||this.previewSection===undefined||this.previewSection===23))this.addGate(99,CHAPTER_WIDTH.outside-150,360,[]);
    if(!this.practice&&(!this.devPreview||this.previewSection===undefined||this.previewSection===22)&&!this.state.bossDefeated)this.boss=new AntlerRegent(this,this.player,this.cake,22*1440,CHAPTER_WIDTH.outside-400,()=>{
@@ -144,7 +144,7 @@ export class JourneyScene extends Phaser.Scene {
     const gate=this.gates.find(g=>g.id===99);
     if(gate)this.openGateArt(gate,700);
     this.say('The corruption breaks. The road to Franklin Fox is open.');
-   });
+   },false,(this.state.checkpoint??0)>=22*SECTION_WIDTH);
   }
   if(this.kind==='crimson'){
    if(this.practice&&!this.routeCourse)this.boss=new CrabBoss(this,this.player,arenaStart,arenaRight,()=>this.finishTrial());
@@ -281,16 +281,16 @@ export class JourneyScene extends Phaser.Scene {
   if(!this.player||this.leaving||this.routeDone)return;
   const input=this.controls.read();
   if(input.godModePressed){if(this.routeCourse){this.routeController?.invalidate();if(!this.routePracticeAlias)markCampaignRunIneligible();}else if(this.practice)this.trialEligibility.invalidate();else markCampaignRunIneligible();this.player.infiniteHealth=!this.player.infiniteHealth;if(this.player.infiniteHealth)this.player.health=3;}
-  if(this.practice&&!this.routeCourse){if(this.hasPracticeAssist())this.trialEligibility.invalidate();const elapsed=this.trialClock.tick(delta,{active:this.scene.isActive(),visible:document.visibilityState==='visible',alive:this.player.active,finished:this.trialDone});if(!this.trialDone){this.player.update(input,delta);if(input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();this.hud.update();this.cake.follow(this.player);this.cake.update(delta);this.boss?.update(delta);this.depthPresentation.update();this.trialHud?.setText(`${this.practiceBoss==='outside'?'BROKEN REGENT':'CRIMSON CLAW'} TRIAL · TIME ${(elapsed/1000).toFixed(1)} · HITS ${this.trialHits}`);if(!this.player.active)this.finishTrial(false);}return;}
+  if(this.practice&&!this.routeCourse){if(this.hasPracticeAssist())this.trialEligibility.invalidate();const regent=this.boss instanceof AntlerRegent?this.boss:undefined;regent?.beforePlayerUpdate(delta);const elapsed=this.trialClock.tick(delta,{active:this.scene.isActive()&&!regent?.controlsLocked,visible:document.visibilityState==='visible',alive:this.player.active,finished:this.trialDone});if(!this.trialDone){if(regent?.controlsLocked)regent.holdPlayer();else this.player.update(input,delta);if(input.ultimatePressed&&!regent?.controlsLocked&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();this.hud.update();this.cake.follow(this.player);this.cake.update(delta);this.boss?.update(delta);this.depthPresentation.update();this.trialHud?.setText(`${this.practiceBoss==='outside'?'BROKEN REGENT':'CRIMSON CLAW'} TRIAL · TIME ${(elapsed/1000).toFixed(1)} · HITS ${this.trialHits}`);if(!this.player.active)this.finishTrial(false);}return;}
   this.hud.update();
   if(!this.player.active){
    if(this.routeCourse){this.routeController?.update(delta,false);this.finishRoutePractice();return;}
    if(!this.dying){this.dying=true;this.cake.drop();this.say('Fell — returning to your last rest');this.physics.world.pause();this.time.delayedCall(550,()=>this.scene.restart({...this.state,infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge,devPreview:this.devPreview,previewSection:this.previewSection}));}return;
   }
-  this.player.update(input,delta);
+  const regent=this.boss instanceof AntlerRegent?this.boss:undefined;regent?.beforePlayerUpdate(delta);if(regent?.controlsLocked)regent.holdPlayer();else this.player.update(input,delta);
   for(const wall of this.walls)wall.checkDash(this.player);
   for(const solid of this.solids)solid.checkDash(this.player);
-  if(input.ultimatePressed&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();
+  if(input.ultimatePressed&&!regent?.controlsLocked&&this.player.canAct&&!this.player.usingUltimate&&this.player.ultimateCharge>=100)this.hud.useUltimate();
   let interacted=false;
   for(const gate of this.gates){
    if(this.state.opened!.includes(gate.id))continue;

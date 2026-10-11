@@ -1,0 +1,59 @@
+{
+  "source": "Generated production pose and effects atlases for the Antler Regent upgrade.",
+  "character": {
+    "file": "poses-v1.png",
+    "frameSize": [384, 256],
+    "grid": [4, 4],
+    "frames": {
+      "idle": 0,
+      "turn": 1,
+      "walkA": 2,
+      "walkB": 3,
+      "headLower": 4,
+      "chargeA": 5,
+      "chargeB": 6,
+      "wallImpact": 7,
+      "sweepTell": 8,
+      "sweepA": 9,
+      "sweepB": 10,
+      "rear": 11,
+      "leap": 12,
+      "landing": 13,
+      "stagger": 14,
+      "roar": 15
+    }
+  },
+  "defeat": {
+    "file": "defeat-v1.png",
+    "frameSize": [512, 341],
+    "grid": [3, 3],
+    "frames": {
+      "finalRecoil": 0,
+      "kneesBuckle": 1,
+      "sink": 2,
+      "kneel": 3,
+      "collapse": 4,
+      "impact": 5,
+      "fallen": 6,
+      "corpseDim": 7,
+      "corpse": 8
+    }
+  },
+  "effects": {
+    "file": "effects-v1.png",
+    "frameSize": [512, 341],
+    "grid": [3, 3],
+    "frames": {
+      "laneWarning": [0, 0],
+      "sweepArc": [1, 0],
+      "dust": [2, 0],
+      "impact": [0, 1],
+      "shockwave": [1, 1],
+      "rootEruption": [2, 1],
+      "roarGlow": [0, 2],
+      "hitSparks": [1, 2],
+      "defeatDust": [2, 2]
+    }
+  },
+  "arena": "arena-v1.png"
+}

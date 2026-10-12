@@ -136,7 +136,7 @@ export class JourneyScene extends Phaser.Scene {
    if(data.previewSection===undefined||data.previewSection===7)this.addGate(8,7*1440+1090,300,[{x:7*1440+805,y:72}]);
    if(data.previewSection===undefined||data.previewSection===11)this.addGate(12,12*1440-120,1740,[{x:11*1440+1120,y:1680}]);
   }else if(this.kind==='outside'){
-   if(this.practice&&!this.routeCourse)this.boss=new AntlerRegent(this,this.player,this.cake,arenaStart,arenaRight,()=>this.finishTrial(),true);
+   if(this.practice&&!this.routeCourse)this.boss=new AntlerRegent(this,this.player,this.cake,arenaStart,arenaRight,()=>this.finishTrial(),true,false,this.platforms.filter(p=>p.role==='ledge'&&p.x+p.width/2>arenaStart&&p.x-p.width/2<arenaRight).map(p=>({left:p.x-p.width/2,right:p.x+p.width/2,top:p.y-p.height/2})));
    else if(this.state.bossDefeated)this.state.opened!.push(99);
    if(!this.practice&&(!this.devPreview||this.previewSection===undefined||this.previewSection===23))this.addGate(99,CHAPTER_WIDTH.outside-150,360,[]);
    if(!this.practice&&(!this.devPreview||this.previewSection===undefined||this.previewSection===22)&&!this.state.bossDefeated)this.boss=new AntlerRegent(this,this.player,this.cake,22*1440,CHAPTER_WIDTH.outside-400,()=>{
@@ -144,7 +144,7 @@ export class JourneyScene extends Phaser.Scene {
     const gate=this.gates.find(g=>g.id===99);
     if(gate)this.openGateArt(gate,700);
     this.say('The corruption breaks. The road to Franklin Fox is open.');
-   },false,(this.state.checkpoint??0)>=22*SECTION_WIDTH);
+   },false,(this.state.checkpoint??0)>=22*SECTION_WIDTH,this.platforms.filter(p=>p.role==='ledge'&&p.x+p.width/2>22*SECTION_WIDTH&&p.x-p.width/2<CHAPTER_WIDTH.outside-400).map(p=>({left:p.x-p.width/2,right:p.x+p.width/2,top:p.y-p.height/2})));
   }
   if(this.kind==='crimson'){
    if(this.practice&&!this.routeCourse)this.boss=new CrabBoss(this,this.player,arenaStart,arenaRight,()=>this.finishTrial());

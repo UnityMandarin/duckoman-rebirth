@@ -14,6 +14,7 @@ import {UltimateStrike} from '../src/systems/ultimateSwingMath';
 function display(x=0,y=0):any {
  const d:any={x,y,depth:12,active:true,visible:true,alpha:1,displayWidth:0,displayHeight:0,originX:.5,originY:.5,scaleX:1,scaleY:1};
  for(const name of ['add','setFrame','setBlendMode','setTintMode','setX','setDepth','setScrollFactor','setCrop','setText','setTint','setAngle','clear','lineStyle','lineBetween','fillStyle','fillCircle','fillRect','strokeRoundedRect','setFlipX','setScale'])d[name]=()=>d;
+ d.setFrame=(frame:any)=>{d.frame=frame;return d;};
  d.setOrigin=(x:number,y=x)=>{d.originX=x;d.originY=y;return d;};d.setDisplaySize=(w:number,h:number)=>{d.displayWidth=w;d.displayHeight=h;return d;};d.setVisible=(v:boolean)=>{d.visible=v;return d;};d.setAlpha=(v:number)=>{d.alpha=v;return d;};d.setPosition=(x:number,y:number)=>{d.x=x;d.y=y;return d;};d.setY=(y:number)=>{d.y=y;return d;};d.destroy=vi.fn();
  d.getBounds=()=>({left:d.x-203,right:d.x+203,top:d.y-159,bottom:d.y});return d;
 }
@@ -24,6 +25,20 @@ function fixture(){
  const player:any={sprite:{scene},active:true,usingUltimate:true,body:{center:{x:0,y:300}},chargeUltimate:vi.fn()};const emit=(strike:any)=>{for(const fn of listeners.get('ultimate-strike')??[])fn(strike);};return {scene,player,listeners,emit};
 }
 describe('universal ultimate targets',()=>{
+ it('warns across projected charge travel and shows only the expanded active floor footprint',()=>{
+  const f=fixture(),boss=new AntlerRegent(f.scene,f.player,{} as any,0,1500,vi.fn()) as any;
+  boss.engaged=true;boss.state={...boss.state,phase:'charge-cue',lockedDirection:1};boss.onPhaseChange('idle','charge-cue');
+  expect(boss.warning.displayWidth).toBe(957);expect(boss.warning.displayHeight).toBe(64);expect(boss.warning.x).toBe(1021.5);
+  boss.state={...boss.state,phase:'charge-active'};boss.updateWarningsAndEffects(16);
+  expect(boss.chargeArt.visible).toBe(true);expect(boss.chargeArt.displayWidth).toBe(432);expect(boss.chargeArt.displayHeight).toBe(64);
+  f.scene.events.emit('pause');expect(boss.chargeArt.visible).toBe(false);
+  f.scene.events.emit('shutdown');expect(boss.chargeArt.destroy).toHaveBeenCalledOnce();
+ });
+ it('gives dash hits pooled impact art while preserving attack timing and separate hit timers',()=>{
+  const f=fixture(),boss=new AntlerRegent(f.scene,f.player,{} as any,0,1500,vi.fn()) as any;boss.engaged=true;boss.clockMs=1200;boss.state={...boss.state,phase:'slam-air',elapsedMs:260,durationMs:700};boss.image.setPosition(boss.image.x,270).setFrame('12');const frame=boss.image.frame;
+  boss.onDash();expect(boss.hp).toBe(19);expect(boss.state.phase).toBe('slam-air');expect(boss.state.elapsedMs).toBe(260);expect(boss.clockMs).toBe(1200);expect(boss.image.frame).toBe(frame);expect(boss.hurtUntil).toBe(1900);expect(boss.hitVisualUntil).toBe(1390);
+  const impact=boss.fx.find((effect:any)=>effect.kind==='hit-sparks'&&effect.image.visible);expect(impact.life).toBe(190);expect(impact.image.y).toBe(200);
+ });
  it.each(['Castle','RustWing'])('runs the actual sword windup/strike timeline against %s during owned physical freeze',kind=>{
   const f=fixture();const jobs:any[]=[],timers:any[]=[];f.scene.tweens={add:(job:any)=>{jobs.push(job);},addCounter:(job:any)=>{jobs.push(job);}};f.scene.time.delayedCall=(ms:number,callback:any)=>timers.push({ms,callback});
   const boss:any=kind==='Castle'?new CastleBoss(f.scene,f.player,{} as any,{} as any,vi.fn()):new RustWing(f.scene,f.player);boss.engaged=true;boss.started=1000;boss.phase='lunge';const image=kind==='Castle'?boss.image:boss.sprite;image.setPosition(image.x,330);f.player.sprite.x=image.x-140;f.player.sprite.y=338;f.player.facing=1;f.player.visual=display();f.player.abilities={setSprint:vi.fn(),cancelTransient:vi.fn()};f.player.body.setVelocity=()=>f.player.body;f.player.body.setAllowGravity=()=>f.player.body;
@@ -33,8 +48,17 @@ describe('universal ultimate targets',()=>{
  });
  it('reaches Regent head outside dash weakspot, retains four damage and does not consume a cooldown strike',()=>{
   const f=fixture(),boss=new AntlerRegent(f.scene,f.player,{} as any,0,1500,vi.fn());(boss as any).engaged=true;beginUltimateFreeze(f.scene,f.player);boss.update(50);expect(f.scene.physics.world.isPaused).toBe(true);
-  const strike=new UltimateStrike(f.player,{x:boss.image.x,y:185},1,5,5);strike.sweepTo(0);f.emit(strike);expect(boss.hp).toBe(6);
-  const blocked={player:f.player,tryHit:vi.fn(()=>true)};f.emit(blocked);expect(blocked.tryHit).not.toHaveBeenCalled();expect(boss.hp).toBe(6);
+  const strike=new UltimateStrike(f.player,{x:boss.image.x,y:185},1,5,5);strike.sweepTo(0);f.emit(strike);expect(boss.hp).toBe(16);
+  const blocked={player:f.player,tryHit:vi.fn(()=>true)};f.emit(blocked);expect(blocked.tryHit).not.toHaveBeenCalled();expect(boss.hp).toBe(16);
+  (boss as any).clockMs=700;const ready=new UltimateStrike(f.player,{x:boss.image.x,y:185},1,5,5);ready.sweepTo(0);f.emit(ready);expect(boss.hp).toBe(12);
+ });
+ it('cleans up Regent on retry when Phaser has already removed the camera',()=>{
+  const f=fixture(),boss=new AntlerRegent(f.scene,f.player,{} as any,0,1500,vi.fn());
+  (boss as any).cameraSnapshot={zoom:1,scrollX:0,scrollY:0,lerpX:.14,lerpY:.12,deadzoneX:120,deadzoneY:130,useBounds:true};
+  f.scene.cameras.main=undefined;
+  expect(()=>f.scene.events.emit('shutdown')).not.toThrow();
+  expect((boss as any).cameraSnapshot).toBeUndefined();expect(f.listeners.get('ultimate-strike')?.size).toBe(0);
+  expect((boss as any).arenaArt.destroy).toHaveBeenCalledOnce();
  });
  it('hits Crab claw outside shell, preserves invisible underground immunity and four damage',()=>{
   const f=fixture(),boss=new CrabBoss(f.scene,f.player,0,1500,vi.fn());(boss as any).engaged=true;beginUltimateFreeze(f.scene,f.player);boss.update(50);expect(f.scene.physics.world.isPaused).toBe(true);

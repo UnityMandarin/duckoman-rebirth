@@ -19,35 +19,8 @@ Make boss practice accessible once arena checkpoint reached OR chapter completed
 At transition to crimson ending offer a visible "RETURN TO CHAPTERS · ESC" interactive control (no next chapter tease promising work).
 No generated art needed this phase.
 
-## Phase C: nine optional Crown Routes and drills
-Add a typed src/data/skillRoutes.ts with these exact id/name/chapter/section/stepIndexes entries:
-- jail-laundry / Laundry Leap / jail / 2 / [1,2,3]
-- jail-vault / Vault Switchback / jail / 5 / [2,3,4]
-- jail-drain / Drain Dash / jail / 9 / [1,2,3]
-- outside-market / Market Momentum / outside / 3 / [1,2,3]
-- outside-wind / Wind Lines / outside / 7 / [1,2,3]
-- outside-stonewater / Stonewater Beat / outside / 14 / [1,2,4]
-- crimson-avenue / Occupation Run / crimson / 1 / [1,2,3]
-- crimson-parade / Parade Counterflow / crimson / 4 / [1,2,3]
-- crimson-crown / Crown Circuit / crimson / 8 / [1,2,4]
-
-Campaign: show three small numbered hollow crown rings above specified authored steps (y = ledge.y-60, x=ledge.x; move with ferry/lift where applicable). Filled rings mark acquired order. Only next ring is bright cyan/gold; later rings dim. Collection radius36. Display a short entrance label "OPTIONAL CROWN ROUTE · 1 → 2 → 3 → EXIT". Exit gate glyph at local x1370,y330. Reaching finish after all three in order records a clear/best time/hitless status and grants20 charge once per scene attempt (ordinary campaign save eligibility required). This never gates chapter progress. Skipping rings still allows ordinary exit. Records use each course id. Timer starts on first movement while inside the section at local x>=100; ends on actual finish with all rings, not exit without rings. Leaving left resets the attempt; leaving right without rings marks missed, no persistence. Reentering resets rings/timer/hits; no second successful reward in same scene instance. Damage accepted during active attempt increments hits. Best time and hitless monotonic; no fake medals, arbitrary par times or daily rewards.
-Records valid only if no debug assist/infinite health/dev preview at any point during attempt. Use local TrialEligibility and TrialClock; visibility/blur/pause gaps excluded; initial assists invalidate, turning assists off later cannot restore. Campaign eligibility remains existing sticky policy. In campaign route records must not alter currentScene/checkpoint/unlocks. Do not let record save clobber just-saved campaign fields (load latest before merge). Keep route record present after replay.
-
-Practice: a dedicated RouteSelectScene ('routes') with 3 chapter tabs and 3 courses each. Lock an entire chapter's drill list until that chapter is unlocked by campaign; do not require chapter completion. Each card shows course name, one-line mechanic goal, best time or "No clear yet", CLEAN mark when hitless, and PRACTICE button. This screen can open from Menu via P / ROUTE PRACTICE button. Back/Escape resumes SAME Menu instance so an underlying paused campaign survives browsing; starting drill stops paused campaign and Menu before starting new scene. Main menu buttons can be arranged as JOURNAL x105 width180, ROUTE PRACTICE x320 width220, BOSS TRIALS x540 width160 at y327; a small BossSelectScene or routes screen second BOSS tab may own two existing boss buttons. Prefer routes screen fourth BOSSES tab; preserve G/C direct boss shortcuts with guards. Chapter cards/mainJourney unchanged. Graphics control y385 and keyboard hints y364 cannot overlap.
-
-Reuse JourneyScene via three unique aliases jail-route-practice, outside-route-practice, crimson-route-practice registered in gameConfig. Input data routePractice=course id determines one section and bounds [section*1440,(section+1)*1440]. Full3 HP, charge0, spawn local100,y332.5, only section terrain/enemies/traps, no secrets/checkpoints/campaign gates/boss/background objects outside practice bounds. Course uses actual campaign layout/rules. Isolate BOTH boss and route practice from campaign save/transitions. Camera/physics clamp to section; no exit past end. Finish valid at localx>=1370 with all rings. HUD shows current course, ring count, elapsed, hits; explains "Collect 1 → 2 → 3, then cross the finish". Time only starts on first action, hidden/pause not counted. Show result clear/fail plus PB/CLEAN badges; ENTER retry, ESC/PRACTICE returns routes, MENU separate clickable button. Death returns result; no auto restart. A near finish without all rings shows "Ring N is still ahead" (or behind; don't tell it is ahead if not). Abandonment no records. Existing boss trial clocks/records unaffected.
-
-Architecture: small dependency-free RouteAttempt state machine and pure record helper, plus a Phaser CrownRoute presentation/system reused by campaign/practice. Do not inline a giant second gameplay loop or clone JourneyScene. Schema version3 under SAME duckoman.progress.v1 key; validate/migrate versions1/2 losslessly. Add routes: Record<SkillRouteId,TrialRecord>. Drop unknown ids/invalid times safely, preserve other progress. Failures/aborts/ineligible runs never increment clears. Clamp public record inputs and validate chapter/course consistent.
-
-## Acceptance and tests
-- Reachability graph using actual tuning passes all ledges; add a normal-jump (without dash) check for first teaching landings of Outside3/7; no spike/enemy in their first teaching landing.
-- At least6 different format silhouettes per chapter; all step layouts independently authored. Recovery sections contain no spikes and no force before its introduction; Jail no wind or conveyor, Outside first conveyor3/wind7; exactly8 Outside force sections, at least8 Crimson force sections including4 both.
-- Behavioral RouteAttempt tests: order required; ring out of order rejected; moving start; exit without full rings; reset/backtrack; accepted damage only while active; finish only once; pause/hidden gap; assist-on-then-off sticky; failed/abort do not persist; PB monotonic; campaign fields unchanged.
-- Saves version1/2 migrate, unknown course rejected, replay retains route records.
-- Existing tests/build/diff-check pass. Modify old type-frequency<=2 test into pacing/format coverage because four Outside sanctuaries are intentional, do not weaken geometry/reachability invariants.
-- Browser checks menus/readability only; do not play. No deployment, new chapters, SMS or promise of maximum addiction.
-- Return a compact implementation report and point me at any uncertainty rather than make new product decisions.
+## Phase C: retired optional challenges
+The optional Crown Route challenges and chapter drills were removed. Boss Trials remain available from the menu, with existing unlocks and records. Saves retain schema version 5; obsolete route records are ignored and omitted on save.
 
 ## Authored tables
 ### Jail

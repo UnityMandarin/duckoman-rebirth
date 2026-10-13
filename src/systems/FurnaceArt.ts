@@ -6,7 +6,7 @@ export const FRANKLIN_IMAGE_FX_POOL_SIZE=16;
 /** Native measured crops from the authored Chapter 5 utility/climax atlases. */
 const UTILITY = [
   ['vent',15,150,310,90],['flame-0',350,55,296,230],['flame-1',650,35,296,250],['flame-2',952,20,302,265],
-  ['circuit-1',40,315,265,305],['circuit-2',350,315,270,305],['circuit-3',640,315,270,305],['ember',920,315,334,305],
+  ['ember',920,315,334,305],
   ['warning',0,650,355,260],['halo',355,635,285,290],['control-glow',640,635,270,290],['electric',910,635,344,290],
   ['gear',25,930,285,324],['cracks',325,930,295,324],['impact',630,930,280,324],['dash',915,930,339,324],
 ] as const;

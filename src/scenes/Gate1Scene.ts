@@ -16,7 +16,7 @@ import { CastleBoss } from '../entities/CastleBoss';
 import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
-import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
+import { installHitboxDebug } from '../systems/DebugHitboxes';
 import { setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
 import {registerCommonFrames} from './CommonAssets';
@@ -25,6 +25,7 @@ import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
 import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
+import {addWorldEnvironment} from '../systems/WorldEnvironment';
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -57,23 +58,9 @@ export class Gate1Scene extends Phaser.Scene {
     if(!masonry.has('column'))masonry.add('column',0,40,132,1960,180);
     this.cameras.main.setBackgroundColor(0x07111f);
     this.physics.world.setBounds(0, CASTLE.top, CASTLE.width, CASTLE_SECRET.hole.portalY-CASTLE.top);
-    // Backdrop floor stays at the collision floor height through vertical traversal.
-    for(let i=0;i<3;i++)this.add.image(i*5000-400,-1340,'castle-background').setOrigin(0).setDisplaySize(5100,1700)
-      .setFlipX(i%2===1).setScrollFactor(.72,1).setDepth(-21);
-    this.add.rectangle(CASTLE.width/2,490,CASTLE.width,260,0x08111b).setDepth(-18);
-    const background=this.textures.get('castle-background').getSourceImage();
-    // Crop strips fade the old architecture into the continuation, never a hard image edge.
-    for(let i=0;i<90;i++)this.add.image(i*20,-170,'castle-background').setOrigin(0)
-      .setCrop(i*background.width/90,0,background.width/90,background.height)
-      .setDisplaySize(1800,600).setX(0).setScrollFactor(.6,0).setDepth(-20)
-      .setAlpha(i<80?1:(90-i)/10);
-    this.add.rectangle(TUNING.simulation.width / 2, TUNING.simulation.height / 2, TUNING.simulation.width, TUNING.simulation.height, 0x06101c, 0.18)
-      .setScrollFactor(0).setDepth(-19);
-    // One authored archive landmark: distant props stay behind the playable route.
-    const archive=this.textures.get('royal-archive').getSourceImage();
-    const archiveWidth=820, archiveHeight=archiveWidth*archive.height/archive.width;
-    this.add.image(0,360-archiveHeight*.886,'royal-archive').setOrigin(0)
-      .setDisplaySize(archiveWidth,archiveHeight).setScrollFactor(.65,1).setDepth(-15);
+    addWorldEnvironment(this,'castle');
+    const hole=CASTLE_SECRET.hole;
+    this.add.rectangle(hole.left+hole.width/2,(360+hole.portalY)/2,hole.width,hole.portalY-360,0x040910,.96).setDepth(-18);
     const terrain = this.physics.add.staticGroup();
     for (const platform of this.allPlatforms) {
       this.createPlatformVisual(platform.x, platform.y, platform.width, platform.height);
@@ -92,7 +79,7 @@ export class Gate1Scene extends Phaser.Scene {
     const spawnY=data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
     this.player = new Player(this, data.fromSecret?SECRET_RETURN_X:data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
     this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
-    this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width); this.depthPresentation.setPlayer(this.player);
+    this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width,false); this.depthPresentation.setPlayer(this.player);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, data.checkpoint===CASTLE_CHECKPOINT.x?5745:GATE_1_ROOM.throwableSpawn.x, data.checkpoint===CASTLE_CHECKPOINT.x?160:GATE_1_ROOM.throwableSpawn.y);
     this.extraEnemies=[...GATE_1_ROOM.extraEnemies.map(spawn=>new BasicEnemy(this,spawn.x,spawn.y,spawn)),...CASTLE_ENEMIES.map(spawn=>new BasicEnemy(this,spawn.x,325,spawn,spawn.pointed,spawn.jumper))];
@@ -119,20 +106,11 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.setDeadzone(96,150);
     if(data.fromSecret)this.cameras.main.setScroll(this.player.sprite.x-TUNING.simulation.width/2,this.player.sprite.y-TUNING.simulation.height/2);
     this.hud = new ChapterHud(this, this.player);
-    for(const [x,y,label] of [[180,270,'Press L to jump'],[610,290,'Cake weapon: press J to throw'],[850,280,'Jump on or dash to kill'],[3570,270,'Spike robot: dash to kill'],[4870,220,'Hold Shift → L jump → K dash']] as const)
-      this.add.text(x,y,label,{fontFamily:'Arial',fontSize:'11px',color:'#ffdf60',stroke:'#171005',strokeThickness:4}).setOrigin(.5,1).setDepth(12);
-    // First-half dash cues: first robot, cracked wall, spike robot, and gap's airborne dash point.
-    for(const [x,y] of [[850,238],[3270,290],[3570,230],[5010,105],[5130,280]] as const) {
-      this.add.image(x,y,'dash-arrows-wind').setDisplaySize(100,70).setDepth(9);
-      this.add.text(x,y+36,'K · DASH',{fontFamily:'Arial',fontSize:'10px',color:'#a6f8ff',stroke:'#07111f',strokeThickness:3}).setOrigin(.5,0).setDepth(9);
-    }
     this.resetText = this.add.text(TUNING.simulation.width / 2, TUNING.simulation.height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
     this.resetText.setDepth(30);
-    this.add.text(1860,345,'S · S: slam\nJump on landing for boost',{fontFamily:'Arial',fontSize:'10px',color:'#efd7a1',stroke:'#07101b',strokeThickness:3}).setOrigin(0.5,1).setDepth(8);
     this.events.emit('play-ready');
     installLocalQA(this,this.player,()=>this.boss.probeVictory());
     installHitboxDebug(this);
-    installPlatformLabels(this,this.allPlatforms);
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');

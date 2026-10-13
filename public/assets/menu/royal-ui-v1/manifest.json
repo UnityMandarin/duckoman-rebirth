@@ -38,13 +38,6 @@
       "height": 724
     },
     {
-      "path": "public/assets/menu/royal-ui-v1/button-routes.webp",
-      "bytes": 1644082,
-      "generatedSource": "exec-af46d90d-3d83-4f0c-9b32-b3315e924435.png",
-      "width": 2172,
-      "height": 724
-    },
-    {
       "path": "public/assets/menu/royal-ui-v1/button-trials.webp",
       "bytes": 1695514,
       "generatedSource": "exec-e620bac2-ec37-4bdc-8414-1900fa757270.png",
@@ -80,7 +73,6 @@
     "button-continue": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny forward-feather rim etching, quiet center",
     "button-replay": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny returning feather-trail rim etching, quiet center",
     "button-journal": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny book-spine rim etching, quiet center",
-    "button-routes": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny path rim etching, quiet center",
     "button-trials": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny crossed sword guards rim etching, quiet center, no blood",
     "button-graphics": "wide 3:1 blue-black slate and thin aged-brass button plate, tiny prism/window edge rim etching, quiet center, no glow",
     "button-previous": "portrait 3:5 blue-black slate and thin aged-brass navigation plate, subtle left endpoint cut, quiet center for existing DOM arrow",
@@ -94,7 +86,6 @@
     "button-continue": "chapter Continue controls",
     "button-replay": "chapter Replay controls",
     "button-journal": "Journal",
-    "button-routes": "Route Practice",
     "button-trials": "Boss Trials",
     "button-graphics": "dynamic Graphics quality control",
     "button-previous": "previous chapter",

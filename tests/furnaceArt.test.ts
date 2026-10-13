@@ -30,7 +30,7 @@ describe('Chapter 5 authored frame presentation',()=>{
     expect(textures.get('furnace-utility').frames.get('dash')).toEqual({x:915,y:930,width:339,height:324});
     expect(textures.get('furnace-utility').frames.get('warning')).toEqual({x:0,y:650,width:355,height:260});
     expect(textures.get('furnace-climax').frames.get('panel')).toEqual({x:615,y:800,width:680,height:314});
-    expect(textures.get('chapter5-typography').frames.get('room-10')).toEqual(FURNACE_TYPOGRAPHY['room-10']);
+    expect(textures.get('chapter5-typography').frames.get('story-2')).toEqual(FURNACE_TYPOGRAPHY['story-2']);
     expect(textures.get('chapter5-typography').frames.get('hp')).toEqual(FURNACE_TYPOGRAPHY.hp);
     expect(textures.get('chapter5-typography').frames.get('sleep-z')).toEqual(FURNACE_TYPOGRAPHY['sleep-z']);
     const maps=[['furnace-utility',1254,1254],['furnace-climax',1295,1214],['chapter5-typography',1020,1412]] as const;
@@ -54,7 +54,7 @@ describe('Chapter 5 authored frame presentation',()=>{
     const lines=[...typographySvg.matchAll(/<text[^>]*fill="#ffe2ad"[^>]*>(.*?)<\/text>/g)].map(m=>m[1]).join(' ');
     for(const room of FURNACE_ROOMS)if(room.story)expect(lines).toContain(room.story);
     expect(lines).toContain('Checkpoint · Half a heart restored.');expect(lines).toContain('Franklin Fox — one of Duckoman’s best friends. A control chip is forcing him to fight.');
-    expect(FURNACE_TYPOGRAPHY['story-0'].height/2).toBeGreaterThan(30);expect(FURNACE_TYPOGRAPHY.menu.width).toBeLessThan(130);
+    expect(FURNACE_TYPOGRAPHY['story-2'].height/2).toBeGreaterThan(30);expect(FURNACE_TYPOGRAPHY.menu.width).toBeLessThan(130);
     expect(typographySvg).not.toMatch(/<(?:rect|circle|path|line|polygon)\b/i);
   });
 

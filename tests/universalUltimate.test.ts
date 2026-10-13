@@ -58,7 +58,7 @@ describe('universal ultimate targets',()=>{
   f.scene.cameras.main=undefined;
   expect(()=>f.scene.events.emit('shutdown')).not.toThrow();
   expect((boss as any).cameraSnapshot).toBeUndefined();expect(f.listeners.get('ultimate-strike')?.size).toBe(0);
-  expect((boss as any).arenaArt.destroy).toHaveBeenCalledOnce();
+  expect((boss as any).arenaArt).toBeUndefined();
  });
  it('hits Crab claw outside shell, preserves invisible underground immunity and four damage',()=>{
   const f=fixture(),boss=new CrabBoss(f.scene,f.player,0,1500,vi.fn());(boss as any).engaged=true;beginUltimateFreeze(f.scene,f.player);boss.update(50);expect(f.scene.physics.world.isPaused).toBe(true);

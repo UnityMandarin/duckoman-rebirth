@@ -1,26 +1,23 @@
 import {FURNACE_CHECKPOINTS,FURNACE_BOSS_CHECKPOINT} from '../data/furnace';
 import {chapterSections,SECTION_WIDTH} from '../data/chapters';
 import {CASTLE_CHECKPOINT} from './checkpointPolicy';
-import {SKILL_ROUTES,isSkillRouteId,type SkillRouteId} from '../data/skillRoutes';
 export const PROGRESS_KEY='duckoman.progress.v1';
 export const CHAPTERS=['gate-1','jail','outside','crimson','rescue'] as const;
 export type CampaignScene=typeof CHAPTERS[number];
 export interface ChapterProgress {checkpoint:number;charge:number;opened:number[];secrets:number[];discoveries:number[];bossDefeated:boolean;finished:boolean;}
 export interface TrialRecord {bestMs?:number;hitless:boolean;clears:number;}
-export interface CampaignProgress {version:5;unlocked:CampaignScene[];completed:CampaignScene[];currentScene:CampaignScene;ended:boolean;chapters:Record<CampaignScene,ChapterProgress>;trials:{outside:TrialRecord;crimson:TrialRecord};routes:Record<SkillRouteId,TrialRecord>;}
+export interface CampaignProgress {version:5;unlocked:CampaignScene[];completed:CampaignScene[];currentScene:CampaignScene;ended:boolean;chapters:Record<CampaignScene,ChapterProgress>;trials:{outside:TrialRecord;crimson:TrialRecord};}
 export function canPersistCampaign(state:{devPreview?:boolean;infiniteHealth?:boolean;runEligible?:boolean}):boolean {return !state.devPreview&&!state.infiniteHealth&&state.runEligible!==false;}
 export function canPracticeBoss(p:CampaignProgress,boss:'outside'|'crimson'):boolean {const checkpoint=(boss==='outside'?22:10)*SECTION_WIDTH+80;return p.completed.includes(boss)||p.unlocked.includes(boss)&&p.chapters[boss].checkpoint>=checkpoint;}
-export function canPracticeRoute(p:CampaignProgress,id:unknown):boolean {const route=SKILL_ROUTES.find(candidate=>candidate.id===id);return !!route&&p.unlocked.includes(route.chapter as CampaignScene);}
 const emptyChapter=():ChapterProgress=>({checkpoint:0,charge:0,opened:[],secrets:[],discoveries:[],bossDefeated:false,finished:false});
 const emptyTrial=():TrialRecord=>({hitless:false,clears:0});
-const emptyRoutes=():Record<SkillRouteId,TrialRecord>=>Object.fromEntries(SKILL_ROUTES.map(route=>[route.id,emptyTrial()])) as Record<SkillRouteId,TrialRecord>;
 export const SAVE_CHECKPOINTS:Record<CampaignScene,number[]>={
  'gate-1':[0,CASTLE_CHECKPOINT.x],jail:[0,...[3,6,9].map(i=>i*SECTION_WIDTH+80)],
  outside:[0,...[3,6,9,12,15,18,21,22].map(i=>i*SECTION_WIDTH+80)],crimson:[0,...[3,6,9,10].map(i=>i*SECTION_WIDTH+80)],rescue:[...FURNACE_CHECKPOINTS]
 };
 const VALID_GATES:Record<CampaignScene,number[]>={'gate-1':[0,1,2],jail:[0,4,8,12],outside:[99],crimson:[99],rescue:[0]};
 const secretIds=(scene:CampaignScene)=>scene==='gate-1'?[0,1,2]:scene==='rescue'?[]:chapterSections(scene).flatMap((section,i)=>section.secret?[i]:[]);
-export function freshProgress():CampaignProgress{return {version:5,unlocked:['gate-1'],completed:[],currentScene:'gate-1',ended:false,chapters:{'gate-1':emptyChapter(),jail:emptyChapter(),outside:emptyChapter(),crimson:emptyChapter(),rescue:emptyChapter()},trials:{outside:emptyTrial(),crimson:emptyTrial()},routes:emptyRoutes()};}
+export function freshProgress():CampaignProgress{return {version:5,unlocked:['gate-1'],completed:[],currentScene:'gate-1',ended:false,chapters:{'gate-1':emptyChapter(),jail:emptyChapter(),outside:emptyChapter(),crimson:emptyChapter(),rescue:emptyChapter()},trials:{outside:emptyTrial(),crimson:emptyTrial()}};}
 const isScene=(v:unknown):v is CampaignScene=>typeof v==='string'&&(CHAPTERS as readonly string[]).includes(v);
 function ids(v:unknown,max:number):number[]{if(!Array.isArray(v))return [];return [...new Set(v.filter((n):n is number=>Number.isInteger(n)&&n>=0&&n<max))];}
 export function validateProgress(v:unknown):CampaignProgress|null {
@@ -47,9 +44,8 @@ export function validateProgress(v:unknown):CampaignProgress|null {
  const completed=requestedCompleted.filter(scene=>unlocked.includes(scene));for(const key of CHAPTERS)chapters[key].finished=completed.includes(key);
  let currentScene:CampaignScene=rawCurrent==='rescue'&&version<4?unlocked[unlocked.length-1]:rawCurrent as CampaignScene;if(!unlocked.includes(currentScene))currentScene=unlocked[unlocked.length-1];
  const trial=(v:unknown):TrialRecord=>{const r=v&&typeof v==='object'?v as Record<string,unknown>:{};return {...(typeof r.bestMs==='number'&&Number.isFinite(r.bestMs)&&r.bestMs>0?{bestMs:r.bestMs}:{}),hitless:r.hitless===true,clears:typeof r.clears==='number'&&Number.isInteger(r.clears)&&r.clears>=0?r.clears:0};};
- const rawTrials=version>=2&&x.trials&&typeof x.trials==='object'?x.trials as Record<string,unknown>:{},rawRoutes=version>=3&&x.routes&&typeof x.routes==='object'?x.routes as Record<string,unknown>:{},routes=emptyRoutes();
- for(const id of Object.keys(rawRoutes))if(isSkillRouteId(id))routes[id]=trial(rawRoutes[id]);
- return {version:5,unlocked,completed,currentScene,ended:version<4&&requestedCompleted.includes('crimson')?false:x.ended===true,chapters,trials:{outside:trial(rawTrials.outside),crimson:trial(rawTrials.crimson)},routes};
+ const rawTrials=version>=2&&x.trials&&typeof x.trials==='object'?x.trials as Record<string,unknown>:{};
+ return {version:5,unlocked,completed,currentScene,ended:version<4&&requestedCompleted.includes('crimson')?false:x.ended===true,chapters,trials:{outside:trial(rawTrials.outside),crimson:trial(rawTrials.crimson)}};
 }
 let memory:CampaignProgress=freshProgress();
 function defaultStorage():Pick<Storage,'getItem'|'setItem'>|null {try{return globalThis.localStorage;}catch{return null;}}
@@ -72,10 +68,6 @@ export function updateChapter(p:CampaignProgress,scene:CampaignScene,patch:Parti
 }
 export function recordTrialVictory(p:CampaignProgress,boss:'outside'|'crimson',elapsedMs:number,hits:number,eligible:boolean):CampaignProgress {if(!eligible||!Number.isFinite(elapsedMs)||elapsedMs<=0||!Number.isInteger(hits)||hits<0)return structuredClone(p);const next=structuredClone(p),r=next.trials[boss];r.clears++;if(r.bestMs===undefined||elapsedMs<r.bestMs)r.bestMs=elapsedMs;if(hits===0)r.hitless=true;return next;}
 export function recordTrialOutcome(p:CampaignProgress,boss:'outside'|'crimson',outcome:{victory:boolean;aborted?:boolean;elapsedMs:number;hits:number;eligible:boolean}):CampaignProgress {if(!outcome.victory||outcome.aborted)return structuredClone(p);return recordTrialVictory(p,boss,outcome.elapsedMs,outcome.hits,outcome.eligible);}
-export function recordRouteOutcome(p:CampaignProgress,id:unknown,outcome:{victory:boolean;aborted?:boolean;elapsedMs:number;hits:number;eligible:boolean}):CampaignProgress {
- if(!isSkillRouteId(id)||!outcome.victory||outcome.aborted||!outcome.eligible||!Number.isFinite(outcome.elapsedMs)||outcome.elapsedMs<=0||!Number.isInteger(outcome.hits)||outcome.hits<0)return structuredClone(p);
- const next=structuredClone(p),record=next.routes[id];record.clears++;if(record.bestMs===undefined||outcome.elapsedMs<record.bestMs)record.bestMs=outcome.elapsedMs;if(outcome.hits===0)record.hitless=true;return next;
-}
 export function sceneDataFromProgress(p:CampaignProgress,scene:CampaignScene):Omit<ChapterProgress,'checkpoint'|'charge'|'discoveries'> & {checkpoint:number|undefined;ultimateCharge:number} {
  const chapter=p.chapters[scene];return {checkpoint:chapter.checkpoint||undefined,ultimateCharge:chapter.charge,opened:[...chapter.opened],secrets:[...chapter.secrets],bossDefeated:chapter.bossDefeated,finished:chapter.finished};
 }

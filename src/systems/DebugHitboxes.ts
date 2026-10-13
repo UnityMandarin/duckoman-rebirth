@@ -1,11 +1,9 @@
 import Phaser from 'phaser';
 import type { Circle, Polygon, Rect } from './contactRules';
 import { debugToggle } from './debug/debugSettings';
-import { platformLabels } from './debug/platformLabels';
 
 export type HitboxKind = 'hurtbox' | 'attack' | 'danger' | 'target' | 'interact' | 'solid';
 type Shape = Rect | Circle | Polygon;
-type Rect2D = { x: number; y: number; width: number; height: number };
 type Tag = { kind: HitboxKind; shapes?: () => Shape[] };
 
 const STYLE: Record<HitboxKind, { color: number; label: string }> = {
@@ -75,16 +73,4 @@ export function installHitboxDebug(scene: Phaser.Scene): void {
   };
   scene.events.on(Phaser.Scenes.Events.PRE_RENDER, draw);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.PRE_RENDER, draw));
-}
-
-/** Tags each platform with its A1/B2-style label while hitboxes are shown. */
-export function installPlatformLabels(scene: Phaser.Scene, platforms: readonly Rect2D[]): void {
-  const style = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '11px', color: '#ffffff', backgroundColor: '#0d1520cc', padding: { x: 3, y: 1 } };
-  const texts = platformLabels(platforms).map((label, i) => {
-    const p = platforms[i];
-    return scene.add.text(p.x, p.y - p.height / 2 - 2, label, style).setOrigin(0.5, 1).setDepth(1001).setVisible(false);
-  });
-  const sync = (): void => { const on = hitboxDebugEnabled(); for (const text of texts) text.setVisible(on); };
-  scene.events.on(Phaser.Scenes.Events.PRE_RENDER, sync);
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.PRE_RENDER, sync));
 }

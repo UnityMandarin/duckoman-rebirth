@@ -86,7 +86,7 @@ export class CastleBoss extends Dashable {
         });
       }
       this.nextSummon=now+BOSS_RULES.minionInterval-2000;
-      this.say('IronWing?! That machine was never here before. Dash, or jump on its red core!');
+      this.say('IronWing?! That machine was never here before.');
     }
     const elapsed=now-this.started,events=this.clock.tick(elapsed);
     if(now>=this.nextSummon&&this.summonUntil===0){

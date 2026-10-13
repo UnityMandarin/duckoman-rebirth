@@ -1,4 +1,6 @@
 import type Phaser from 'phaser';
+import {SCENIC_ZONES} from '../data/scenicZones';
+import type {EnvironmentKind} from '../data/worldEnvironment';
 import { LETTER_TEXTURE } from '../entities/CreatorLetter';
 
 export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'furnace' | 'rescue' | 'castle-secret';
@@ -21,8 +23,9 @@ const menu: readonly SceneAssetEntry[] = [
   entry('menu-cistern', 'assets/menu/cards/cistern.webp'),
   entry('chained-lock', 'assets/menu/chained-lock.png'),
 ];
+const scenicAssets=(kind:EnvironmentKind):readonly SceneAssetEntry[]=>[...SCENIC_ZONES[kind].map(z=>entry(`world-v3-${z.name}`,`assets/world-v3/${z.name}.png`)),entry(`world-v3-${kind}-connectors`,`assets/world-v3/${kind}-connectors.png`),entry('world-v2-structures','assets/world-v2/structures.png')];
 const gate1: readonly SceneAssetEntry[] = [
-  entry('castle-background', 'assets/gate3/royal-hall.png'),
+  ...scenicAssets('castle'),
   entry('ironwing-button', 'assets/gate3/ironwing-button.png'),
   entry('ironwing-bomb', 'assets/gate3/ironwing-bomb.png'),
   entry('ironwing-eye', 'assets/gate3/ironwing-eye.png'),
@@ -38,9 +41,6 @@ const gate1: readonly SceneAssetEntry[] = [
   entry('lock-kit', 'assets/gate3/lock-kit.png'),
   entry('rock-pillar-kit', 'assets/gate3/rock-pillar-kit.png'),
   entry('rest-lantern', 'assets/chapters/rest-lantern.png'),
-  entry('prison-atlas', 'assets/depth/prison-atlas.png'),
-  entry('royal-scroll', 'assets/depth/royal-scroll.png'),
-  entry('royal-archive', 'assets/depth/royal-archive.png'),
   entry('ultimate-sword-frame', 'assets/hud/ultimate-sword-frame.png'),
   entry('ultimate-sword-fill', 'assets/hud/ultimate-sword-fill.png'),
   entry('cracked-stone-wall', 'assets/environment/cracked-stone-wall.png'),
@@ -71,31 +71,21 @@ const profiles: Readonly<Record<SceneAssetProfile, readonly SceneAssetEntry[]>> 
   menu,
   'gate-1': gate1,
   jail: withCommon(
+    ...scenicAssets('jail'),
     entry('identity-jail', 'assets/identity/jail.png'),
-    entry('quality-jail-deep-cells', 'assets/quality/jail-deep-cells.png'),
-    entry('quality-jail-upper-gallery', 'assets/quality/jail-upper-gallery.png'),
-    entry('quality-jail-sluice', 'assets/quality/jail-sluice.png'),
-    entry('quality-jail-gallery', 'assets/chapters/jail-gallery.png'),
-    entry('quality-cistern', 'assets/chapters/cistern.png'),
   ),
   outside: withCommon(
+    ...scenicAssets('outside'),
     entry('identity-outside', 'assets/identity/outside.png'), ...chapterCommon,
     entry('antler-regent', 'assets/chapters/antler-regent.png'),
     spritesheet('regent-poses', 'assets/bosses/regent/poses-v1.png', 384, 256),
     spritesheet('regent-defeat-poses', 'assets/bosses/regent/defeat-v1.png', 512, 341),
     entry('regent-effects', 'assets/bosses/regent/effects-v1.png'),
-    entry('regent-arena', 'assets/bosses/regent/arena-v1.png'),
-    entry('quality-ruined-kingdom', 'assets/chapters/ruined-kingdom.png'),
-    entry('quality-wildwood', 'assets/chapters/wildwood.png'),
-    entry('quality-deepwood', 'assets/chapters/deepwood.png'),
-    entry('quality-outside-wind-ruins', 'assets/quality/outside-wind-ruins.png'),
-    entry('quality-outside-fox-river', 'assets/quality/outside-fox-river.png'),
   ),
   crimson: withCommon(
+    ...scenicAssets('crimson'),
     entry('identity-crimson', 'assets/identity/crimson.png'), ...chapterCommon,
     entry('crimson-crab', 'assets/chapters/crimson-crab.png'),
-    entry('quality-ruined-kingdom', 'assets/chapters/ruined-kingdom.png'),
-    entry('quality-crimson-vault', 'assets/quality/crimson-vault.png'),
     entry('rock-pillar-kit', 'assets/gate3/rock-pillar-kit.png'),
   ),
   furnace: withCommon(entry('identity-crimson','assets/identity/crimson.png'),...chapterCommon,
@@ -225,7 +215,6 @@ export function registerSharedPropFrames(scene: Phaser.Scene): void {
   if (!scene.textures.exists(key)) return;
   const texture = scene.textures.get(key);
   const frames: ReadonlyArray<readonly [string, number, number, number, number]> = [
-    ['crown-ring', 18, 625, 290, 304],
     ['wind-streak', 320, 662, 300, 232],
     ['impact-dust', 22, 925, 288, 320],
     ['rescue-dust', 22, 925, 288, 320],

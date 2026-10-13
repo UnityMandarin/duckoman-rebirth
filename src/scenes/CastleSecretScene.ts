@@ -4,7 +4,7 @@ import { CASTLE_SECRET } from '../data/castle';
 import { Player } from '../entities/Player';
 import { InputController } from '../systems/InputController';
 import { ChapterHud } from '../systems/ChapterHud';
-import { installHitboxDebug, installPlatformLabels } from '../systems/DebugHitboxes';
+import { installHitboxDebug } from '../systems/DebugHitboxes';
 import { setupRenderScale } from '../systems/renderScale';
 import { SceneLayerRouter } from '../systems/SceneLayerRouter';
 import { markCampaignRunIneligible } from '../systems/debug/debugSettings';
@@ -82,7 +82,6 @@ export class CastleSecretScene extends Phaser.Scene {
     this.resetText = this.add.text(width / 2, height / 2, '', { fontFamily: 'system-ui', fontSize: '20px', color: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(30);
     this.cameras.main.roundPixels = true;
     installHitboxDebug(this);
-    installPlatformLabels(this, [floor]);
     this.game.canvas.tabIndex = 0;
     this.game.canvas.focus();
     const hudCamera = setupRenderScale(this, 'secret-hud');

@@ -33,7 +33,6 @@ export class AntlerRegent extends Dashable {
  private barFrame:Phaser.GameObjects.Image;
  private barFill:Phaser.GameObjects.Image;
  private name:Phaser.GameObjects.Text;
- private arenaArt:Phaser.GameObjects.Image;
  private warning:Phaser.GameObjects.Image;
  private chargeArt:Phaser.GameObjects.Image;
  private sweepArt:Phaser.GameObjects.Image;
@@ -59,7 +58,6 @@ export class AntlerRegent extends Dashable {
  constructor(private scene:Phaser.Scene,private player:Player,private cake:ThrowableObject,private left:number,private right:number,private defeated:()=>void,private practice=false,private shortIntro=false,private ledges:RegentLedge[]=[]){
   super();this.lastBossX=left+750;
   this.installEffectsFrames();
-  this.arenaArt=scene.add.image((left+right)/2,760,'regent-arena').setOrigin(.5,1).setDisplaySize(right-left, (right-left)*1024/1536).setDepth(-19);
   this.image=scene.add.image(this.lastBossX,360,'regent-poses',String(POSE.idle)).setOrigin(.5,1).setDisplaySize(230,180).setDepth(12);
   this.warning=scene.add.image(this.lastBossX,360,'regent-effects','lane-warning').setOrigin(.5,1).setDisplaySize(350,44).setDepth(9).setVisible(false);
   this.chargeArt=scene.add.image(this.lastBossX,360,'regent-effects','shockwave').setOrigin(.5,1).setDisplaySize(REGENT_RULES.bodyWidth,REGENT_RULES.chargeBand).setDepth(9).setVisible(false).setAlpha(.42);
@@ -212,7 +210,7 @@ export class AntlerRegent extends Dashable {
  private shutdown():void {
   this.syncControlHold(false);this.hideHazards();this.scene.events.off('ultimate-strike',this.strike);this.scene.events.off(Phaser.Scenes.Events.PAUSE,this.pauseListener);this.scene.events.off(Phaser.Scenes.Events.RESUME,this.resumeListener);document.removeEventListener('visibilitychange',this.visibilityListener);
   if(this.cameraSnapshot)this.restoreCamera();
-  this.fx.forEach(effect=>effect.image.destroy());this.rootArt.forEach(a=>{a.signal.destroy();a.eruption.destroy();});this.waves.forEach(w=>w.image.destroy());this.warning.destroy();this.chargeArt.destroy();this.sweepArt.destroy();this.roarArt.destroy();this.defeatArt.destroy();this.arenaArt.destroy();
+  this.fx.forEach(effect=>effect.image.destroy());this.rootArt.forEach(a=>{a.signal.destroy();a.eruption.destroy();});this.waves.forEach(w=>w.image.destroy());this.warning.destroy();this.chargeArt.destroy();this.sweepArt.destroy();this.roarArt.destroy();this.defeatArt.destroy();
  }
  private get hittable():Rect{return {left:this.image.x-62,right:this.image.x+62,top:245,bottom:360};}
  protected dashBounds():Rect|null{return this.hp>0&&this.engaged&&this.canAct()&&this.state.phase!=='intro'&&this.state.phase!=='roar'&&this.state.phase!=='defeat'&&this.state.phase!=='done'?this.hittable:null;}

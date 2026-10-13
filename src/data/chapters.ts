@@ -10,7 +10,7 @@ export const SECTION_WIDTH=1440;
 export const JAIL_SECTIONS:ChapterSection[]=[
  {name:'The Royal Cell',route:'stairs',story:'My own prison. My own crest on the bars. Who gave the order?'},
  {name:'Service Passage',route:'gallery',secret:'The cell locks were replaced before the attack.'},
- {name:'Laundry Galleries',route:'stairs',story:'The upper galleries reconnect with the drains. Either way leads east.'},
+ {name:'Laundry Galleries',route:'stairs'},
  {name:'Silent Cistern',route:'gap',secret:'A scratched message: “Do not trust the iron birds.”'},
  {name:'Guard Quarters',route:'gauntlet',story:'Empty beds. Warm lamps. They left in a hurry.'},
  {name:'Evidence Vault',route:'gallery',secret:'A royal dispatch: Franklin Fox offered sanctuary. The reply was never sent.'},
@@ -50,7 +50,7 @@ export const OUTSIDE_SECTIONS:ChapterSection[]=[
 
 export const CRIMSON_SECTIONS:ChapterSection[]=[
  {name:'The Scarlet Border',route:'gallery',story:'Franklin’s kingdom. Red banners, empty streets… and blood on the stones. Where is everyone?'},
- {name:'Occupation Avenue',route:'gauntlet',story:'Our robots, twisted into crimson machines. Their armor takes two hits.'},
+ {name:'Occupation Avenue',route:'gauntlet',story:'Our robots, twisted into crimson machines.'},
  {name:'The Silent Foundry',route:'stairs',secret:'Emergency dispatch: Franklin Fox was captured alive. The palace is occupied.'},
  {name:'Bloodwater Canal',route:'gap',story:'They captured Franklin. He offered my people shelter; now I have to bring him home.'},
  {name:'The Broken Parade',route:'gauntlet',secret:'Prisoner transfer: the king was taken below the throne. No return order.'},
@@ -59,7 +59,7 @@ export const CRIMSON_SECTIONS:ChapterSection[]=[
  {name:'The Iron Procession',route:'gap',secret:'Siege manual: the crab’s shell rejects thrown weapons and downward blows. Dash through it. Or use IronWing.'},
  {name:'Shattered Crownworks',route:'stairs',story:'Four impact marks. The siege engine brings down four pillars together.'},
  {name:'The Captive King’s Gate',route:'gauntlet',story:'Franklin is still alive below the palace. I have to break their jailer.'},
- {name:'The Crimson Claw',route:'gallery',story:'CRIMSON CLAW · 20 HP. K dash or U ultimate only. Watch the claw wind-up and four red pillar warnings.'},
+ {name:'The Crimson Claw',route:'gallery'},
  {name:'Beneath the Empty Throne',route:'gallery',story:'The prison signal comes from beneath the throne. Hold on, Franklin.'}
 ];
 export function chapterSections(kind:ChapterKind):ChapterSection[]{return kind==='jail'?JAIL_SECTIONS:kind==='outside'?OUTSIDE_SECTIONS:CRIMSON_SECTIONS;}

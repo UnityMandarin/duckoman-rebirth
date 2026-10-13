@@ -62,7 +62,6 @@ export class ChapterTraps {
    if(encounter.wind){
     const floor=authored?.floor(section)??roomFor(kind,section)?.floor??360;
     this.windRooms.set(section,{direction:encounter.wind.direction,floor});
-    put(this.effects,section,scene.add.text(section*SECTION_WIDTH+720,floor-76,`WIND  ${encounter.wind.direction<0?'←':'→'}  ·  DASH TO HOLD YOUR LINE`,{fontSize:'11px',color:'#c0e3dc',stroke:'#071119',strokeThickness:4}).setOrigin(.5).setDepth(6).setAlpha(.16));
    }
    for(const moving of encounter.moving??[]){
     const surface=ledges[moving.step];if(!surface)continue;

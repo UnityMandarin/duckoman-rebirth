@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 vi.mock('phaser', () => ({ default: { Scenes: { Events: {} }, Math: {} } }));
 vi.mock('../src/systems/DebugHitboxes', () => ({ showHitbox: vi.fn() }));
@@ -43,6 +43,36 @@ function scene(textures = new TextureManager()) {
 function shutdown(s: any): void { s.events.emit('shutdown'); }
 
 describe('scene asset profiles and leases', () => {
+  it('loads only the selected chapter scenic zones and connectors in Journey/Castle profiles', () => {
+    const counts = { 'gate-1': 3, jail: 3, outside: 7, crimson: 3 } as const;
+    for (const [profile, count] of Object.entries(counts) as [keyof typeof counts, number][]) {
+      const scenic = sceneAssetEntries(profile).filter(a=>a.key.startsWith('world-v3-'));
+      expect(scenic.filter(a=>a.key.endsWith('-connectors'))).toHaveLength(1);
+      expect(scenic).toHaveLength(count + 1);
+      expect(scenic.every(a=>a.path.startsWith('assets/world-v3/'))).toBe(true);
+      expect(sceneAssetEntries(profile).some(a=>a.key==='world-v2-structures')).toBe(true);
+    }
+    for (const profile of ['furnace','rescue','castle-secret'] as const) {
+      expect(sceneAssetEntries(profile).some(a=>a.key.startsWith('world-v3-')||a.key==='world-v2-structures')).toBe(false);
+    }
+    expect(sceneAssetEntries('outside').some(a=>a.key==='regent-arena')).toBe(false);
+  });
+
+  it('keeps scenic atlases at native size and within the active chapter source budget', () => {
+    for (const profile of ['gate-1','jail','outside','crimson'] as const) {
+      const scenic=sceneAssetEntries(profile).filter(a=>a.key.startsWith('world-v3-'));
+      const bytes=scenic.reduce((sum,a)=>sum+statSync(join(process.cwd(),'public',a.path)).size,0);
+      const decodedRGBA=scenic.length*1536*1024*4;
+      expect(bytes).toBeLessThanOrEqual(60*1024*1024);
+      expect(decodedRGBA).toBeLessThanOrEqual(60*1024*1024);
+      for(const asset of scenic){
+        const png=readFileSync(join(process.cwd(),'public',asset.path));
+        expect(png.toString('hex',0,8)).toBe('89504e470d0a1a0a');
+        expect([png.readUInt32BE(16),png.readUInt32BE(20)]).toEqual([1536,1024]);
+      }
+    }
+  });
+
   it('keeps menu art separate from gameplay, with every catalogue path present', () => {
     const menu = sceneAssetEntries('menu'), gameplayProfiles: SceneAssetProfile[] = ['gate-1', 'jail', 'outside', 'crimson', 'furnace', 'rescue', 'castle-secret'];
     const gameplay = gameplayProfiles.flatMap(profile => sceneAssetEntries(profile));

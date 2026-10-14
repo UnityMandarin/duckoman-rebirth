@@ -36,17 +36,14 @@ import {roomFor,JAIL_ROOMS,OUTSIDE_ROOMS} from '../data/qualityRooms';
 import {addIdentityBlock,addIdentityChapterSigns,addIdentityDoor,addIdentityFloor,chapterSpikeFlipY,floorVisual,openIdentityDoor,platformVisual,preloadChapterIdentity,registerChapterIdentity,type IdentityDoor} from '../systems/ChapterVisuals';
 import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
 import {addWorldEnvironment} from '../systems/WorldEnvironment';
-import {DescentPredictor,predictedSurfaceMotionOffset,type DescentPrediction,type DescentPredictionInput,type PredictHazard,type PredictSurface,resetDescentPrediction} from '../systems/descentPrediction';
-import {PredictiveDescentCamera,type DescentCameraFrame,type DescentCameraView} from '../systems/predictiveDescentCamera';
-import type {TrapPredictionMotion,TrapPredictionWind} from '../systems/ChapterTraps';
+import type {PredictHazard,PredictSurface} from '../systems/descentPrediction';
 import {QaFixtureReadiness,qaApproachSpawn,qaInitialInfiniteHealth} from '../systems/qaCameraFixture';
-import {dangerLookaheadBottom,traversalCameraOwner,TraversalCameraRig} from '../systems/traversalCameraRig';
+import {TraversalCameraRig} from '../systems/traversalCameraRig';
 import {CameraQaTelemetry,visibleCameraQaSurfaceIds} from '../systems/cameraQaTelemetry';
 
 interface JourneyState {infiniteHealth?:boolean;checkpoint?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;ultimateCharge?:number;devPreview?:boolean;previewSection?:number;practice?:boolean;qa?:boolean;qaStep?:number;qaDamage?:boolean;}
 interface Gate {id:number;buttons:Phaser.GameObjects.Image[];labels:Phaser.GameObjects.Text[];wall:Phaser.GameObjects.Rectangle;door:IdentityDoor;}
 interface JailPredictSurface extends PredictSurface {shape:Phaser.GameObjects.Rectangle;}
-interface JailStaticHazard {room:number;data:PredictHazard;}
 
 declare global {interface Window {__duckomanCameraQA?:{select:(room:number,step:number)=>void;options:(room:number)=>{step:number;id:string;top:number;left:number;right:number}[];command:(action:string)=>void;setIgnoreDamage:(ignore:boolean)=>void;status:()=>Record<string,unknown>;trace:()=>string;launches:()=>string;};}}
 
@@ -80,19 +77,9 @@ export class JourneyScene extends Phaser.Scene {
  private previewSection?:number;
  private practice=false;private practiceBoss:'outside'|'crimson'='outside';private trialClock=new TrialClock();private trialHits=0;private trialEligibility=new TrialEligibility(true);private trialDone=false;
  private trialHud?:Phaser.GameObjects.Text;
- private jailCamera?:PredictiveDescentCamera;
  private jailRig?:TraversalCameraRig;
  private jailSurfaceAdapters:JailPredictSurface[]=[];
- private jailNearbySurfaces:PredictSurface[]=[];
- private jailStaticHazards:JailStaticHazard[]=[];
  private jailHazards:PredictHazard[]=[];
- private jailPrediction:DescentPrediction={state:'none',targetX:0,targetY:0,interceptMs:0,actorX:0,actorY:0,risk:false};
- private jailPredictionInput:DescentPredictionInput={x:0,y:0,vx:0,vy:0,halfWidth:23,halfHeight:20,grounded:false,horizontal:0,sprint:false,jumpAvailable:false,dashing:false,dashRemainingMs:0,gravity:TUNING.player.gravity,maxFall:TUNING.player.maxFallVelocity,runSpeed:TUNING.player.maxRunSpeed,sprintSpeed:TUNING.player.sprintSpeed,surfaces:this.jailNearbySurfaces,hazards:this.jailHazards};
- private jailMotionScratch:TrapPredictionMotion={axis:'x',base:0,phase:0,clockMs:0};
- private jailWindScratch:TrapPredictionWind={direction:0,strength:0,drift:0};
- private readonly jailCameraView:DescentCameraView={y:0,height:400,logicalHeight:TUNING.simulation.height,baseZoom:1,zoom:1,offsetY:0};
- private readonly jailCameraFrame:DescentCameraFrame={actorTop:0,actorBottom:0,targetBottom:null};
- private readonly jailCameraBounds=new Phaser.Geom.Rectangle();
  private qaDriveMs=0;private qaDriveHorizontal:-1|0|1=0;private qaSprint=false;private qaJumpNext=false;private qaDashNext=false;private qaUltimateNext=false;private qaFreezeMs=0;private qaLastReport=0;private qaMessage?: (event:MessageEvent)=>void;
  private qaTrace:Record<string,unknown>[]=[];
  private qaLaunches:{launchT:number;source:string|null;target:string|null;firstFitT:number|null;leadMs:number|null}[]=[];
@@ -112,7 +99,7 @@ export class JourneyScene extends Phaser.Scene {
   registerCommonFrames(this);registerSharedPropFrames(this);registerChapterHudFrames(this);registerChapterIdentity(this,this.kind);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;this.previewSection=data.previewSection;
   this.practice=!!data.practice;this.practiceBoss=this.kind==='crimson'?'crimson':'outside';this.trialClock=new TrialClock();this.trialHits=0;this.trialEligibility=new TrialEligibility(true);this.trialDone=false;
   const progress=loadProgress(),saved=progress.chapters[this.kind as CampaignScene];this.state=this.devPreview||this.practice?{opened:[],secrets:[],checkpoint:data.previewSection!==undefined?data.previewSection*SECTION_WIDTH:0,ultimateCharge:0}:{...saved,...data,opened:[...new Set([...saved.opened,...(data.opened??[])])],secrets:[...new Set([...saved.secrets,...(data.secrets??[])])]};
-  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.checkpointVisuals=new WeakMap();this.hazards=[];this.walls=[];this.solids=[];this.jailCamera=undefined;this.jailRig=undefined;this.jailSurfaceAdapters=[];this.jailNearbySurfaces.length=0;this.jailStaticHazards=[];this.jailHazards.length=0;this.qaDriveMs=0;this.qaDriveHorizontal=0;this.qaSprint=false;this.qaJumpNext=false;this.qaDashNext=false;this.qaUltimateNext=false;this.qaFreezeMs=0;this.qaTrace=[];this.qaLaunches=[];this.qaTelemetry.reset(false);this.qaPreviousGrounded=true;this.qaLaunchTime=0;this.qaFirstFitTime=0;this.qaLaunchLeadMs=null;this.qaSetupReady=false;this.qaReadiness.reset();
+  this.enemies=[];this.gates=[];this.secrets=[];this.checkpoints=[];this.checkpointVisuals=new WeakMap();this.hazards=[];this.walls=[];this.solids=[];this.jailRig=undefined;this.jailSurfaceAdapters=[];this.jailHazards.length=0;this.qaDriveMs=0;this.qaDriveHorizontal=0;this.qaSprint=false;this.qaJumpNext=false;this.qaDashNext=false;this.qaUltimateNext=false;this.qaFreezeMs=0;this.qaTrace=[];this.qaLaunches=[];this.qaTelemetry.reset(false);this.qaPreviousGrounded=true;this.qaLaunchTime=0;this.qaFirstFitTime=0;this.qaLaunchLeadMs=null;this.qaSetupReady=false;this.qaReadiness.reset();
   this.section=-1;this.dying=false;this.leaving=false;this.boss=undefined;
   const width=CHAPTER_WIDTH[this.kind],arenaStart=(this.kind==='crimson'?10:22)*SECTION_WIDTH,arenaRight=width-400,previewStart=data.previewSection===undefined?0:data.previewSection*SECTION_WIDTH,qaPreview=!!data.qa&&this.devPreview&&['jail','outside','crimson'].includes(this.kind)&&['localhost','127.0.0.1'].includes(window.location.hostname),worldStart=this.practice?arenaStart:this.devPreview&&!qaPreview?previewStart:0,worldWidth=this.devPreview&&data.previewSection!==undefined&&!qaPreview?SECTION_WIDTH:this.practice?arenaRight-arenaStart:width;
   this.qaMode=qaPreview;this.qaSelectedStep=Number.isInteger(data.qaStep)?data.qaStep??0:0;
@@ -182,7 +169,7 @@ export class JourneyScene extends Phaser.Scene {
     this.say('The Crimson Claw falls. Beneath the throne, a prison beacon still pulses. Franklin is alive.');
    });
   }
-  if(!this.practice)this.initializeJailPrediction(depthSurfaces,qaPreview,qaStep);
+  if(!this.practice)this.initializeJourneyCamera(depthSurfaces,qaPreview,qaStep);
   this.cameras.main.startFollow(this.player.sprite,false,.14,.12).setDeadzone(120,130).fadeIn(700);
   const hudCamera=setupRenderScale(this,'journey-hud');new SceneLayerRouter(this,hudCamera);this.qaSetupReady=qaPreview;
   addMenuControl(this,()=>this.openMenu());
@@ -192,13 +179,10 @@ export class JourneyScene extends Phaser.Scene {
   if(this.practice){this.trialHud=this.add.text(320,90,`${this.practiceBoss==='outside'?'BROKEN REGENT':'CRIMSON CLAW'} TRIAL · TIME 0.0 · HITS 0`,{fontSize:'10px',color:'#f1d18d'}).setOrigin(.5).setScrollFactor(0).setDepth(61).setName('trial-hud');const invalidate=()=>{if(this.hasPracticeAssist())this.trialEligibility.invalidate();};const unsubscribe=onDebugChange(invalidate);this.events.once(Phaser.Scenes.Events.SHUTDOWN,unsubscribe);invalidate();const markGap=()=>this.trialClock.markGap();const visibility=()=>markGap();document.addEventListener('visibilitychange',visibility);this.events.on(Phaser.Scenes.Events.PAUSE,markGap);this.events.on(Phaser.Scenes.Events.SLEEP,markGap);this.game.events.on(Phaser.Core.Events.BLUR,markGap);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{document.removeEventListener('visibilitychange',visibility);this.events.off(Phaser.Scenes.Events.PAUSE,markGap);this.events.off(Phaser.Scenes.Events.SLEEP,markGap);this.game.events.off(Phaser.Core.Events.BLUR,markGap);});const damage=()=>this.trialHits++;this.events.on('player-damaged',damage);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.events.off('player-damaged',damage));}
   installHitboxDebug(this);
  }
- /** Gameplay pit art and hazard registration: kept independent from background composition. */
- private initializeJailPrediction(depthSurfaces:readonly ChapterDepthSurface[],qaPreview:boolean,qaStep:number):void {
-  this.jailCamera=new PredictiveDescentCamera();
-  this.jailRig=new TraversalCameraRig(this,this.cameras.main,this.jailCamera);this.jailPrediction=this.jailRig.prediction;
-  const pause=()=>this.jailCamera?.suspend(),resume=()=>this.jailCamera?.resume(),shutdown=()=>this.jailCamera?.destroy();
-  this.events.on(Phaser.Scenes.Events.PAUSE,pause);this.events.on(Phaser.Scenes.Events.RESUME,resume);
-  this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{this.events.off(Phaser.Scenes.Events.PAUSE,pause);this.events.off(Phaser.Scenes.Events.RESUME,resume);shutdown();});
+ /** Build the spatial camera rig and QA-only geometry diagnostics. */
+ private initializeJourneyCamera(depthSurfaces:readonly ChapterDepthSurface[],qaPreview:boolean,qaStep:number):void {
+  this.jailRig=new TraversalCameraRig(this,this.cameras.main,this.kind as 'jail'|'outside'|'crimson');
+  this.events.on(Phaser.Scenes.Events.PAUSE,()=>this.jailRig?.suspend());this.events.on(Phaser.Scenes.Events.RESUME,()=>this.jailRig?.resume());this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.jailRig?.destroy());
   for(let index=0;index<depthSurfaces.length;index++){
    const entry=depthSurfaces[index]!,body=entry.shape.body as Phaser.Physics.Arcade.StaticBody,room=entry.ledge.room??Math.floor(entry.ledge.x/SECTION_WIDTH);
    this.jailSurfaceAdapters.push({id:`r${room}:${entry.ledge.role??'ledge'}:${entry.ledge.step??index}`,room,left:body.left,right:body.right,top:body.top,bottom:body.bottom,enabled:body.enable,shape:entry.shape});
@@ -210,56 +194,26 @@ export class JourneyScene extends Phaser.Scene {
   for(let i=0;i<this.hazards.length;i++){
    const hazard=this.hazards[i]!,room=Math.floor(hazard.x/SECTION_WIDTH),pit=!!hazard.pit,top=pit?hazard.y:hazard.y-(hazard.height??20)/2,bottom=hazard.y+(pit?0:(hazard.height??20)/2);
    const data:PredictHazard={id:`${pit?'pit':'spike'}-${room}-${i}`,left:hazard.x-hazard.width/2,right:hazard.x+hazard.width/2,top,bottom,active:false,kind:pit?'pit':'spike'};
-   this.jailStaticHazards.push({room,data});this.jailHazards.push(data);
+   this.jailHazards.push(data);
   }
   if(qaPreview)this.installJailCameraQA(qaStep);
  }
- private updateJailPredictionCamera(input:{horizontal:-1|0|1;sprintHeld?:boolean},delta:number):void {
-  const player=this.player,camera=this.cameras.main,controller=this.jailCamera;if(!player||!controller)return;
-  const bossOwnsCamera=!!this.boss&&(this.boss instanceof AntlerRegent||this.boss instanceof CrabBoss)&&this.boss.ownsCamera;
-  const active=this.scene.isActive()&&!this.physics.world.isPaused&&document.visibilityState==='visible';
-  if(!active){controller.suspend();return;}
-  controller.resume();
-  const room=Math.floor(player.body.center.x/SECTION_WIDTH);
-  this.jailNearbySurfaces.length=0;
-  for(const surface of this.jailSurfaceAdapters){
-   const body=surface.shape.body as Phaser.Physics.Arcade.StaticBody;surface.enabled=body.enable;surface.room=Math.floor(body.center.x/SECTION_WIDTH);
-   if(Math.abs(surface.room-room)>1)continue;
-   const moving=surface.landing!==false&&this.traps.predictionMotion(surface.shape,this.jailMotionScratch);
-   if(moving){
-    surface.motion??={axis:'x',base:0,phase:0,clockMs:0};surface.motion.axis=this.jailMotionScratch.axis;surface.motion.base=this.jailMotionScratch.base;surface.motion.phase=this.jailMotionScratch.phase;surface.motion.clockMs=this.jailMotionScratch.clockMs;
-    const current=predictedSurfaceMotionOffset(surface.motion);
-    if(surface.motion.axis==='x'){surface.left=surface.motion.base+current-body.width/2;surface.right=surface.motion.base+current+body.width/2;surface.top=body.top;surface.bottom=body.bottom;}
-    else{surface.left=body.left;surface.right=body.right;surface.top=surface.motion.base+current-body.height/2;surface.bottom=surface.motion.base+current+body.height/2;}
-   }else{surface.motion=undefined;surface.left=body.left;surface.right=body.right;surface.top=body.top;surface.bottom=body.bottom;}
-   this.jailNearbySurfaces.push(surface);
-  }
-  for(const item of this.jailStaticHazards)item.data.active=Math.abs(item.room-room)<=1;
-  this.traps.fillPredictionHazards(this.jailHazards,this.jailStaticHazards.length,room-1,room+1);
-  const model=this.jailPredictionInput,body=player.body,now=this.time.now;
-  model.x=body.center.x;model.y=body.center.y;model.vx=body.velocity.x;model.vy=body.velocity.y;model.halfWidth=body.width/2;model.halfHeight=body.height/2;model.grounded=player.grounded;model.supportId=undefined;
-  model.horizontal=input.horizontal;model.sprint=!!player.sprinting||!!input.sprintHeld;model.jumpAvailable=player.grounded&&player.canAct;model.dashing=player.isDashing;model.dashRemainingMs=player.dashRemainingMs;
-  this.traps.predictionWind(room,this.jailWindScratch);model.windDirection=this.jailWindScratch.direction;model.windStrength=this.jailWindScratch.strength;model.windDrift=this.jailWindScratch.drift;
-  model.horizontalDrift=0;
-  if(player.grounded){for(const surface of this.jailSurfaceAdapters){const live=surface.shape.body as Phaser.Physics.Arcade.StaticBody;if(live.enable&&body.right>live.left&&body.left<live.right&&Math.abs(body.bottom-live.top)<10){model.supportId=surface.id;model.horizontalDrift=this.traps.predictionSurfaceDrift(surface.shape);break;}}}
-  model.gravity=TUNING.player.gravity;model.maxFall=TUNING.player.maxFallVelocity;model.runSpeed=TUNING.player.maxRunSpeed;model.sprintSpeed=TUNING.player.sprintSpeed;
-  const view=camera.worldView,baseZoom=renderScale(),actorTop=player.visual.y-player.visual.displayHeight/2,actorBottom=player.visual.y+player.visual.displayHeight/2;
-  if(view.height<=0||view.width<=0)return;
-  let targetBottom:number|null=null;
-  if(this.jailPrediction.state==='landing'){
-   targetBottom=Math.max(this.jailPrediction.targetY+20,this.jailPrediction.risk?this.jailPrediction.riskBottom??this.jailPrediction.targetY+20:this.jailPrediction.targetY+20);
-  }else if(this.jailPrediction.state==='danger')targetBottom=dangerLookaheadBottom({y:view.y,height:view.height,logicalHeight:TUNING.simulation.height,baseZoom,zoom:camera.zoomY,offsetY:camera.followOffset.y},actorTop);
-  const target=this.jailSurfaceAdapters.find(surface=>surface.id===this.jailPrediction.targetId),framing=this.jailCameraFrame,projection=this.jailCameraView,bounds=camera.getBounds(this.jailCameraBounds);framing.actorTop=actorTop;framing.actorBottom=actorBottom;framing.targetBottom=targetBottom;framing.targetLeft=target?.left;framing.targetRight=target?.right;framing.hazardLeft=this.jailPrediction.risk?this.jailPrediction.riskLeft:undefined;framing.hazardRight=this.jailPrediction.risk?this.jailPrediction.riskRight:undefined;projection.x=view.x;projection.width=view.width;projection.y=view.y;projection.height=view.height;projection.baseZoom=baseZoom;projection.zoom=camera.zoomY;projection.offsetY=camera.followOffset.y;projection.boundsTop=camera.useBounds?bounds.top:undefined;projection.boundsBottom=camera.useBounds?bounds.bottom:undefined;
-  const bossApproach=(this.kind==='outside'&&body.center.x>=22*SECTION_WIDTH-400||this.kind==='crimson'&&body.center.x>=10*SECTION_WIDTH-400);if(bossApproach&&!bossOwnsCamera){this.jailRig?.neutralize(delta,true,player.active&&!player.usingUltimate);if((window as Window).__duckomanCameraQA&&now-this.qaLastReport>=50){this.qaLastReport=now;window.parent.postMessage({type:'duckoman-camera-status',status:this.jailCameraStatus(undefined,view,actorTop,actorBottom,targetBottom)},'*');}return;}
-  const status=this.jailRig?.update(model,framing,delta,traversalCameraOwner(!!this.boss,bossOwnsCamera),true,player.active&&!player.usingUltimate)??controller.update(this.jailPrediction,projection,framing,delta,true,player.active&&!player.usingUltimate);
-  if((window as Window).__duckomanCameraQA&&now-this.qaLastReport>=50){this.qaLastReport=now;window.parent.postMessage({type:'duckoman-camera-status',status:this.jailCameraStatus(status,view,actorTop,actorBottom,targetBottom)},'*');}
+ private updateAuthoredTraversalCamera(delta:number):void {
+  const rig=this.jailRig,player=this.player;if(!rig||!player)return;
+  const body=player.body,active=this.sys.isActive()&&!this.physics.world.isPaused&&document.visibilityState==='visible';
+  if(!active){rig.suspend();return;}
+  const bossOwns=!!this.boss&&(this.boss instanceof AntlerRegent||this.boss instanceof CrabBoss)&&this.boss.ownsCamera;
+  const bossApproach=(this.kind==='outside'&&body.center.x>=22*SECTION_WIDTH-400||this.kind==='crimson'&&body.center.x>=10*SECTION_WIDTH-400);
+  if(bossApproach&&!bossOwns)rig.neutralize(delta,true,player.active&&!player.usingUltimate);
+  else rig.update(body.center.x,body.bottom,delta,bossOwns?'boss':'traversal',true,player.active&&!player.usingUltimate);
+  const camera=this.cameras.main,view=camera.worldView,top=player.visual.y-player.visual.displayHeight/2,bottom=player.visual.y+player.visual.displayHeight/2;
+  if((window as Window).__duckomanCameraQA&&this.time.now-this.qaLastReport>=50){this.qaLastReport=this.time.now;window.parent.postMessage({type:'duckoman-camera-status',status:{...this.jailCameraStatus(),state:rig.camera.state,zoneId:rig.camera.zoneId,zoneWeight:rig.camera.zoneWeight,targetId:null,risk:false,actorBounds:{top,bottom},worldView:{x:view.x,y:view.y,width:view.width,height:view.height},owner:rig.camera.owner}},'*');}
  }
- private jailCameraStatus(status?:unknown,view=this.cameras.main.worldView,actorTop=(this.player?.visual.y??30)-30,actorBottom=(this.player?.visual.y??-30)+30,targetBottom:number|null=null):Record<string,unknown>{
-  const controller=this.jailCamera,zoomRatio=this.cameras.main.zoomY/renderScale(),screenY=(y:number)=>view.height?(y-view.y)/view.height*TUNING.simulation.height:null,screenX=(x:number)=>view.width?(x-view.x)/view.width*TUNING.simulation.width:null;
-  const target=this.jailSurfaceAdapters.find(surface=>surface.id===controller?.targetId),targetY=controller?.targetY,targetScreenY=targetY!==undefined?screenY(targetY):targetBottom===null?null:screenY(targetBottom),targetProjected=target&&targetY!==undefined?{left:screenX(target.left),right:screenX(target.right),top:screenY(targetY),bottom:screenY(targetY+(target.bottom-target.top))}:null;
-  const actorProjected={top:screenY(actorTop),bottom:screenY(actorBottom)},usableTouchdown=target?Math.min(view.width,target.right-view.x)-Math.max(0,target.left-view.x)>=56:false,hazard=controller?.risk&&controller.riskLeft!==undefined?{left:screenX(controller.riskLeft)??0,right:screenX(controller.riskRight??controller.riskLeft)??0}:null,hazardVisible=!hazard||Math.min(TUNING.simulation.width,hazard.right)>Math.max(0,hazard.left),targetSafeBottom=targetY===undefined?null:Math.max(targetY+20,controller?.risk&&controller.riskBottom!==undefined?controller.riskBottom:targetY+20),targetSafeScreen=targetSafeBottom===null?null:screenY(targetSafeBottom),projectedFit=typeof actorProjected.top==='number'&&typeof actorProjected.bottom==='number'&&actorProjected.top>=120&&actorProjected.bottom<=370&&typeof targetSafeScreen==='number'&&targetSafeScreen<=370&&usableTouchdown&&hazardVisible,body=this.player?.body,support=this.jailSurfaceAdapters.find(surface=>!!body&&surface.enabled&&body.right>surface.left&&body.left<surface.right&&Math.abs(body.bottom-surface.top)<5),normalAlreadyVisible=!target&&typeof actorProjected.top==='number'&&typeof actorProjected.bottom==='number'&&actorProjected.top>=120&&actorProjected.bottom<=370&&this.jailSurfaceAdapters.some(surface=>surface.enabled&&surface.top>(support?.top??Infinity)+32&&typeof screenY(surface.top)==='number'&&(screenY(surface.top) as number)>=120&&(screenY(surface.top) as number)<=370);
+ private jailCameraStatus(_status?:unknown,view=this.cameras.main.worldView,actorTop=(this.player?.visual.y??30)-30,actorBottom=(this.player?.visual.y??-30)+30):Record<string,unknown>{
+  const camera=this.cameras.main,rig=this.jailRig,screenY=(y:number)=>view.height?(y-view.y)/view.height*TUNING.simulation.height:null,actorProjected={top:screenY(actorTop),bottom:screenY(actorBottom)};
   const visibleSurfaceIds=visibleCameraQaSurfaceIds({x:view.x,y:view.y,width:view.width,height:view.height,logicalWidth:TUNING.simulation.width,logicalHeight:TUNING.simulation.height},actorProjected,this.jailSurfaceAdapters,this.jailHazards);
-  return {x:this.player?.body.center.x,y:this.player?.body.center.y,vx:this.player?.body.velocity.x,vy:this.player?.body.velocity.y,grounded:this.player?.grounded,state:controller?.state,targetId:controller?.targetId,targetX:controller?.targetX,targetY:controller?.targetY,risk:controller?.risk,riskKind:controller?.riskKind,riskBounds:controller?.risk&&controller.riskLeft!==undefined?{left:controller.riskLeft,right:controller.riskRight,top:controller.riskTop,bottom:controller.riskBottom}:null,zoomRatio,offsetY:this.cameras.main.followOffset.y,worldView:{x:view.x,y:view.y,width:view.width,height:view.height},actorScreen:actorProjected,targetScreenY,targetProjected,targetSafeScreen,projectedFit,normalAlreadyVisible,visibleSurfaceIds,visible:projectedFit,owner:controller?.owner,supports:this.jailSurfaceAdapters.filter(s=>s.enabled&&Math.floor(s.room)===Math.floor((this.player?.body.center.x??0)/SECTION_WIDTH)).map(s=>({id:s.id,left:s.left,right:s.right,top:s.top})),diagnostic:status};
+  const actorSafe=typeof actorProjected.top==='number'&&typeof actorProjected.bottom==='number'&&actorProjected.top>=120&&actorProjected.bottom<=370;
+  return {zoneId:rig?.camera.zoneId,zoneWeight:rig?.camera.zoneWeight,x:this.player?.body.center.x,y:this.player?.body.bottom,vx:this.player?.body.velocity.x,vy:this.player?.body.velocity.y,grounded:this.player?.grounded,state:rig?.camera.state,targetId:null,risk:false,zoomRatio:camera.zoomY/renderScale(),offsetY:camera.followOffset.y,worldView:{x:view.x,y:view.y,width:view.width,height:view.height},actorScreen:actorProjected,projectedFit:!!rig?.camera.zoneId&&actorSafe,normalAlreadyVisible:!rig?.camera.zoneId&&actorSafe,visibleSurfaceIds,visible:!!rig?.camera.zoneId&&actorSafe,owner:rig?.camera.owner,supports:this.jailSurfaceAdapters.filter(s=>s.enabled&&Math.floor(s.room)===Math.floor((this.player?.body.center.x??0)/SECTION_WIDTH)).map(s=>({id:s.id,left:s.left,right:s.right,top:s.top}))};
  }
  private installJailCameraQA(step:number):void {
   const local=import.meta.env.DEV&&['localhost','127.0.0.1'].includes(window.location.hostname);if(!local)return;const player=this.player;
@@ -278,9 +232,9 @@ export class JourneyScene extends Phaser.Scene {
    if(action==='retry'){select(this.previewSection??0,step);return;}
    if(action==='freeze200'||action==='freeze300'){this.qaFreezeMs=Number(action.slice(6));return;}
    if(action==='pause'){this.physics.world.pause();return;}
-   if(action==='resume'){this.physics.world.resume();this.jailCamera?.resume();return;}
+   if(action==='resume'){this.physics.world.resume();this.jailRig?.resume();return;}
    if(action==='fall'&&source){player.sprite.setPosition(Math.min(source.right-30,source.left+60),source.top+55);player.body.reset(player.sprite.x,player.sprite.y);player.body.setAllowGravity(true);player.body.setVelocity(0,320);return;}
-   if(action==='landing'&&this.jailCamera?.targetId){const target=this.jailSurfaceAdapters.find(surface=>surface.id===this.jailCamera?.targetId);if(target){const body=target.shape.body as Phaser.Physics.Arcade.StaticBody;player.sprite.setPosition(body.center.x,body.top-80);player.body.reset(player.sprite.x,player.sprite.y);player.body.setAllowGravity(true);player.body.setVelocity(0,420);}}
+
   };
   const ready=()=>{
    const support=qaSurface(),body=player.body,staticBody=support?.shape.body as Phaser.Physics.Arcade.StaticBody|undefined,view=this.cameras.main.worldView;
@@ -391,7 +345,7 @@ export class JourneyScene extends Phaser.Scene {
  private say(message:string):void {this.story.setText(message).setAlpha(1);this.storyUntil=this.time.now+6500;}
  update(_time:number,delta:number):void {
   if(!this.player||this.leaving)return;
-  if(!this.player.active)this.jailCamera?.suspend();
+  if(!this.player.active)this.jailRig?.suspend();
   const input=this.controls.read();
   if(this.qaDriveMs>0){input.horizontal=this.qaDriveHorizontal;input.sprintHeld=this.qaSprint;this.qaDriveMs=Math.max(0,this.qaDriveMs-delta);if(this.qaDriveMs===0){this.qaDriveHorizontal=0;this.qaSprint=false;}}
   if(this.qaJumpNext){input.jumpPressed=true;this.qaJumpNext=false;}
@@ -440,7 +394,7 @@ export class JourneyScene extends Phaser.Scene {
   }
   this.boss?.update(delta);
   this.depthPresentation.update();
-  if(!this.practice)this.updateJailPredictionCamera(input,delta);
+  if(!this.practice)this.updateAuthoredTraversalCamera(delta);
   if(this.qaFreezeMs>0){this.qaFreezeMs=Math.max(0,this.qaFreezeMs-delta);if(this.qaFreezeMs===0)this.physics.world.pause();}
   if(this.time.now>this.storyUntil)this.story.setAlpha(Math.max(0,this.story.alpha-delta/500));
   if(this.kind==='jail'&&this.player.sprite.x>CHAPTER_WIDTH.jail-40&&this.player.grounded&&Math.abs(this.player.body.bottom-1740)<20&&this.state.opened!.includes(12)){

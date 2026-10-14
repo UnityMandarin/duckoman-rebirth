@@ -128,7 +128,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');
-    new SceneLayerRouter(this,this.hudCamera);this.traversalRig=new TraversalCameraRig(this,this.cameras.main);this.events.on(Phaser.Scenes.Events.PAUSE,()=>this.traversalRig?.suspend());this.events.on(Phaser.Scenes.Events.RESUME,()=>this.traversalRig?.resume());this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.traversalRig?.destroy());if(this.qaMode)this.installGateCameraQA();
+    new SceneLayerRouter(this,this.hudCamera);this.traversalRig=new TraversalCameraRig(this,this.cameras.main,'gate-1');this.events.on(Phaser.Scenes.Events.PAUSE,()=>this.traversalRig?.suspend());this.events.on(Phaser.Scenes.Events.RESUME,()=>this.traversalRig?.resume());this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.traversalRig?.destroy());if(this.qaMode)this.installGateCameraQA();
     if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
     addMenuControl(this,()=>this.openMenu());
     const escape=(event:KeyboardEvent)=>{if(event.repeat)return;this.openMenu();};this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
@@ -195,16 +195,13 @@ export class Gate1Scene extends Phaser.Scene {
     this.cameras.main.on(Phaser.Cameras.Scene2D.Events.POST_RENDER,postRender);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{this.cameras.main.off(Phaser.Cameras.Scene2D.Events.POST_RENDER,postRender);if(window.__duckomanCameraQA===api)delete window.__duckomanCameraQA;});
     const setIgnoreDamage=(ignore:boolean)=>{this.player.infiniteHealth=ignore;};const api={select:(_room:number,index:number)=>choose(index),options,status,command:drive,setIgnoreDamage,trace:()=>JSON.stringify(this.qaTrace),launches:()=>JSON.stringify(this.qaLaunches)};window.__duckomanCameraQA=api;
   }
-  private updateTraversalCamera(input:{horizontal:-1|0|1;sprintHeld?:boolean},delta:number):void {
-    const rig=this.traversalRig,player=this.player;if(!rig||!player)return;const body=player.body,near=this.traversalNearby;near.length=0;const room=Math.floor(body.center.x/2560);
-    for(const surface of this.traversalSurfaces)if(Math.abs(surface.room-room)<=1){near.push(surface);}this.mechanisms.fillPredictionSurfaces(near,near.length,room-1,room+1);
-    this.mechanisms.fillPredictionHazards(this.traversalHazards,0,body.center.x-1800,body.center.x+1800);
-    const model=this.traversalInput;model.x=body.center.x;model.y=body.center.y;model.vx=body.velocity.x;model.vy=body.velocity.y;model.halfWidth=body.width/2;model.halfHeight=body.height/2;model.grounded=player.grounded;model.supportId=undefined;model.horizontal=input.horizontal;model.sprint=!!player.sprinting||!!input.sprintHeld;model.jumpAvailable=player.grounded&&player.canAct;model.dashing=player.isDashing;model.dashRemainingMs=player.dashRemainingMs;model.gravity=TUNING.player.gravity;model.maxFall=TUNING.player.maxFallVelocity;model.runSpeed=TUNING.player.maxRunSpeed;model.sprintSpeed=TUNING.player.sprintSpeed;model.horizontalDrift=0;model.windDirection=0;model.windStrength=0;model.windDrift=0;
-    if(player.grounded)for(const surface of near)if(surface.enabled&&body.right>surface.left&&body.left<surface.right&&Math.abs(body.bottom-surface.top)<10){model.supportId=surface.id;break;}
-    this.traversalFrame.actorTop=player.visual.y-player.visual.displayHeight/2;this.traversalFrame.actorBottom=player.visual.y+player.visual.displayHeight/2;this.traversalFrame.targetBottom=null;
-    const active=this.sys.isActive()&&!this.physics.world.isPaused&&document.visibilityState==='visible';if(!active){rig.suspend();return;}rig.resume();
-    if(!this.boss.ownsCamera&&body.center.x>=8500)rig.neutralize(delta,active,player.active&&!player.usingUltimate);
-    else rig.update(model,this.traversalFrame,delta,this.boss.ownsCamera?'boss':'traversal',active,player.active&&!player.usingUltimate);
+  private updateTraversalCamera(_input:{horizontal:-1|0|1;sprintHeld?:boolean},delta:number):void {
+    const rig=this.traversalRig,player=this.player;if(!rig||!player)return;
+    const body=player.body,active=this.sys.isActive()&&!this.physics.world.isPaused&&document.visibilityState==='visible';
+    if(!active){rig.suspend();return;}
+    const bossOwns=this.boss.ownsCamera,approachingBoss=!bossOwns&&body.center.x>=8500;
+    if(approachingBoss)rig.neutralize(delta,active,player.active&&!player.usingUltimate);
+    else rig.update(body.center.x,body.bottom,delta,bossOwns?'boss':'traversal',active,player.active&&!player.usingUltimate);
   }
   private openMenu():boolean {return requestPauseMenu(this,()=>this.saveCampaign(),'gate-1');}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {

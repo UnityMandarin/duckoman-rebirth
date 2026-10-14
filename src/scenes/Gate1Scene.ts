@@ -17,7 +17,7 @@ import { installLocalQA, replayInput } from '../systems/localQA';
 import { ChapterDepth } from '../systems/ChapterDepth';
 import { CASTLE_CHECKPOINT, checkpointSpawnY, isCheckpointContact } from '../systems/checkpointPolicy';
 import { installHitboxDebug } from '../systems/DebugHitboxes';
-import { setupRenderScale } from '../systems/renderScale';
+import { renderScale,setupRenderScale } from '../systems/renderScale';
 import {SceneLayerRouter} from '../systems/SceneLayerRouter';
 import {registerCommonFrames} from './CommonAssets';
 import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
@@ -26,6 +26,13 @@ import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../sys
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
 import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
 import {addWorldEnvironment} from '../systems/WorldEnvironment';
+import {TraversalCameraRig} from '../systems/traversalCameraRig';
+import {CameraQaTelemetry,visibleCameraQaSurfaceIds} from '../systems/cameraQaTelemetry';
+import {qaFixtureEnabled} from '../systems/qaCameraFixture';
+import type {DescentPredictionInput,PredictHazard,PredictSurface} from '../systems/descentPrediction';
+import type {DescentCameraFrame} from '../systems/predictiveDescentCamera';
+
+declare global {interface Window {__duckomanCameraQA?:{select:(room:number,step:number)=>void;options:(room:number)=>{step:number;id:string;top:number;left:number;right:number}[];command:(action:string)=>void;setIgnoreDamage:(ignore:boolean)=>void;status:()=>Record<string,unknown>;trace:()=>string;launches:()=>string;};}}
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
@@ -45,15 +52,20 @@ export class Gate1Scene extends Phaser.Scene {
   private castleCheckpointVisual!:CheckpointVisual;
   private checkpointX?:number;
   private enteredSecret=false;
+  private traversalRig?:TraversalCameraRig;private traversalSurfaces:PredictSurface[]=[];private traversalNearby:PredictSurface[]=[];private traversalHazards:PredictHazard[]=[];
+  private readonly traversalInput:DescentPredictionInput={x:0,y:0,vx:0,vy:0,halfWidth:23,halfHeight:20,grounded:false,horizontal:0,sprint:false,jumpAvailable:false,dashing:false,dashRemainingMs:0,gravity:TUNING.player.gravity,maxFall:TUNING.player.maxFallVelocity,runSpeed:TUNING.player.maxRunSpeed,sprintSpeed:TUNING.player.sprintSpeed,surfaces:this.traversalNearby,hazards:this.traversalHazards};
+  private readonly traversalFrame:DescentCameraFrame={actorTop:0,actorBottom:0,targetBottom:null};
   private devPreview=false; private opened:number[]=[]; private secrets:number[]=[];private bossDefeated=false;
+  private qaMode=false;private qaSupport=0;private qaDriveMs=0;private qaDriveHorizontal:-1|0|1=0;private qaSprint=false;private qaJumpNext=false;private qaDashNext=false;private qaUltimateNext=false;private qaFreezeMs=0;private qaTrace:Record<string,unknown>[]=[];private qaLaunches:Record<string,unknown>[]=[];private qaWasGrounded=false;private qaReady=false;private qaFirstFitTime=0;private readonly qaTelemetry=new CameraQaTelemetry();
   preload(): void {preloadSceneAssets(this,'gate-1');preloadRelicArt(this);}
-  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;devPreview?:boolean;fromSecret?:boolean} = {}): void {
-    this.deathAt=undefined;
-    registerCommonFrames(this);registerChapterHudFrames(this);registerSharedPropFrames(this);this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;
+  create(data: {checkpoint?:number;infiniteHealth?:boolean;ultimateCharge?:number;opened?:number[];secrets?:number[];bossDefeated?:boolean;devPreview?:boolean;fromSecret?:boolean;qa?:boolean;qaSupport?:number;qaDamage?:boolean} = {}): void {
+    this.deathAt=undefined;this.devPreview=!!this.registry.get('devPreview')||!!data.devPreview;this.qaMode=qaFixtureEnabled(!!data.qa,this.devPreview,import.meta.env.DEV,window.location.hostname);this.qaSupport=Math.max(0,data.qaSupport??0);this.qaDriveMs=0;this.qaDriveHorizontal=0;this.qaSprint=false;this.qaJumpNext=false;this.qaDashNext=false;this.qaUltimateNext=false;this.qaFreezeMs=0;this.qaTrace=[];this.qaLaunches=[];this.qaTelemetry.reset(false);this.qaWasGrounded=false;this.qaReady=false;this.qaFirstFitTime=0;
+    registerCommonFrames(this);registerChapterHudFrames(this);registerSharedPropFrames(this);
     this.checkpointX=data.checkpoint;this.opened=[...(data.opened??[])];this.secrets=[...(data.secrets??[])];this.bossDefeated=!!(data.bossDefeated??loadProgress().chapters['gate-1'].bossDefeated);
     this.physics.world.resume();
     const sealed=rustwingDefeated(this.registry);
     this.enteredSecret=sealed;
+    this.traversalRig=undefined;this.traversalSurfaces.length=0;this.traversalNearby.length=0;this.traversalHazards.length=0;
     const masonry=this.textures.get('masonry');
     if(!masonry.has('column'))masonry.add('column',0,40,132,1960,180);
     this.cameras.main.setBackgroundColor(0x07111f);
@@ -68,17 +80,19 @@ export class Gate1Scene extends Phaser.Scene {
     for (const solid of [...secretHoleSolids(this.allPlatforms), ...secretShaftWalls()]) {
       const rectangle = this.add.rectangle(solid.x, solid.y, solid.width, solid.height, 0x000000, 0);
       this.physics.add.existing(rectangle, true); terrain.add(rectangle);
+      const top=solid.y-solid.height/2;this.traversalSurfaces.push({id:`castle-solid-${this.traversalSurfaces.length}`,room:Math.floor(solid.x/2560),left:solid.x-solid.width/2,right:solid.x+solid.width/2,top,bottom:top+solid.height,enabled:true,landing:solid.width>solid.height});
     }
     if(sealed){
       const seal=secretSeal();
       const rectangle=this.add.rectangle(seal.x,seal.y,seal.width,seal.height,0x000000,0);
       this.physics.add.existing(rectangle,true); terrain.add(rectangle);
+      const top=seal.y-seal.height/2;this.traversalSurfaces.push({id:'castle-secret-seal',room:Math.floor(seal.x/2560),left:seal.x-seal.width/2,right:seal.x+seal.width/2,top,bottom:top+seal.height,enabled:true});
     }
     this.castleCheckpoint=this.add.image(CASTLE_CHECKPOINT.x,CASTLE_CHECKPOINT.surfaceTop,'rest-lantern').setOrigin(.5,1).setDisplaySize(30,54).setDepth(4);
     this.castleCheckpointVisual=addCheckpointVisual(this,this.castleCheckpoint,{coreYRatio:.44,initiallyActive:data.checkpoint===CASTLE_CHECKPOINT.x});
-    const spawnY=data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
-    this.player = new Player(this, data.fromSecret?SECRET_RETURN_X:data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x, spawnY);
-    this.player.infiniteHealth=!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
+    const qaPlatform=this.qaMode?this.allPlatforms[this.qaSupport%this.allPlatforms.length]:undefined,spawnY=qaPlatform?checkpointSpawnY(qaPlatform.y-qaPlatform.height/2,TUNING.player.bodyHeight):data.fromSecret?checkpointSpawnY(secretSeal().y-secretSeal().height/2,TUNING.player.bodyHeight):data.checkpoint===CASTLE_CHECKPOINT.x?checkpointSpawnY(CASTLE_CHECKPOINT.surfaceTop,TUNING.player.bodyHeight):GATE_1_ROOM.playerSpawn.y;
+    this.player = new Player(this,qaPlatform?.x??(data.fromSecret?SECRET_RETURN_X:data.checkpoint===CASTLE_CHECKPOINT.x?CASTLE_CHECKPOINT.x:GATE_1_ROOM.playerSpawn.x), spawnY);
+    this.player.infiniteHealth=this.qaMode?data.qaDamage!==true:!!data.infiniteHealth; this.player.ultimateCharge=data.ultimateCharge??0;
     this.depthPresentation=new ChapterDepth(this,'castle',CASTLE.width,false); this.depthPresentation.setPlayer(this.player);
     this.enemy = new BasicEnemy(this, GATE_1_ROOM.enemySpawn.x, GATE_1_ROOM.enemySpawn.y);
     this.throwable = new ThrowableObject(this, data.checkpoint===CASTLE_CHECKPOINT.x?5745:GATE_1_ROOM.throwableSpawn.x, data.checkpoint===CASTLE_CHECKPOINT.x?160:GATE_1_ROOM.throwableSpawn.y);
@@ -114,7 +128,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.game.canvas.tabIndex=0;
     this.game.canvas.focus();
     this.hudCamera=setupRenderScale(this,'hud');
-    new SceneLayerRouter(this,this.hudCamera);
+    new SceneLayerRouter(this,this.hudCamera);this.traversalRig=new TraversalCameraRig(this,this.cameras.main);this.events.on(Phaser.Scenes.Events.PAUSE,()=>this.traversalRig?.suspend());this.events.on(Phaser.Scenes.Events.RESUME,()=>this.traversalRig?.resume());this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.traversalRig?.destroy());if(this.qaMode)this.installGateCameraQA();
     if(data.fromSecret){this.cameras.main.fadeIn(600,255,230,180);this.hudCamera.fadeIn(600,255,230,180);}
     addMenuControl(this,()=>this.openMenu());
     const escape=(event:KeyboardEvent)=>{if(event.repeat)return;this.openMenu();};this.input.keyboard?.on('keydown-ESC',escape);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown-ESC',escape));
@@ -125,6 +139,7 @@ export class Gate1Scene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if(this.boss.transitioning)return;
     const input = (this.player.active?replayInput(this.time.now):undefined) ?? this.inputController.read();
+    if(this.qaMode){if(this.qaDriveMs>0){input.horizontal=this.qaDriveHorizontal;input.sprintHeld=this.qaSprint;this.qaDriveMs=Math.max(0,this.qaDriveMs-delta);if(this.qaDriveMs===0){this.qaDriveHorizontal=0;this.qaSprint=false;}}if(this.qaJumpNext){input.jumpPressed=true;this.qaJumpNext=false;}if(this.qaDashNext){input.dashPressed=true;this.qaDashNext=false;}if(this.qaUltimateNext){input.ultimatePressed=true;this.qaUltimateNext=false;}}
     if(input.godModePressed&&this.player.active){
       markCampaignRunIneligible();
       this.player.infiniteHealth=!this.player.infiniteHealth;
@@ -144,6 +159,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.player.update(input, delta);
     if(!this.enteredSecret&&this.player.active&&reachedSecretPortal(this.player.body.center.x,this.player.body.bottom)){
       this.enteredSecret=true;
+      this.traversalRig?.suspend();
       this.saveCampaign();
       this.scene.start(CASTLE_SECRET.scene,{
         infiniteHealth:this.player.infiniteHealth,ultimateCharge:this.player.ultimateCharge,checkpoint:this.checkpointX,
@@ -163,10 +179,33 @@ export class Gate1Scene extends Phaser.Scene {
     this.extraEnemies.forEach(enemy=>{const awake=Math.abs(enemy.sprite.x-this.player.sprite.x)<1000;enemy.setAwake(awake);if(awake)enemy.update();});
     this.pillar.update();
     this.mechanisms.update();
+    this.updateTraversalCamera(input,delta);
     this.boss.update(!!input.throwPressed);
+    if(this.qaFreezeMs>0){this.qaFreezeMs=Math.max(0,this.qaFreezeMs-delta);if(this.qaFreezeMs===0)this.scene.pause();}
     this.hud.update();
   }
   private saveCampaign():void {if(this.boss?.transitioning||!canPersistCampaign({devPreview:this.devPreview,infiniteHealth:this.player?.infiniteHealth,runEligible:campaignRunEligible()}))return;let p=loadProgress();p=updateChapter(p,'gate-1',{checkpoint:this.checkpointX??0,charge:Math.max(0,Math.min(100,this.player?.ultimateCharge??0)),opened:this.opened,secrets:this.secrets,bossDefeated:this.bossDefeated});p.currentScene='gate-1';saveProgress(p);}
+  private installGateCameraQA():void {
+    const local=import.meta.env.DEV&&this.qaMode;if(!local)return;
+    const choose=(index:number)=>this.scene.restart({devPreview:true,qa:true,qaSupport:index,qaDamage:!this.player.infiniteHealth});
+    const drive=(action:string)=>{if(action==='clearTrace'){this.qaTrace.length=0;this.qaLaunches.length=0;this.qaFirstFitTime=0;this.qaTelemetry.reset(this.player.grounded);return;}if(action==='retry'){choose(this.qaSupport);return;}if(action==='walkLeft'||action==='walkRight'||action==='sprintLeft'||action==='sprintRight'){this.qaDriveMs=300;this.qaDriveHorizontal=action.includes('Left')?-1:1;this.qaSprint=action.startsWith('sprint');return;}if(action==='walkLeftLong'||action==='walkRightLong'||action==='sprintLeftLong'||action==='sprintRightLong'){this.qaDriveMs=1200;this.qaDriveHorizontal=action.includes('Left')?-1:1;this.qaSprint=action.startsWith('sprint');return;}if(action==='takeoff'){this.qaJumpNext=true;return;}if(action==='dash'){this.qaDashNext=true;return;}if(action==='ultimate'){this.player.ultimateCharge=100;this.qaUltimateNext=true;return;}if(action==='pause'){this.scene.pause();return;}if(action==='resume'){this.scene.resume();this.traversalRig?.resume();return;}if(action==='freeze200'||action==='freeze300'){this.qaFreezeMs=Number(action.slice(6));return;}};
+    const options=(room:number)=>room===0?this.allPlatforms.map((p,index)=>({step:index,id:`castle:${index}`,top:p.y-p.height/2,left:p.x-p.width/2,right:p.x+p.width/2})):[];
+    const status=()=>{const view=this.cameras.main.worldView,actorTop=this.player.visual.y-this.player.visual.displayHeight/2,actorBottom=this.player.visual.y+this.player.visual.displayHeight/2,screenY=(y:number)=>(y-view.y)/view.height*TUNING.simulation.height,screenX=(x:number)=>(x-view.x)/view.width*TUNING.simulation.width,controller=this.traversalRig?.camera,targetId=this.traversalRig?.camera.targetId,target=this.traversalSurfaces.find(s=>s.id===targetId),support=this.traversalSurfaces.find(s=>s.enabled&&this.player.body.right>s.left&&this.player.body.left<s.right&&Math.abs(this.player.body.bottom-s.top)<5),targetTop=target?.top,targetBottom=target?.bottom,actorScreen={top:screenY(actorTop),bottom:screenY(actorBottom)},targetScreen={top:targetTop===undefined?null:screenY(targetTop),bottom:targetBottom===undefined?null:screenY(targetBottom)},hazardVisible=!controller?.risk||controller.riskLeft===undefined||Math.min(TUNING.simulation.width,screenX(controller.riskRight??controller.riskLeft))>Math.max(0,screenX(controller.riskLeft))&&screenY(controller.riskBottom??target?.bottom??Infinity)<=370,fitted=!!target&&target.id!==support?.id&&actorScreen.top>=120&&actorScreen.bottom<=370&&targetScreen.bottom!==null&&targetScreen.bottom<=370&&hazardVisible,normalAlreadyVisible=!target&&actorScreen.top>=120&&actorScreen.bottom<=370&&this.traversalSurfaces.some(s=>s.top>this.player.body.bottom+32&&screenY(s.top)>=120&&screenY(s.top)<=370);const visibleSurfaceIds=visibleCameraQaSurfaceIds({x:view.x,y:view.y,width:view.width,height:view.height,logicalWidth:TUNING.simulation.width,logicalHeight:TUNING.simulation.height},actorScreen,this.traversalSurfaces,this.traversalHazards);return {x:this.player.body.center.x,y:this.player.body.center.y,vx:this.player.body.velocity.x,vy:this.player.body.velocity.y,grounded:this.player.grounded,state:controller?.state,targetId,risk:controller?.risk,riskKind:controller?.riskKind,riskBounds:controller?.risk?{left:controller.riskLeft,right:controller.riskRight,top:controller.riskTop,bottom:controller.riskBottom}:null,zoomRatio:this.cameras.main.zoomY/renderScale(),offsetY:this.cameras.main.followOffset.y,worldView:{x:view.x,y:view.y,width:view.width,height:view.height},actorScreen,visibleSurfaceIds,targetScreen,projectedFit:fitted,normalAlreadyVisible,owner:this.boss.ownsCamera?'boss':'traversal',ready:this.qaReady,damageIgnored:this.player.infiniteHealth};};
+    const postRender=()=>{const current=status(),grounded=this.player.grounded,now=this.time.now,platform=this.allPlatforms[this.qaSupport%this.allPlatforms.length],sourceTop=platform.y-platform.height/2,sourceContact=!!platform&&grounded&&Math.abs(this.player.body.bottom-sourceTop)<5&&this.player.body.right>platform.x-platform.width/2&&this.player.body.left<platform.x+platform.width/2;if(!this.qaReady){if(!sourceContact||this.cameras.main.worldView.width<=0)return;this.qaReady=true;}const support=this.traversalSurfaces.find(s=>s.enabled&&this.player.body.right>s.left&&this.player.body.left<s.right&&Math.abs(this.player.body.bottom-s.top)<5),visibleIds=Array.isArray(current.visibleSurfaceIds)?current.visibleSurfaceIds as string[]:[],launch=this.qaTelemetry.sample(now,grounded,support?.id??null,typeof current.targetId==='string'?current.targetId:null,visibleIds);if(launch)this.qaLaunches.push({...launch});this.qaWasGrounded=grounded;this.qaTrace.push({t:now,...current,visibleSurfaceIds:visibleIds,worldView:current.worldView,actorScreen:current.actorScreen,riskBounds:current.riskBounds,actualFit:current.projectedFit,normalAlreadyVisible:current.normalAlreadyVisible});};
+    this.cameras.main.on(Phaser.Cameras.Scene2D.Events.POST_RENDER,postRender);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{this.cameras.main.off(Phaser.Cameras.Scene2D.Events.POST_RENDER,postRender);if(window.__duckomanCameraQA===api)delete window.__duckomanCameraQA;});
+    const setIgnoreDamage=(ignore:boolean)=>{this.player.infiniteHealth=ignore;};const api={select:(_room:number,index:number)=>choose(index),options,status,command:drive,setIgnoreDamage,trace:()=>JSON.stringify(this.qaTrace),launches:()=>JSON.stringify(this.qaLaunches)};window.__duckomanCameraQA=api;
+  }
+  private updateTraversalCamera(input:{horizontal:-1|0|1;sprintHeld?:boolean},delta:number):void {
+    const rig=this.traversalRig,player=this.player;if(!rig||!player)return;const body=player.body,near=this.traversalNearby;near.length=0;const room=Math.floor(body.center.x/2560);
+    for(const surface of this.traversalSurfaces)if(Math.abs(surface.room-room)<=1){near.push(surface);}this.mechanisms.fillPredictionSurfaces(near,near.length,room-1,room+1);
+    this.mechanisms.fillPredictionHazards(this.traversalHazards,0,body.center.x-1800,body.center.x+1800);
+    const model=this.traversalInput;model.x=body.center.x;model.y=body.center.y;model.vx=body.velocity.x;model.vy=body.velocity.y;model.halfWidth=body.width/2;model.halfHeight=body.height/2;model.grounded=player.grounded;model.supportId=undefined;model.horizontal=input.horizontal;model.sprint=!!player.sprinting||!!input.sprintHeld;model.jumpAvailable=player.grounded&&player.canAct;model.dashing=player.isDashing;model.dashRemainingMs=player.dashRemainingMs;model.gravity=TUNING.player.gravity;model.maxFall=TUNING.player.maxFallVelocity;model.runSpeed=TUNING.player.maxRunSpeed;model.sprintSpeed=TUNING.player.sprintSpeed;model.horizontalDrift=0;model.windDirection=0;model.windStrength=0;model.windDrift=0;
+    if(player.grounded)for(const surface of near)if(surface.enabled&&body.right>surface.left&&body.left<surface.right&&Math.abs(body.bottom-surface.top)<10){model.supportId=surface.id;break;}
+    this.traversalFrame.actorTop=player.visual.y-player.visual.displayHeight/2;this.traversalFrame.actorBottom=player.visual.y+player.visual.displayHeight/2;this.traversalFrame.targetBottom=null;
+    const active=this.sys.isActive()&&!this.physics.world.isPaused&&document.visibilityState==='visible';if(!active){rig.suspend();return;}rig.resume();
+    if(!this.boss.ownsCamera&&body.center.x>=8500)rig.neutralize(delta,active,player.active&&!player.usingUltimate);
+    else rig.update(model,this.traversalFrame,delta,this.boss.ownsCamera?'boss':'traversal',active,player.active&&!player.usingUltimate);
+  }
   private openMenu():boolean {return requestPauseMenu(this,()=>this.saveCampaign(),'gate-1');}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;

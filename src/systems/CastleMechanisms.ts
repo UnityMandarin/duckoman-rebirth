@@ -5,6 +5,8 @@ import { BreakableWall } from '../entities/BreakableWall';
 import { CASTLE, STORY } from '../data/castle';
 import { rectsOverlap } from './contactRules';
 import { showHitbox, tagBody } from './DebugHitboxes';
+import type {PredictHazard} from './descentPrediction';
+import type {PredictSurface} from './descentPrediction';
 
 interface SpikeTrap {kind:'spikes';x:number;groundY:number;art:Phaser.GameObjects.Image;}
 interface CrusherTrap {kind:'crusher';x:number;groundY:number;art:Phaser.GameObjects.Image;warning:Phaser.GameObjects.Graphics;nextStrike:number;warnAt:number;activeUntil:number;}
@@ -14,6 +16,7 @@ export const CASTLE_BREAKABLE_SIZE={width:42,height:130} as const;
 export class CastleMechanisms {
   private traps:Trap[]=[];
   private walls:BreakableWall[]=[];
+  private cameraBlockers:{shape:Phaser.GameObjects.Rectangle;surface:PredictSurface;breakable?:BreakableWall}[]=[];
   private storyIndex=0;
   private caption:Phaser.GameObjects.Text;
   private captionUntil=0;
@@ -28,6 +31,7 @@ export class CastleMechanisms {
       scene.physics.add.existing(solid,true);tagBody(solid,'target');
       const wall=scene.add.image(x,y,'cracked-stone-wall').setDisplaySize(CASTLE_BREAKABLE_SIZE.width,CASTLE_BREAKABLE_SIZE.height).setDepth(3);
       const breakable=new BreakableWall(scene,solid,[wall]);
+      const top=solid.y-CASTLE_BREAKABLE_SIZE.height/2;this.cameraBlockers.push({shape:solid,breakable,surface:{id:`castle-wall-${x}`,room:Math.floor(x/2560),left:x-CASTLE_BREAKABLE_SIZE.width/2,right:x+CASTLE_BREAKABLE_SIZE.width/2,top,bottom:top+CASTLE_BREAKABLE_SIZE.height,enabled:true,landing:false}});
       if(secrets.includes(i))breakable.break(undefined,false);
       this.walls.push(breakable);
       scene.physics.add.collider(player.sprite,solid);
@@ -39,6 +43,7 @@ export class CastleMechanisms {
     // Full-height locks make every button mandatory; the generated art explains the pairing.
     for(const [index,[buttonX,gateX,groundY]] of ([[4020,4225,360],[7070,7310,360],[8740,8940,360]] as const).entries()) {
       const gateBody=scene.add.rectangle(gateX,(CASTLE.top+groundY)/2,26,groundY-CASTLE.top,0,0);
+      this.cameraBlockers.push({shape:gateBody,surface:{id:`castle-gate-${index}`,room:Math.floor(gateX/2560),left:gateX-13,right:gateX+13,top:CASTLE.top,bottom:groundY,enabled:true,landing:false}});
       scene.physics.add.existing(gateBody,true);scene.physics.add.collider(player.sprite,gateBody);
       const gate=scene.add.image(gateX,groundY,'lock-kit','door').setOrigin(.5,1).setDisplaySize(116,230).setDepth(4);
       scene.add.rectangle(gateX,(CASTLE.top+130)/2,32,130-CASTLE.top,0x172333).setStrokeStyle(2,0x856236).setDepth(2);
@@ -70,6 +75,20 @@ export class CastleMechanisms {
 
   }
   say(text:string):void {this.caption.setText(text);this.captionUntil=this.scene.time.now+6500;}
+  fillPredictionSurfaces(out:PredictSurface[],startIndex=0,roomStart=-Infinity,roomEnd=Infinity):number {
+    let count=startIndex;for(const blocker of this.cameraBlockers){const body=blocker.shape.body as Phaser.Physics.Arcade.StaticBody,s=blocker.surface;s.enabled=!!body.enable&&!(blocker.breakable?.isBroken??false);s.left=body.left;s.right=body.right;s.top=body.top;s.bottom=body.bottom;if(!s.enabled||s.room<roomStart||s.room>roomEnd)continue;out[count++]=s;}return count;
+  }
+  /** Current authored spike and crusher tells for traversal prediction; never advances trap state. */
+  fillPredictionHazards(out:PredictHazard[],startIndex=0,left=-Infinity,right=Infinity):number {
+    let count=startIndex;const now=this.scene.time.now;
+    for(const trap of this.traps){if(trap.x+45<=left||trap.x-45>=right)continue;let h=out[count];if(!h){h={id:'',left:0,right:0,top:0,bottom:0,active:false,kind:'spike'};out[count]=h;}
+      h.id='castle-hazard';h.left=trap.x-(trap.kind==='spikes'?38:39);h.right=trap.x+(trap.kind==='spikes'?38:39);
+      if(trap.kind==='spikes'){h.top=trap.groundY-26;h.bottom=trap.groundY;h.kind='spike';h.active=true;count++;continue;}
+      const active=now<trap.activeUntil,warning=now>=trap.warnAt&&now<trap.nextStrike;if(!active&&!warning){h.active=false;continue;}
+      h.top=active?trap.art.y-250:trap.art.y-280;h.bottom=active?trap.art.y:trap.groundY;h.kind=active?'spike':'press';h.active=true;count++;
+    }
+    for(let i=count;i<out.length;i++)out[i]!.active=false;return count;
+  }
   update():void {
     const now=this.scene.time.now,p=this.player.body;
     if(this.storyIndex<STORY.length&&this.player.sprite.x>=STORY[this.storyIndex].x)this.say(STORY[this.storyIndex++].text);

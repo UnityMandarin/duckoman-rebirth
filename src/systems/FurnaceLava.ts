@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FURNACE_BOSS_CHECKPOINT, FURNACE_ROOMS, FURNACE_ROOM_WIDTH } from '../data/furnace';
 import type { Player } from '../entities/Player';
+import type {PredictHazard} from './descentPrediction';
 
 export const FURNACE_LAVA_POOL_WIDTH = 480;
 export const FURNACE_LAVA_APRON_WIDTH = 192;
@@ -23,6 +24,11 @@ export interface FurnaceLavaDivider { x: number; top: number; bottom: number; he
 export interface FurnaceLavaFeedLayout {
   x: number; highSide: 'left' | 'right'; upperSurfaceY: number; lowerSurfaceY: number;
   pumpY: number; outletX: number; outletY: number; conduitY: number; conduitHeight: number;
+}
+
+function writePredictionHazard(out:PredictHazard[],index:number,id:string,left:number,right:number,top:number,bottom:number,kind:PredictHazard['kind']):number {
+  let hazard=out[index];if(!hazard){hazard={id:'',left:0,right:0,top:0,bottom:0,active:false,kind};out[index]=hazard;}
+  hazard.id=id;hazard.left=left;hazard.right=right;hazard.top=top;hazard.bottom=bottom;hazard.kind=kind;hazard.active=true;return index+1;
 }
 
 /** Authored geometry is converted once into contiguous, fixed world-space basins. */
@@ -80,8 +86,8 @@ function makeRegion(left: number, right: number, supports: readonly FurnaceLavaS
     left, right,
     surfaceY: highestTop + FURNACE_LAVA_PLATFORM_CLEARANCE,
     phase: (left / FURNACE_LAVA_POOL_WIDTH * 1.731) % (Math.PI * 2),
-    refugetops: supports.filter(s => s.refuge && s.left - FURNACE_LAVA_REFUGE_MARGIN < right && s.right + FURNACE_LAVA_REFUGE_MARGIN > left)
-      .map(s => ({ left: Math.max(left, s.left - FURNACE_LAVA_REFUGE_MARGIN), right: Math.min(right, s.right + FURNACE_LAVA_REFUGE_MARGIN) })),
+      refugetops: supports.filter(s => s.refuge && s.left - FURNACE_LAVA_REFUGE_MARGIN < right && s.right + FURNACE_LAVA_REFUGE_MARGIN > left)
+      .map(s => ({ left: Math.max(left, s.left - FURNACE_LAVA_REFUGE_MARGIN), right: Math.min(right, s.right + FURNACE_LAVA_REFUGE_MARGIN) })).sort((a,b)=>a.left-b.left),
   };
 }
 
@@ -231,6 +237,15 @@ export class FurnaceLava {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown);
   }
 
+  /** Returns true when the actual player body has crossed a visible pool surface. */
+  /** Nonmutating traversal forecast of lethal basin spans, active eruption tells, and moving blob paths. */
+  fillPredictionHazards(out:PredictHazard[],startIndex=0,left=-Infinity,right=Infinity):number {
+    let count=startIndex;
+    for(const region of this.regions){if(region.right<=left||region.left>=right)continue;let x=region.left;for(const refuge of region.refugetops){const a=Math.max(region.left,refuge.left),b=Math.min(region.right,refuge.right);if(a>x)count=writePredictionHazard(out,count,'lava',x,a,region.surfaceY,region.surfaceY,'pit');x=Math.max(x,b);}if(x<region.right)count=writePredictionHazard(out,count,'lava',x,region.right,region.surfaceY,region.surfaceY,'pit');}
+    for(const warning of this.warnings)if(warning.remainingMs>0&&warning.region&&warning.x+24>left&&warning.x-24<right)count=writePredictionHazard(out,count,'eruption-warning',warning.x-24,warning.x+24,warning.region.surfaceY-38,warning.region.surfaceY,'press');
+    for(const blob of this.blobs){if(!blob.active)continue;const m=blob.motion,dt=Math.min(.35,Math.max(0,(m.ttlMs-m.ageMs)/1000)),x1=m.x+m.vx*dt,y1=m.y+m.vy*dt+300*dt*dt;if(Math.max(m.x,x1)+12>left&&Math.min(m.x,x1)-12<right)count=writePredictionHazard(out,count,'lava-blob',Math.min(m.x,x1)-8,Math.max(m.x,x1)+8,Math.min(m.y,y1)-8,Math.max(m.y,y1)+8,'spike');}
+    for(let i=count;i<out.length;i++)out[i]!.active=false;return count;
+  }
   /** Returns true when the actual player body has crossed a visible pool surface. */
   update(deltaMs: number): boolean {
     if (this.destroyed) return false;

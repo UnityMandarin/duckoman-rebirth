@@ -4,6 +4,7 @@ import type {ChapterKind,Ledge} from '../data/chapters';
 import {CHAPTER_DIFFICULTY,encounterFor,encounterSurfaceEffects,advanceWindDrift,addWindDrift,canReceiveWind,type Encounter,type SurfaceEffect} from '../data/chapterChallenges';
 import {rectsOverlap} from './contactRules';
 import {showHitbox} from './DebugHitboxes';
+import type {PredictHazard,PredictSurface} from './descentPrediction';
 import {roomFor} from '../data/qualityRooms';
 import {addConveyorBeltDeck,conveyorBeltDeckOffset,identityTexture} from './ChapterVisuals';
 import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,type TrapPressPhase} from './qualityTrapClock';
@@ -16,6 +17,8 @@ type Special={section:number;surface:ChapterSurface;type:SurfaceEffect['type'];x
 type DisappearingEntry={surface:ChapterSurface;kind:'shutter'|'crumble';x:number;y:number;phase:'solid'|'warn'|'gone'|'recover';at:number;};
 type DisappearingRoom={entries:DisappearingEntry[];started:boolean;index:number;};
 type DustFx={image:Phaser.GameObjects.Image;active:boolean;started:number;x:number;y:number;section:number;duration:number;scale:number;baseScaleX:number;baseScaleY:number;};
+export interface TrapPredictionMotion {axis:'x'|'y';base:number;phase:number;clockMs:number;}
+export interface TrapPredictionWind {direction:-1|0|1;strength:number;drift:number;}
 const AMBIENT_WIND_POOL_SIZE=16,CONVEYOR_WIND_POOL_SIZE=4,WIND_POOL_SIZE=AMBIENT_WIND_POOL_SIZE+CONVEYOR_WIND_POOL_SIZE,DUST_POOL_SIZE=12,SECTION_WIDTH=1440,ACTIVE_X=1510,ACTIVE_Y=720;
 
 /** Authored Chapter 2/3 motion, tells and safe recovery. */
@@ -23,9 +26,10 @@ export class ChapterTraps {
  private readonly presses=new Map<number,Press[]>();
  private readonly crumbles=new Map<number,Crumble[]>();
  private readonly specials=new Map<number,Special[]>();
+ private readonly specialByShape=new Map<Phaser.GameObjects.Rectangle,Special>();
  private readonly disappearingRooms=new Map<number,DisappearingRoom>();
  private readonly effects=new Map<number,Phaser.GameObjects.Text[]>();
- private readonly windRooms=new Map<number,{direction:-1|1;floor:number}>();
+ private readonly windRooms=new Map<number,{direction:-1|1;floor:number;strength:number}>();
  private readonly windStreaks:Phaser.GameObjects.Image[]=[];
  private readonly dust:DustFx[]=[];
  private readonly roomActive:boolean[]=[];
@@ -58,10 +62,11 @@ export class ChapterTraps {
      special.deck=addConveyorBeltDeck(scene,kind,{x:art.x,y:art.y+conveyorBeltDeckOffset(kind,art.displayHeight,frame.height),width:surface.ledge.width-8,depth:art.depth+.01}).setVisible(false);
     }
     put(this.specials,section,special);
+    this.specialByShape.set(surface.shape,special);
    }
    if(encounter.wind){
     const floor=authored?.floor(section)??roomFor(kind,section)?.floor??360;
-    this.windRooms.set(section,{direction:encounter.wind.direction,floor});
+    this.windRooms.set(section,{direction:encounter.wind.direction,floor,strength:encounter.wind.strength});
    }
    for(const moving of encounter.moving??[]){
     const surface=ledges[moving.step];if(!surface)continue;
@@ -96,6 +101,30 @@ export class ChapterTraps {
   this.scene.game.events.off(Phaser.Core.Events.BLUR,this.markGap);document.removeEventListener('visibilitychange',this.visibilityChanged);
   this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.shutdown);
  };
+ /** Read-only current phase for camera forecasts; never advances or mutates trap state. */
+ predictionMotion(shape:Phaser.GameObjects.Rectangle,out:TrapPredictionMotion):boolean {
+  const special=this.specialByShape.get(shape);if(!special||(special.type!=='ferry'&&special.type!=='lift'))return false;
+  out.axis=special.type==='ferry'?'x':'y';out.base=special.type==='ferry'?special.x:special.y;out.phase=special.phase;out.clockMs=this.clockMs;return true;
+ }
+ predictionSurfaceDrift(shape:Phaser.GameObjects.Rectangle):number {
+  const special=this.specialByShape.get(shape);return special?.type==='conveyor'?special.direction*special.strength:0;
+ }
+ predictionWind(room:number,out:TrapPredictionWind):boolean {
+  const wind=this.windRooms.get(room);if(!wind){out.direction=0;out.strength=0;out.drift=0;return false;}
+  out.direction=wind.direction;out.strength=wind.strength*.9;out.drift=this.windDriftX;return true;
+ }
+ /** Reuses caller-provided records and reports only active/warning press danger regions. */
+ fillPredictionHazards(out:PredictHazard[],startIndex=0,roomStart=-Infinity,roomEnd=Infinity):number {
+  let count=startIndex;
+  for(const presses of this.presses.values())for(const press of presses){
+   if(press.section<roomStart||press.section>roomEnd)continue;
+   if(press.phase!=='warn'&&press.phase!=='fall'&&press.phase!=='impact'&&press.phase!=='return')continue;
+   let hazard=out[count];if(!hazard){hazard={id:'',left:0,right:0,top:0,bottom:0,active:false,kind:'press'};out[count]=hazard;}
+   hazard.id=`press-${press.section}-${press.x}`;hazard.left=press.zone.left;hazard.right=press.zone.right;hazard.top=press.zone.top;hazard.bottom=press.zone.bottom;hazard.active=true;hazard.kind='press';count++;
+  }
+  for(let i=count;i<out.length;i++)out[i]!.active=false;
+  return count;
+ }
  update(deltaMs=this.scene.game.loop.delta):void {
   const p=this.player.body,live=this.player.active&&this.scene.sys.isActive()&&!this.scene.physics.world.isPaused&&document.visibilityState==='visible';
   if(!live){this.suspendedGap=true;for(const streak of this.windStreaks)streak.setVisible(false);for(const specials of this.specials.values())for(const special of specials)special.deck?.setVisible(false);return;}

@@ -29,6 +29,7 @@ export class PlayerAbilities {
   }
 
   get airDashSpent(): boolean { return this.airDashUsed && !this.unlimitedDashes; }
+  dashRemainingMs(now:number):number{return Math.max(0,this.dashUntil-now);}
 
   land(): void {
     this.airDashUsed = false;

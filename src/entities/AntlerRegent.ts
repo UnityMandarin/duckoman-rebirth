@@ -49,6 +49,7 @@ export class AntlerRegent extends Dashable {
  private cameraSnapshot?:CameraSnapshot;
  private cameraReturning=false;
  private cameraReturnMs=0;
+ get ownsCamera():boolean{return this.hp>0&&this.engaged||this.cameraReturning;}
  private defeatCallbackCalled=false;
  private defeatDustEmitted=false;
  private readonly strike:(strike:UltimateStrike)=>void;

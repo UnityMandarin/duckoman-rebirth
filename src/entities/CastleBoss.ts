@@ -18,6 +18,7 @@ import type {UltimateStrike} from '../systems/ultimateSwingMath';
 interface Minion {enemy:BasicEnemy;jumpAt:number;target?:number;colliders:Phaser.Physics.Arcade.Collider[];}
 interface Bomb {art:Phaser.GameObjects.Image;mark:Phaser.GameObjects.Arc;start:number;x:number;y:number;targetX:number;targetY:number;}
 export class CastleBoss extends Dashable {
+  get ownsCamera():boolean{return this.started!==undefined&&!this.finished||this.scene.cameras.main.zoomEffect.isRunning;}
   readonly health=new BossHealth();
   private clock=new BossClock();
   private started:number|undefined;

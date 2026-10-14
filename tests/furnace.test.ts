@@ -1,11 +1,12 @@
 import {describe,it,expect,vi} from 'vitest';
 vi.mock('phaser',()=>({default:{Scene:class {}}}));
 import {FURNACE_ROOMS,FURNACE_CHECKPOINTS,FURNACE_BOSS_CHECKPOINT} from '../src/data/furnace';
-import {FurnaceRhythm,furnaceHeatAt} from '../src/systems/FurnaceRhythm';
+import {FurnaceRhythm,furnaceHeatAt,furnaceHeatHazardBounds} from '../src/systems/FurnaceRhythm';
 import {furnaceRoute,furnaceJump,furnaceJumpOptions,furnaceLaunchWindow,furnaceSafeLaunch,furnaceComposedPlan} from '../src/systems/FurnaceRoute';
 import {furnaceArenaEntry,furnaceEncounter,furnaceStartRecord} from '../src/scenes/FurnaceScene';
 import {freshProgress,validateProgress,unlockAfter,replayRescue,releaseRescue,clearRescue,completeRescue} from '../src/systems/progress';
 describe('Crimson Furnace rhythm',()=>{
+ it('builds warning and burn hazard bounds directly from the live plate collision top',()=>{expect(furnaceHeatHazardBounds(100,220,500)).toEqual({left:100,right:220,top:476,bottom:502});});
  it('has exact safe warning, damage, cool and circuit boundaries',()=>{expect(furnaceHeatAt(999,1)).toBe('warning');expect(furnaceHeatAt(1000,1)).toBe('burn');expect(furnaceHeatAt(2199,1)).toBe('burn');expect(furnaceHeatAt(2200,1)).toBe('cool');expect(furnaceHeatAt(2400,2)).toBe('warning');expect(furnaceHeatAt(3400,2)).toBe('burn');expect(furnaceHeatAt(5800,3)).toBe('burn');expect(furnaceHeatAt(7200,1)).toBe('warning');for(let ms=0;ms<7200;ms+=10)expect([1,2,3].filter(c=>furnaceHeatAt(ms,c as 1|2|3)==='burn').length).toBeLessThanOrEqual(1);});
  it('starts outside the apron, holds inactive, drops resume catchup and resets rooms and reentry',()=>{const r=new FurnaceRhythm();r.update(0,80,50,true);expect(r.started).toBe(false);expect(r.heat(1)).toBe('safe');r.update(0,192,50,true);for(let i=0;i<20;i++)r.update(0,200,50,true);expect(r.elapsedMs).toBe(1000);r.update(0,200,9000,false);r.update(0,200,9000,true);expect(r.elapsedMs).toBe(1000);r.update(0,200,50,true);expect(r.elapsedMs).toBe(1050);r.suspend();r.update(0,200,50,true);expect(r.elapsedMs).toBe(1050);r.update(1,400,50,true);expect(r.elapsedMs).toBe(0);r.update(1,100,50,true);expect(r.started).toBe(true);expect(r.elapsedMs).toBe(50);r.update(0,100,50,true);expect(r.started).toBe(false);expect(r.elapsedMs).toBe(0);r.reset(1);expect(r.elapsedMs).toBe(0);});
 });

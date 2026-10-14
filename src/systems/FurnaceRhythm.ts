@@ -1,6 +1,7 @@
 import type {FurnaceCircuit} from '../data/furnace';
 export const FURNACE_SLOT_MS=2400,FURNACE_CYCLE_MS=7200,FURNACE_WARNING_MS=1000,FURNACE_BURN_END_MS=2200,FURNACE_FLAME_HEIGHT=24;
 export type FurnaceHeat='safe'|'warning'|'burn'|'cool';
+export function furnaceHeatHazardBounds(left:number,right:number,top:number):{left:number;right:number;top:number;bottom:number}{return {left,right,top:top-FURNACE_FLAME_HEIGHT,bottom:top+2};}
 /** One room-local clock. Suspended frames never contribute a catch-up delta. */
 export class FurnaceRhythm {
  room=-1;elapsedMs=0;started=false;private gap=false;

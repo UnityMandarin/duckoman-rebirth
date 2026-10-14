@@ -22,6 +22,7 @@ export class CrabBoss extends Dashable {
  private name:Phaser.GameObjects.Text;
  private pillars:Phaser.GameObjects.Image[]=[];
  private engaged=false;
+ get ownsCamera():boolean{return this.hp>0&&(this.engaged||this.player.sprite.x>=this.left+90);}
  private phase:CrabPhase='rest';
  private until=0;
  private direction: -1|1=1;

@@ -6,7 +6,7 @@ export const CHAPTERS=['gate-1','jail','outside','crimson','rescue','stormworks'
 export type CampaignScene=typeof CHAPTERS[number];
 export interface ChapterProgress {checkpoint:number;charge:number;opened:number[];secrets:number[];discoveries:number[];bossDefeated:boolean;finished:boolean;}
 export interface TrialRecord {bestMs?:number;hitless:boolean;clears:number;}
-export interface CampaignProgress {version:6;unlocked:CampaignScene[];completed:CampaignScene[];currentScene:CampaignScene;ended:boolean;chapters:Record<CampaignScene,ChapterProgress>;trials:{outside:TrialRecord;crimson:TrialRecord};}
+export interface CampaignProgress {version:7;unlocked:CampaignScene[];completed:CampaignScene[];currentScene:CampaignScene;ended:boolean;storyFlags:string[];knownPeople:string[];chapters:Record<CampaignScene,ChapterProgress>;trials:{outside:TrialRecord;crimson:TrialRecord};}
 export function canPersistCampaign(state:{devPreview?:boolean;infiniteHealth?:boolean;runEligible?:boolean}):boolean {return !state.devPreview&&!state.infiniteHealth&&state.runEligible!==false;}
 export function canPracticeBoss(p:CampaignProgress,boss:'outside'|'crimson'):boolean {const checkpoint=(boss==='outside'?22:10)*SECTION_WIDTH+80;return p.completed.includes(boss)||p.unlocked.includes(boss)&&p.chapters[boss].checkpoint>=checkpoint;}
 const emptyChapter=():ChapterProgress=>({checkpoint:0,charge:0,opened:[],secrets:[],discoveries:[],bossDefeated:false,finished:false});
@@ -17,11 +17,13 @@ export const SAVE_CHECKPOINTS:Record<CampaignScene,number[]>={
 };
 const VALID_GATES:Record<CampaignScene,number[]>={'gate-1':[0,1,2],jail:[0,4,8,12],outside:[99],crimson:[99],rescue:[0],stormworks:[99],'crown-edge':[99]};
 const secretIds=(scene:CampaignScene)=>scene==='gate-1'?[0,1,2]:scene==='rescue'||scene==='stormworks'||scene==='crown-edge'?[]:chapterSections(scene).flatMap((section,i)=>section.secret?[i]:[]);
-export function freshProgress():CampaignProgress{return {version:6,unlocked:['gate-1'],completed:[],currentScene:'gate-1',ended:false,chapters:{'gate-1':emptyChapter(),jail:emptyChapter(),outside:emptyChapter(),crimson:emptyChapter(),rescue:emptyChapter(),stormworks:emptyChapter(),'crown-edge':emptyChapter()},trials:{outside:emptyTrial(),crimson:emptyTrial()}};}
+export function freshProgress():CampaignProgress{return {version:7,unlocked:['gate-1'],completed:[],currentScene:'gate-1',ended:false,storyFlags:[],knownPeople:[],chapters:{'gate-1':emptyChapter(),jail:emptyChapter(),outside:emptyChapter(),crimson:emptyChapter(),rescue:emptyChapter(),stormworks:emptyChapter(),'crown-edge':emptyChapter()},trials:{outside:emptyTrial(),crimson:emptyTrial()}};}
 const isScene=(v:unknown):v is CampaignScene=>typeof v==='string'&&(CHAPTERS as readonly string[]).includes(v);
+const KNOWN_PEOPLE=new Set(['nella','pippit','tamsin','bramble','orrin','rune','franklin']);
+const STORY_FLAGS=new Set([...CHAPTERS.flatMap(ch=>[...KNOWN_PEOPLE].map(person=>`${ch}-${person}-met`)),'rescue-franklin-rescued','jail-captive-route','crimson-freight-bypass','outside-water-restored','outside-water-valve','outside-water-relay','stormworks-signal','crown-edge-beacon-a','crown-edge-beacon-b','crown-edge-border-beacon-lit']);
 function ids(v:unknown,max:number):number[]{if(!Array.isArray(v))return [];return [...new Set(v.filter((n):n is number=>Number.isInteger(n)&&n>=0&&n<max))];}
 export function validateProgress(v:unknown):CampaignProgress|null {
- if(!v||typeof v!=='object')return null;const x=v as Record<string,unknown>;if((x.version!==1&&x.version!==2&&x.version!==3&&x.version!==4&&x.version!==5&&x.version!==6)||!x.chapters||typeof x.chapters!=='object')return null;
+ if(!v||typeof v!=='object')return null;const x=v as Record<string,unknown>;if((x.version!==1&&x.version!==2&&x.version!==3&&x.version!==4&&x.version!==5&&x.version!==6&&x.version!==7)||!x.chapters||typeof x.chapters!=='object')return null;
  const version=x.version as number, rawCurrent=x.currentScene;
  if(version>=4?!isScene(rawCurrent):rawCurrent!=='rescue'&&!isScene(rawCurrent))return null;
  const chapters=freshProgress().chapters,raw=x.chapters as Record<string,unknown>;
@@ -45,7 +47,8 @@ export function validateProgress(v:unknown):CampaignProgress|null {
  let currentScene:CampaignScene=version<6&&requestedCompleted.includes('rescue')?'stormworks':rawCurrent==='rescue'&&version<4?unlocked[unlocked.length-1]:rawCurrent as CampaignScene;if(!unlocked.includes(currentScene))currentScene=unlocked[unlocked.length-1];
  const trial=(v:unknown):TrialRecord=>{const r=v&&typeof v==='object'?v as Record<string,unknown>:{};return {...(typeof r.bestMs==='number'&&Number.isFinite(r.bestMs)&&r.bestMs>0?{bestMs:r.bestMs}:{}),hitless:r.hitless===true,clears:typeof r.clears==='number'&&Number.isInteger(r.clears)&&r.clears>=0?r.clears:0};};
  const rawTrials=version>=2&&x.trials&&typeof x.trials==='object'?x.trials as Record<string,unknown>:{};
- return {version:6,unlocked,completed,currentScene,ended:version<4&&requestedCompleted.includes('crimson')||version<6&&requestedCompleted.includes('rescue')?false:x.ended===true,chapters,trials:{outside:trial(rawTrials.outside),crimson:trial(rawTrials.crimson)}};
+ const stringIds=(v:unknown,allowed:Set<string>)=>Array.isArray(v)?[...new Set(v.filter((s):s is string=>typeof s==='string'&&allowed.has(s)))]:[];
+ return {version:7,unlocked,completed,currentScene,ended:version<4&&requestedCompleted.includes('crimson')||version<6&&requestedCompleted.includes('rescue')?false:x.ended===true,storyFlags:stringIds(x.storyFlags,STORY_FLAGS),knownPeople:stringIds(x.knownPeople,KNOWN_PEOPLE),chapters,trials:{outside:trial(rawTrials.outside),crimson:trial(rawTrials.crimson)}};
 }
 let memory:CampaignProgress=freshProgress();
 function defaultStorage():Pick<Storage,'getItem'|'setItem'>|null {try{return globalThis.localStorage;}catch{return null;}}
@@ -62,7 +65,7 @@ export function resetChapter(p:CampaignProgress,scene:CampaignScene):CampaignPro
 export function releaseRescue(p:CampaignProgress):CampaignProgress {if(!p.unlocked.includes('rescue')||p.chapters.rescue.opened.includes(0)||p.chapters.rescue.bossDefeated)return structuredClone(p);const next=updateChapter(p,'rescue',{checkpoint:FURNACE_BOSS_CHECKPOINT,charge:p.chapters.rescue.charge,opened:[0],secrets:[],discoveries:[],bossDefeated:false});next.currentScene='rescue';next.ended=false;return next;}
 export function clearRescue(p:CampaignProgress):CampaignProgress {if(!p.unlocked.includes('rescue')||!p.chapters.rescue.opened.includes(0))return structuredClone(p);const next=updateChapter(p,'rescue',{checkpoint:FURNACE_BOSS_CHECKPOINT,charge:p.chapters.rescue.charge,opened:[0],bossDefeated:true});next.currentScene='rescue';next.ended=false;return next;}
 export function completeRescue(p:CampaignProgress):CampaignProgress {if(!p.unlocked.includes('rescue')||!p.chapters.rescue.bossDefeated)return structuredClone(p);let next=unlockAfter('rescue',p);next.currentScene='stormworks';next.ended=false;return next;}
-export function completeLateChapter(p:CampaignProgress,scene:'stormworks'|'crown-edge',charge:number):CampaignProgress {if(!p.unlocked.includes(scene))return structuredClone(p);let next=updateChapter(p,scene,{checkpoint:SAVE_CHECKPOINTS[scene].at(-1)!,charge,opened:[],bossDefeated:false,secrets:[],discoveries:[]});next=unlockAfter(scene,next);if(scene==='stormworks'&&next.chapters['crown-edge'].checkpoint===0)next.chapters['crown-edge'].charge=charge;next.currentScene='crown-edge';next.ended=scene==='crown-edge';return next;}
+export function completeLateChapter(p:CampaignProgress,scene:'stormworks'|'crown-edge',charge:number):CampaignProgress {if(!p.unlocked.includes(scene))return structuredClone(p);let next=updateChapter(p,scene,{checkpoint:SAVE_CHECKPOINTS[scene].at(-1)!,charge,opened:[],bossDefeated:false,secrets:[],discoveries:[]});next=unlockAfter(scene,next);if(scene==='stormworks'&&next.chapters['crown-edge'].checkpoint===0)next.chapters['crown-edge'].charge=charge;next.currentScene='crown-edge';next.ended=false;return next;}
 export function replayRescue(p:CampaignProgress):CampaignProgress {if(!p.unlocked.includes('rescue'))return structuredClone(p);const next=resetChapter(p,'rescue');next.currentScene='rescue';next.ended=false;return next;}
 export function updateChapter(p:CampaignProgress,scene:CampaignScene,patch:Partial<ChapterProgress>):CampaignProgress {
  const next=structuredClone(p);next.currentScene=scene;const prior=next.chapters[scene],secrets=[...new Set(patch.secrets??prior.secrets)];next.chapters[scene]={...prior,...patch,opened:[...new Set(patch.opened??prior.opened)],secrets,discoveries:[...new Set([...prior.discoveries,...secrets,...(patch.discoveries??[])])]};return next;

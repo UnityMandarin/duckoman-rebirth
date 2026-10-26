@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import {SCENIC_ZONES} from '../data/scenicZones';
 import type {EnvironmentKind} from '../data/worldEnvironment';
 import { LETTER_TEXTURE } from '../entities/CreatorLetter';
+import { registerAdventureFrames } from '../systems/AdventureAssets';
 
 export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'furnace' | 'rescue' | 'late' | 'castle-secret';
 export interface SceneAssetEntry {
@@ -25,6 +26,7 @@ const menu: readonly SceneAssetEntry[] = [
 ];
 const scenicAssets=(kind:EnvironmentKind):readonly SceneAssetEntry[]=>[...SCENIC_ZONES[kind].map(z=>entry(`world-v3-${z.name}`,`assets/world-v3/${z.name}.png`)),entry(`world-v3-${kind}-connectors`,`assets/world-v3/${kind}-connectors.png`),entry('world-v2-structures','assets/world-v2/structures.png')];
 const gate1: readonly SceneAssetEntry[] = [
+  spritesheet('adventure-npcs','assets/adventure/npc-atlas.png',512,512),
   ...scenicAssets('castle'),
   entry('ironwing-button', 'assets/gate3/ironwing-button.png'),
   entry('ironwing-bomb', 'assets/gate3/ironwing-bomb.png'),
@@ -48,6 +50,7 @@ const gate1: readonly SceneAssetEntry[] = [
   entry('bronze-wing', 'assets/gate3/bronze-wing.png'),
 ];
 const journeyCommon: readonly SceneAssetEntry[] = [
+  spritesheet('adventure-npcs','assets/adventure/npc-atlas.png',512,512),
   entry('duckoman', 'assets/gate3/duckoman.png'),
   entry('cake', 'assets/gate3/cake.png'),
   entry('robot-health', 'assets/tutorial/robot-health.png'),
@@ -212,6 +215,7 @@ export function preloadSceneAssets(scene: Phaser.Scene, profile: SceneAssetProfi
 
 /** Register shared concept-prop crops only after their texture has loaded. */
 export function registerSharedPropFrames(scene: Phaser.Scene): void {
+  registerAdventureFrames(scene);
   const key = 'quality-concept-props';
   if (!scene.textures.exists(key)) return;
   const texture = scene.textures.get(key);

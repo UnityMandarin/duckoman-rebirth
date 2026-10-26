@@ -5,10 +5,1449 @@ export interface LateRoom {name:string;entryTop:number;exitTop:number;exitWidth?
 export const LATE_ROOM_WIDTH=1440,LATE_CHAPTER_LENGTH=17280;
 export const LATE_CHECKPOINTS=[0,...[0,2,4,6,8,10].map(i=>i*1440+80)] as const;
 /** Authored traversal order: repeated X reversals are intentional; never sort steps by X. */
-/** At 10 steps per 1440-unit room, Stormworks has 132 within-room links across 17280 units. Furnace's 79 steps over 15840 units make that a 53% higher traversal-action density proxy; it is not a claim about measured difficulty. */
+/** Room signatures include ordered path shape and elevation changes; do not sort steps by X. */
 export const LATE_ROOMS:Record<LateChapterKey,readonly LateRoom[]>={
-"stormworks":[{"name":"Signal Ramparts","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":232,"width":112},{"x":452.22,"top":168,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":40,"width":112},{"x":785.56,"top":40,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":168,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[],"robots":[]},{"name":"Counterweight Yard","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":236,"width":112},{"x":452.22,"top":172,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":44,"width":112},{"x":785.56,"top":44,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":172,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":1,"type":"lift"}],"robots":[]},{"name":"Turbine Switchbacks","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":228,"width":112},{"x":452.22,"top":164,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":36,"width":112},{"x":785.56,"top":36,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":164,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":70},{"step":7,"type":"conveyor","direction":1,"strength":80}],"robots":[{"step":3,"type":"guard"}]},{"name":"Suspended Assembly","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":240,"width":112},{"x":452.22,"top":176,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":48,"width":112},{"x":785.56,"top":48,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":176,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":4,"type":"presses"}],"robots":[]},{"name":"Stormglass Towers","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":224,"width":112},{"x":452.22,"top":160,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":32,"width":112},{"x":785.56,"top":32,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":160,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":70}],"robots":[]},{"name":"Piston Exchange","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":232,"width":112},{"x":452.22,"top":168,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":40,"width":112},{"x":785.56,"top":40,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":168,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":7,"type":"conveyor","direction":1,"strength":80},{"step":4,"type":"presses"}],"robots":[{"step":3,"type":"pointed"}]},{"name":"Crosswind Galleries","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":236,"width":112},{"x":452.22,"top":172,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":44,"width":112},{"x":785.56,"top":44,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":172,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":1,"type":"lift"}],"robots":[]},{"name":"Skyrail Transfer","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":228,"width":112},{"x":452.22,"top":164,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":36,"width":112},{"x":785.56,"top":36,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":164,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":7,"type":"conveyor","direction":1,"strength":80}],"robots":[]},{"name":"Sentinel Batteries","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":240,"width":112},{"x":452.22,"top":176,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":48,"width":112},{"x":785.56,"top":48,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":176,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":70},{"step":4,"type":"presses"}],"robots":[{"step":3,"type":"guard"}]},{"name":"Broken Dynamo","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":232,"width":112},{"x":452.22,"top":168,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":40,"width":112},{"x":785.56,"top":40,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":168,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":7,"type":"conveyor","direction":1,"strength":80}],"robots":[]},{"name":"Storm Crown","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":224,"width":112},{"x":452.22,"top":160,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":32,"width":112},{"x":785.56,"top":32,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":160,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":4,"type":"presses"},{"step":1,"type":"lift"}],"robots":[{"step":3,"type":"guard"}]},{"name":"The Upper Signal","entryTop":360,"exitTop":360,"steps":[{"x":230.0,"top":296,"width":112},{"x":341.11,"top":236,"width":112},{"x":452.22,"top":172,"width":112},{"x":563.33,"top":104,"width":192},{"x":674.44,"top":44,"width":112},{"x":785.56,"top":44,"width":112},{"x":896.67,"top":104,"width":192},{"x":1007.78,"top":172,"width":112},{"x":1118.89,"top":232,"width":112},{"x":1230.0,"top":296,"width":112}],"machines":[{"step":7,"type":"conveyor","direction":1,"strength":80}],"robots":[]}],
-"crown-edge":[{"name":"Crown Threshold","entryTop":360,"exitTop":-440,"steps":[{"x":300,"top":280,"width":160},{"x":540,"top":200,"width":160},{"x":210,"top":120,"width":224},{"x":620,"top":40,"width":192},{"x":850,"top":-40,"width":160},{"x":1120,"top":-120,"width":224},{"x":800,"top":-200,"width":224},{"x":1150,"top":-280,"width":224},{"x":760,"top":-360,"width":224},{"x":1248,"top":-440,"width":384}],"machines":[],"robots":[],"exitWidth":384},{"name":"Knife-Edge Galleries","entryTop":-440,"exitTop":-1240,"steps":[{"x":300,"top":-520,"width":160},{"x":540,"top":-600,"width":160},{"x":210,"top":-680,"width":224},{"x":620,"top":-760,"width":192},{"x":850,"top":-840,"width":160},{"x":1120,"top":-920,"width":224},{"x":800,"top":-1000,"width":224},{"x":1150,"top":-1080,"width":224},{"x":760,"top":-1160,"width":224},{"x":1248,"top":-1240,"width":384}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":100},{"step":0,"type":"shutters"},{"step":1,"type":"shutters"}],"robots":[],"exitWidth":384},{"name":"Reversing Spires","entryTop":-1240,"exitTop":-2040,"steps":[{"x":300,"top":-1320,"width":160},{"x":540,"top":-1400,"width":160},{"x":210,"top":-1480,"width":224},{"x":620,"top":-1560,"width":192},{"x":850,"top":-1640,"width":160},{"x":1120,"top":-1720,"width":224},{"x":800,"top":-1800,"width":224},{"x":1150,"top":-1880,"width":224},{"x":760,"top":-1960,"width":224},{"x":1248,"top":-2040,"width":384}],"machines":[{"step":7,"type":"conveyor","direction":-1,"strength":110},{"step":1,"type":"ferry"}],"robots":[{"step":3,"type":"guard"}],"exitWidth":384},{"name":"Pendulum Court","entryTop":-2040,"exitTop":-2840,"steps":[{"x":300,"top":-2120,"width":160},{"x":540,"top":-2200,"width":160},{"x":210,"top":-2280,"width":224},{"x":620,"top":-2360,"width":192},{"x":850,"top":-2440,"width":160},{"x":1120,"top":-2520,"width":224},{"x":800,"top":-2600,"width":224},{"x":1150,"top":-2680,"width":224},{"x":760,"top":-2760,"width":224},{"x":1248,"top":-2840,"width":384}],"machines":[{"step":4,"type":"presses"},{"step":4,"type":"lift"}],"robots":[],"exitWidth":384},{"name":"Shattered Meridian","entryTop":-2840,"exitTop":-3640,"steps":[{"x":300,"top":-2920,"width":160},{"x":540,"top":-3000,"width":160},{"x":210,"top":-3080,"width":224},{"x":620,"top":-3160,"width":192},{"x":850,"top":-3240,"width":160},{"x":1120,"top":-3320,"width":224},{"x":800,"top":-3400,"width":224},{"x":1150,"top":-3480,"width":224},{"x":760,"top":-3560,"width":224},{"x":1248,"top":-3640,"width":384}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":100},{"step":0,"type":"shutters"},{"step":1,"type":"shutters"}],"robots":[],"exitWidth":384},{"name":"Crown Relay","entryTop":-3640,"exitTop":-4440,"steps":[{"x":300,"top":-3720,"width":160},{"x":540,"top":-3800,"width":160},{"x":210,"top":-3880,"width":224},{"x":620,"top":-3960,"width":192},{"x":850,"top":-4040,"width":160},{"x":1120,"top":-4120,"width":224},{"x":800,"top":-4200,"width":224},{"x":1150,"top":-4280,"width":224},{"x":760,"top":-4360,"width":224},{"x":1248,"top":-4440,"width":384}],"machines":[{"step":7,"type":"conveyor","direction":-1,"strength":110},{"step":4,"type":"presses"},{"step":1,"type":"ferry"}],"robots":[{"step":3,"type":"pointed"}],"exitWidth":384},{"name":"Needleworks","entryTop":-4440,"exitTop":-5240,"steps":[{"x":300,"top":-4520,"width":160},{"x":540,"top":-4600,"width":160},{"x":210,"top":-4680,"width":224},{"x":620,"top":-4760,"width":192},{"x":850,"top":-4840,"width":160},{"x":1120,"top":-4920,"width":224},{"x":800,"top":-5000,"width":224},{"x":1150,"top":-5080,"width":224},{"x":760,"top":-5160,"width":224},{"x":1248,"top":-5240,"width":384}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":100},{"step":4,"type":"lift"}],"robots":[],"exitWidth":384},{"name":"Silent Suspension","entryTop":-5240,"exitTop":-6040,"steps":[{"x":300,"top":-5320,"width":160},{"x":540,"top":-5400,"width":160},{"x":210,"top":-5480,"width":224},{"x":620,"top":-5560,"width":192},{"x":850,"top":-5640,"width":160},{"x":1120,"top":-5720,"width":224},{"x":800,"top":-5800,"width":224},{"x":1150,"top":-5880,"width":224},{"x":760,"top":-5960,"width":224},{"x":1248,"top":-6040,"width":384}],"machines":[{"step":7,"type":"conveyor","direction":-1,"strength":110},{"step":0,"type":"shutters"},{"step":1,"type":"shutters"}],"robots":[],"exitWidth":384},{"name":"Astral Switchbacks","entryTop":-6040,"exitTop":-6840,"steps":[{"x":300,"top":-6120,"width":160},{"x":540,"top":-6200,"width":160},{"x":210,"top":-6280,"width":224},{"x":620,"top":-6360,"width":192},{"x":850,"top":-6440,"width":160},{"x":1120,"top":-6520,"width":224},{"x":800,"top":-6600,"width":224},{"x":1150,"top":-6680,"width":224},{"x":760,"top":-6760,"width":224},{"x":1248,"top":-6840,"width":384}],"machines":[{"step":4,"type":"presses"},{"step":1,"type":"ferry"}],"robots":[{"step":3,"type":"guard"}],"exitWidth":384},{"name":"Last Counterweight","entryTop":-6840,"exitTop":-7640,"steps":[{"x":300,"top":-6920,"width":160},{"x":540,"top":-7000,"width":160},{"x":210,"top":-7080,"width":224},{"x":620,"top":-7160,"width":192},{"x":850,"top":-7240,"width":160},{"x":1120,"top":-7320,"width":224},{"x":800,"top":-7400,"width":224},{"x":1150,"top":-7480,"width":224},{"x":760,"top":-7560,"width":224},{"x":1248,"top":-7640,"width":384}],"machines":[{"step":7,"type":"conveyor","direction":-1,"strength":110},{"step":4,"type":"lift"}],"robots":[],"exitWidth":384},{"name":"The Expert Ascent","entryTop":-7640,"exitTop":-8440,"steps":[{"x":300,"top":-7720,"width":160},{"x":540,"top":-7800,"width":160},{"x":210,"top":-7880,"width":224},{"x":620,"top":-7960,"width":192},{"x":850,"top":-8040,"width":160},{"x":1120,"top":-8120,"width":224},{"x":800,"top":-8200,"width":224},{"x":1150,"top":-8280,"width":224},{"x":760,"top":-8360,"width":224},{"x":1248,"top":-8440,"width":384}],"machines":[{"step":1,"type":"conveyor","direction":-1,"strength":100},{"step":4,"type":"presses"},{"step":0,"type":"shutters"},{"step":1,"type":"shutters"}],"robots":[{"step":3,"type":"guard"}],"exitWidth":384},{"name":"Signal of Dawn","entryTop":-8440,"exitTop":-9240,"steps":[{"x":300,"top":-8520,"width":160},{"x":540,"top":-8600,"width":160},{"x":210,"top":-8680,"width":224},{"x":620,"top":-8760,"width":192},{"x":850,"top":-8840,"width":160},{"x":1120,"top":-8920,"width":224},{"x":800,"top":-9000,"width":224},{"x":1150,"top":-9080,"width":224},{"x":760,"top":-9160,"width":224},{"x":1248,"top":-9240,"width":384}],"machines":[{"step":7,"type":"conveyor","direction":-1,"strength":110}],"robots":[],"exitWidth":384}]
+  "stormworks": [
+    {
+      "name": "Signal Ramparts",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 168,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 40,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 40,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 168,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [],
+      "robots": []
+    },
+    {
+      "name": "Counterweight Yard",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 288,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 216,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 48,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 48,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 176,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "lift"
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Turbine Switchbacks",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 304,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 248,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 176,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 96,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 224,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "conveyor",
+          "direction": -1,
+          "strength": 70
+        },
+        {
+          "step": 7,
+          "type": "conveyor",
+          "direction": 1,
+          "strength": 80
+        }
+      ],
+      "robots": [
+        {
+          "step": 3,
+          "type": "guard"
+        }
+      ]
+    },
+    {
+      "name": "Suspended Assembly",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 184,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 120,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 56,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 88,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 152,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 216,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 4,
+          "type": "ferry"
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Stormglass Towers",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 224,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 152,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 88,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 24,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 24,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 88,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 152,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 224,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "conveyor",
+          "direction": -1,
+          "strength": 70
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Piston Exchange",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 176,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 112,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 48,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 40,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 96,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 4,
+          "type": "presses"
+        },
+        {
+          "step": 7,
+          "type": "conveyor",
+          "direction": 1,
+          "strength": 80
+        }
+      ],
+      "robots": [
+        {
+          "step": 3,
+          "type": "pointed"
+        }
+      ]
+    },
+    {
+      "name": "Crosswind Galleries",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 224,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 168,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 112,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 48,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 48,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 112,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 176,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 3,
+          "type": "ferry"
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Skyrail Transfer",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 248,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 184,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 120,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 56,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 40,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 168,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 4,
+          "type": "ferry"
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Sentinel Batteries",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 96,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 96,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [],
+      "robots": [
+        {
+          "step": 3,
+          "type": "guard"
+        },
+        {
+          "step": 7,
+          "type": "guard"
+        }
+      ]
+    },
+    {
+      "name": "Broken Dynamo",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 168,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 104,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 40,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 104,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 168,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 6,
+          "type": "lift"
+        }
+      ],
+      "robots": []
+    },
+    {
+      "name": "Storm Crown",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 152,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 88,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 32,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 24,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 96,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 160,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 232,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "lift"
+        },
+        {
+          "step": 4,
+          "type": "presses"
+        }
+      ],
+      "robots": [
+        {
+          "step": 3,
+          "type": "guard"
+        }
+      ]
+    },
+    {
+      "name": "The Upper Signal",
+      "entryTop": 360,
+      "exitTop": 360,
+      "steps": [
+        {
+          "x": 230,
+          "top": 296,
+          "width": 112
+        },
+        {
+          "x": 341.11,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 452.22,
+          "top": 184,
+          "width": 112
+        },
+        {
+          "x": 563.33,
+          "top": 128,
+          "width": 192
+        },
+        {
+          "x": 674.44,
+          "top": 72,
+          "width": 112
+        },
+        {
+          "x": 785.56,
+          "top": 72,
+          "width": 112
+        },
+        {
+          "x": 896.67,
+          "top": 128,
+          "width": 192
+        },
+        {
+          "x": 1007.78,
+          "top": 184,
+          "width": 112
+        },
+        {
+          "x": 1118.89,
+          "top": 240,
+          "width": 112
+        },
+        {
+          "x": 1230,
+          "top": 296,
+          "width": 112
+        }
+      ],
+      "machines": [
+        {
+          "step": 7,
+          "type": "conveyor",
+          "direction": 1,
+          "strength": 80
+        }
+      ],
+      "robots": []
+    }
+  ],
+  "crown-edge": [
+    {
+      "name": "Crown Threshold",
+      "entryTop": 360,
+      "exitTop": -60,
+      "steps": [
+        {
+          "x": 250,
+          "top": 300,
+          "width": 160
+        },
+        {
+          "x": 390,
+          "top": 240,
+          "width": 160
+        },
+        {
+          "x": 530,
+          "top": 180,
+          "width": 224
+        },
+        {
+          "x": 670,
+          "top": 120,
+          "width": 160
+        },
+        {
+          "x": 810,
+          "top": 60,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": 0,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -60,
+          "width": 384
+        }
+      ],
+      "machines": [],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Knife-Edge Galleries",
+      "entryTop": -60,
+      "exitTop": -340,
+      "steps": [
+        {
+          "x": 230,
+          "top": -100,
+          "width": 160
+        },
+        {
+          "x": 380,
+          "top": -140,
+          "width": 160
+        },
+        {
+          "x": 530,
+          "top": -180,
+          "width": 224
+        },
+        {
+          "x": 680,
+          "top": -220,
+          "width": 160
+        },
+        {
+          "x": 830,
+          "top": -260,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -300,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -340,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 2,
+          "type": "conveyor",
+          "direction": -1,
+          "strength": 90
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Reversing Spires",
+      "entryTop": -340,
+      "exitTop": -1140,
+      "steps": [
+        {
+          "x": 300,
+          "top": -420,
+          "width": 160
+        },
+        {
+          "x": 540,
+          "top": -500,
+          "width": 160
+        },
+        {
+          "x": 210,
+          "top": -580,
+          "width": 224
+        },
+        {
+          "x": 620,
+          "top": -660,
+          "width": 192
+        },
+        {
+          "x": 850,
+          "top": -740,
+          "width": 160
+        },
+        {
+          "x": 1120,
+          "top": -820,
+          "width": 224
+        },
+        {
+          "x": 800,
+          "top": -900,
+          "width": 224
+        },
+        {
+          "x": 1150,
+          "top": -980,
+          "width": 224
+        },
+        {
+          "x": 760,
+          "top": -1060,
+          "width": 224
+        },
+        {
+          "x": 1248,
+          "top": -1140,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "ferry"
+        }
+      ],
+      "robots": [
+        {
+          "step": 3,
+          "type": "guard"
+        }
+      ],
+      "exitWidth": 384
+    },
+    {
+      "name": "Pendulum Court",
+      "entryTop": -1140,
+      "exitTop": -1540,
+      "steps": [
+        {
+          "x": 250,
+          "top": -1200,
+          "width": 160
+        },
+        {
+          "x": 400,
+          "top": -1260,
+          "width": 160
+        },
+        {
+          "x": 550,
+          "top": -1220,
+          "width": 224
+        },
+        {
+          "x": 700,
+          "top": -1300,
+          "width": 160
+        },
+        {
+          "x": 850,
+          "top": -1380,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -1460,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -1540,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 2,
+          "type": "lift"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Shattered Meridian",
+      "entryTop": -1540,
+      "exitTop": -1820,
+      "steps": [
+        {
+          "x": 230,
+          "top": -1580,
+          "width": 160
+        },
+        {
+          "x": 380,
+          "top": -1620,
+          "width": 160
+        },
+        {
+          "x": 530,
+          "top": -1660,
+          "width": 224
+        },
+        {
+          "x": 680,
+          "top": -1700,
+          "width": 160
+        },
+        {
+          "x": 830,
+          "top": -1740,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -1780,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -1820,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "conveyor",
+          "direction": -1,
+          "strength": 90
+        },
+        {
+          "step": 3,
+          "type": "presses"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Crown Relay",
+      "entryTop": -1820,
+      "exitTop": -2380,
+      "steps": [
+        {
+          "x": 270,
+          "top": -1900,
+          "width": 160
+        },
+        {
+          "x": 410,
+          "top": -1980,
+          "width": 160
+        },
+        {
+          "x": 550,
+          "top": -2060,
+          "width": 224
+        },
+        {
+          "x": 690,
+          "top": -2140,
+          "width": 160
+        },
+        {
+          "x": 830,
+          "top": -2220,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -2300,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -2380,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 3,
+          "type": "presses"
+        }
+      ],
+      "robots": [
+        {
+          "step": 3,
+          "type": "guard"
+        }
+      ],
+      "exitWidth": 384
+    },
+    {
+      "name": "Needleworks",
+      "entryTop": -2380,
+      "exitTop": -2780,
+      "steps": [
+        {
+          "x": 250,
+          "top": -2420,
+          "width": 160
+        },
+        {
+          "x": 400,
+          "top": -2500,
+          "width": 160
+        },
+        {
+          "x": 550,
+          "top": -2460,
+          "width": 224
+        },
+        {
+          "x": 700,
+          "top": -2540,
+          "width": 160
+        },
+        {
+          "x": 850,
+          "top": -2620,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -2700,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -2780,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 2,
+          "type": "ferry"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Silent Suspension",
+      "entryTop": -2780,
+      "exitTop": -3200,
+      "steps": [
+        {
+          "x": 220,
+          "top": -2840,
+          "width": 160
+        },
+        {
+          "x": 370,
+          "top": -2900,
+          "width": 160
+        },
+        {
+          "x": 520,
+          "top": -2960,
+          "width": 224
+        },
+        {
+          "x": 670,
+          "top": -3020,
+          "width": 160
+        },
+        {
+          "x": 820,
+          "top": -3080,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -3140,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -3200,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "shutters"
+        },
+        {
+          "step": 2,
+          "type": "shutters"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Astral Switchbacks",
+      "entryTop": -3200,
+      "exitTop": -3760,
+      "steps": [
+        {
+          "x": 280,
+          "top": -3280,
+          "width": 160
+        },
+        {
+          "x": 420,
+          "top": -3360,
+          "width": 160
+        },
+        {
+          "x": 560,
+          "top": -3440,
+          "width": 224
+        },
+        {
+          "x": 700,
+          "top": -3520,
+          "width": 160
+        },
+        {
+          "x": 840,
+          "top": -3600,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -3680,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -3760,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 2,
+          "type": "lift"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Last Counterweight",
+      "entryTop": -3760,
+      "exitTop": -4200,
+      "steps": [
+        {
+          "x": 230,
+          "top": -3840,
+          "width": 160
+        },
+        {
+          "x": 390,
+          "top": -3920,
+          "width": 160
+        },
+        {
+          "x": 550,
+          "top": -3880,
+          "width": 224
+        },
+        {
+          "x": 710,
+          "top": -3960,
+          "width": 160
+        },
+        {
+          "x": 850,
+          "top": -4040,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -4120,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -4200,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 2,
+          "type": "conveyor",
+          "direction": -1,
+          "strength": 90
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "The Expert Ascent",
+      "entryTop": -4200,
+      "exitTop": -4620,
+      "steps": [
+        {
+          "x": 280,
+          "top": -4260,
+          "width": 160
+        },
+        {
+          "x": 420,
+          "top": -4320,
+          "width": 160
+        },
+        {
+          "x": 560,
+          "top": -4380,
+          "width": 224
+        },
+        {
+          "x": 700,
+          "top": -4440,
+          "width": 160
+        },
+        {
+          "x": 840,
+          "top": -4500,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -4560,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -4620,
+          "width": 384
+        }
+      ],
+      "machines": [
+        {
+          "step": 1,
+          "type": "shutters"
+        },
+        {
+          "step": 2,
+          "type": "shutters"
+        }
+      ],
+      "robots": [],
+      "exitWidth": 384
+    },
+    {
+      "name": "Signal of Dawn",
+      "entryTop": -4620,
+      "exitTop": -5180,
+      "steps": [
+        {
+          "x": 230,
+          "top": -4700,
+          "width": 160
+        },
+        {
+          "x": 380,
+          "top": -4780,
+          "width": 160
+        },
+        {
+          "x": 530,
+          "top": -4860,
+          "width": 224
+        },
+        {
+          "x": 680,
+          "top": -4940,
+          "width": 160
+        },
+        {
+          "x": 830,
+          "top": -5020,
+          "width": 160
+        },
+        {
+          "x": 960,
+          "top": -5100,
+          "width": 192
+        },
+        {
+          "x": 1248,
+          "top": -5180,
+          "width": 384
+        }
+      ],
+      "machines": [],
+      "robots": [],
+      "exitWidth": 384
+    }
+  ]
 };
 export function lateExitPlatform(room:LateRoom):LatePlatform{return {x:LATE_ROOM_WIDTH-(room.exitWidth??192)/2,top:room.exitTop,width:room.exitWidth??192};}
 export function latePlatformCoversExit(platform:LatePlatform,exit:LatePlatform):boolean{return platform.top===exit.top&&platform.x-platform.width/2<=exit.x-exit.width/2&&platform.x+platform.width/2>=exit.x+exit.width/2;}

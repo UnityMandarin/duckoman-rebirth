@@ -23,6 +23,8 @@ import {registerCommonFrames} from './CommonAssets';
 import {preloadSceneAssets,registerSharedPropFrames} from './SceneAssets';
 import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,canPersistCampaign} from '../systems/progress';
+import {AdventureDirector} from '../systems/AdventureDirector';
+import {canOpenPauseMenu} from '../systems/adventureRules';
 import {campaignRunEligible,markCampaignRunIneligible} from '../systems/debug/debugSettings';
 import {addCheckpointVisual,type CheckpointVisual} from '../systems/CheckpointVisual';
 import {addWorldEnvironment} from '../systems/WorldEnvironment';
@@ -36,7 +38,7 @@ declare global {interface Window {__duckomanCameraQA?:{select:(room:number,step:
 
 export class Gate1Scene extends Phaser.Scene {
   private player!: Player; private enemy!: BasicEnemy; private throwable!: ThrowableObject;
-  private inputController!: InputController; private interactions!: InteractionSystem;
+  private inputController!: InputController; private interactions!: InteractionSystem; private adventure!:AdventureDirector;
   private resetText!: Phaser.GameObjects.Text; private deathAt: number | undefined;
   constructor() { super('gate-1'); }
   private hud!: ChapterHud;
@@ -100,7 +102,7 @@ export class Gate1Scene extends Phaser.Scene {
     this.shadows = [this.player, this.enemy, this.throwable, ...this.extraEnemies].map(() => this.add.ellipse(0, 0, 52, 9, 0x000000, 0.5).setDepth(3));
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.updateShadows, this));
-    this.inputController = new InputController(this); this.interactions = new InteractionSystem(this.player, this.enemy, this.throwable);
+    this.inputController = new InputController(this); this.interactions = new InteractionSystem(this.player, this.enemy, this.throwable); this.adventure=new AdventureDirector(this,'gate-1',this.player);
     this.physics.add.collider(this.player.sprite, terrain); this.physics.add.collider(this.enemy.sprite, terrain); this.physics.add.collider(this.throwable.sprite, terrain);
     this.physics.add.overlap(this.player.enemyContactTargets, this.enemy.sprite, () => this.interactions.resolvePlayerEnemy());
     this.physics.add.overlap(this.player.sprite, this.throwable.sprite, () => this.interactions.tryPickup());
@@ -139,6 +141,7 @@ export class Gate1Scene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if(this.boss.transitioning)return;
     const input = (this.player.active?replayInput(this.time.now):undefined) ?? this.inputController.read();
+    if(this.adventure.update(input))return;
     if(this.qaMode){if(this.qaDriveMs>0){input.horizontal=this.qaDriveHorizontal;input.sprintHeld=this.qaSprint;this.qaDriveMs=Math.max(0,this.qaDriveMs-delta);if(this.qaDriveMs===0){this.qaDriveHorizontal=0;this.qaSprint=false;}}if(this.qaJumpNext){input.jumpPressed=true;this.qaJumpNext=false;}if(this.qaDashNext){input.dashPressed=true;this.qaDashNext=false;}if(this.qaUltimateNext){input.ultimatePressed=true;this.qaUltimateNext=false;}}
     if(input.godModePressed&&this.player.active){
       markCampaignRunIneligible();
@@ -203,7 +206,7 @@ export class Gate1Scene extends Phaser.Scene {
     if(approachingBoss)rig.neutralize(delta,active,player.active&&!player.usingUltimate);
     else rig.update(body.center.x,body.bottom,delta,bossOwns?'boss':'traversal',active,player.active&&!player.usingUltimate);
   }
-  private openMenu():boolean {return requestPauseMenu(this,()=>this.saveCampaign(),'gate-1');}
+  private openMenu():boolean {if(!canOpenPauseMenu(this.adventure?.talking??false))return true;return requestPauseMenu(this,()=>this.saveCampaign(),'gate-1');}
   private createPlatformVisual(x: number, y: number, width: number, height: number): void {
     const top=y-height/2;
     if(height>width) {

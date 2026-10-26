@@ -10,6 +10,7 @@ import {Dashable} from './Dashable';
 import {tagBody} from '../systems/DebugHitboxes';
 import type {UltimateStrike} from '../systems/ultimateSwingMath';
 import {canHareJump, createBoarState, findHareSupport, harePassiveBounds, isHareNear, hareLandingTimeSeconds, resetBoarPause, safeHareBounds, selectHareClimbTarget, stepBoar, type AnimalSurface} from '../systems/animalRules';
+import { cosmeticDelta } from '../systems/cosmeticPose';
 
 const SPIKE={bodyWidth:46,bodyHeight:84,spikeWidth:10,spikeHeight:22,displayHeight:84,displayWidth:59};
 
@@ -45,6 +46,7 @@ export class BasicEnemy extends Dashable {
   private hareAirBounds?:{left:number;right:number};
   private hareWasGrounded=false;
   private animalRoom=0;
+  private cosmeticTime=0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private patrol?: { left: number; right: number }, pointed=false, jumper=false, private readonly skin?:string,private readonly onDefeated?:()=>void) {
     super();
@@ -263,14 +265,25 @@ export class BasicEnemy extends Dashable {
 
   private syncVisual(): void {
     if (this.defeated || !this.body.enable) return;
-    const phase = this.sprite.scene.time.now * 0.012;
+    const scene=this.sprite.scene;
+    const now=scene.time.now;
+    const cosmeticEnabled=scene.sys.isActive()&&!scene.time.paused&&this.visual.visible;
+    this.cosmeticTime+=cosmeticDelta(scene.game.loop.delta,cosmeticEnabled);
+    const phase = this.cosmeticTime * 0.012;
     if(!this.isThornBoar&&Math.abs(this.body.velocity.x)>1)this.direction=this.body.velocity.x>0?1:-1;
     const width=this.skin?(this.jumper?110:100):this.pointed?SPIKE.displayWidth:this.jumper?72:88;
     const height=this.skin?width/1.5:this.pointed?SPIKE.displayHeight:this.jumper?108:88;
-    this.visual.setDisplaySize(width, height + Math.sin(phase) * (this.jumper?5:2));
-    this.visual.setPosition(this.sprite.x, this.sprite.y - 2 + Math.sin(phase * 2) * 1.4).setFlipX(this.skin||this.pointed?(this.isThornBoar?this.facingDirection:this.direction)<0:this.direction>0);
-    if(this.skin||this.pointed)this.visual.setY(this.body.bottom-height/2+Math.sin(phase*2));
-    this.visual.setRotation(Math.sin(phase) * (this.jumper?0.055:0.035) + (this.skin==='thorn-boar'&&this.boarTell?-0.075:0));
+    const moving=Math.abs(this.body.velocity.x)>1;
+    const telegraph=this.skin==='thorn-boar'&&this.boarTell?1:0;
+    const hurt=now<this.hurtUntil?1:0;
+    const stride=moving&&!hurt?Math.sin(phase*(this.isAnimal?1.6:1.2)):0;
+    const bob=hurt?0:moving?Math.abs(stride)*(this.jumper?2.2:1):Math.sin(phase*2)*.7;
+    const squeeze=telegraph*3+hurt*2;
+    this.visual.setDisplaySize(width+squeeze,height-squeeze+Math.abs(stride)*(this.jumper?2:0));
+    const visualY=this.skin||this.pointed?this.body.bottom-height/2-bob:this.sprite.y-2-bob;
+    this.visual.setPosition(this.sprite.x, visualY).setFlipX(this.skin||this.pointed?(this.isThornBoar?this.facingDirection:this.direction)<0:this.direction>0);
+    this.visual.setRotation((moving?stride*(this.jumper?0.04:0.022):Math.sin(phase)*.012)+(telegraph?-.09:0));
+    if(hurt)this.visual.setTint(0xffc2ae);else this.visual.clearTint();
     this.maxHp=Math.max(this.maxHp,this.hp);
     const barY=this.visual.y-this.visual.displayHeight/2-20;
     const chapterFive=(this.sprite.scene.sys?.settings?.key==='rescue'||this.sprite.scene.sys?.settings?.key==='rescue-boss');

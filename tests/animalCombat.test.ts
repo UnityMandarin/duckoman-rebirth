@@ -32,7 +32,7 @@ class FakeDisplay {
  setVisible(v:boolean){this.visible=v;return this;}setDepth(v:number){this.depth=v;return this;}setDisplaySize(w:number,h:number){this.displayWidth=w;this.displayHeight=h;return this;}
  setPosition(x:number,y:number){this.x=x;this.y=y;return this;}setX(x:number){this.x=x;return this;}setY(y:number){this.y=y;return this;}
  setFlipX(v:boolean){this.flipX=v;return this;}setRotation(v:number){this.rotation=v;return this;}setAngle(v:number){this.rotation=v;return this;}
- setAlpha(v:number){this.alpha=v;return this;}setOrigin(){return this;}setScrollFactor(){return this;}setText(v:string){this.text=v;return this;}setCrop(){return this;}
+ setAlpha(v:number){this.alpha=v;return this;}setTint(){return this;}clearTint(){return this;}setOrigin(){return this;}setScrollFactor(){return this;}setText(v:string){this.text=v;return this;}setCrop(){return this;}
  destroy(){this.destroyed=true;this.scene=undefined;return this;}clear(){return this;}lineStyle(){return this;}lineBetween(){return this;}fillStyle(){return this;}fillCircle(){return this;}fillRect(){return this;}
 }
 class FakeBody {

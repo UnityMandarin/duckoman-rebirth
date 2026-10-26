@@ -30,6 +30,8 @@ import {addMenuControl,requestPauseMenu} from '../systems/MenuControl';
 import {loadProgress,saveProgress,updateChapter,unlockAfter,SAVE_CHECKPOINTS,sceneDataFromProgress,canPersistCampaign,type CampaignScene} from '../systems/progress';
 import {campaignRunEligible,markCampaignRunIneligible,onDebugChange,debugModeOn,debugToggle} from '../systems/debug/debugSettings';
 import {recordTrialOutcome,saveProgress as persistTrial} from '../systems/progress';
+import {AdventureDirector} from '../systems/AdventureDirector';
+import {canOpenPauseMenu} from '../systems/adventureRules';
 import {TrialClock,TrialEligibility} from '../systems/trialRules';
 import {enemyPatrolBounds} from '../systems/enemyPatrolBounds';
 import {roomFor,JAIL_ROOMS,OUTSIDE_ROOMS} from '../data/qualityRooms';
@@ -49,7 +51,7 @@ declare global {interface Window {__duckomanCameraQA?:{select:(room:number,step:
 
 export class JourneyScene extends Phaser.Scene {
  private player!:Player;
- private controls!:InputController;
+ private controls!:InputController;private adventure!:AdventureDirector;
  private hud!:ChapterHud;
  private terrain!:Phaser.Physics.Arcade.StaticGroup;
  private cake!:ThrowableObject;
@@ -138,7 +140,7 @@ export class JourneyScene extends Phaser.Scene {
   this.physics.add.collider(this.player.sprite,this.terrain);
   this.cake=new ThrowableObject(this,spawn+70,spawnY-7);this.physics.add.collider(this.cake.sprite,this.terrain);
   this.physics.add.overlap(this.player.sprite,this.cake.sprite,()=>{if(this.player.active&&this.player.grounded&&this.cake.isIdle)this.cake.carry(this.player);});
-  this.controls=new InputController(this);this.hud=new ChapterHud(this,this.player);
+  this.controls=new InputController(this);this.hud=new ChapterHud(this,this.player);this.adventure=new AdventureDirector(this,this.kind,this.player,this.cake);
   this.story=this.add.text(320,110,'',{fontFamily:'Georgia',fontSize:'14px',color:'#ecd494',stroke:'#071019',strokeThickness:4,align:'center',wordWrap:{width:520}}).setOrigin(.5,0).setScrollFactor(0).setDepth(52);
   this.depthPresentation.setSurfaces(depthSurfaces);this.depthPresentation.setPlayer(this.player);this.depthPresentation.setShadow(this.shadow);if(!this.practice)this.populate();
   if(!this.practice)this.traps=new ChapterTraps(this,this.player,this.kind,surfaces,this.devPreview&&data.previewSection!==undefined&&!qaPreview?[data.previewSection]:undefined);
@@ -346,7 +348,7 @@ export class JourneyScene extends Phaser.Scene {
  update(_time:number,delta:number):void {
   if(!this.player||this.leaving)return;
   if(!this.player.active)this.jailRig?.suspend();
-  const input=this.controls.read();
+  const input=this.controls.read();if(this.adventure?.update(input))return;
   if(this.qaDriveMs>0){input.horizontal=this.qaDriveHorizontal;input.sprintHeld=this.qaSprint;this.qaDriveMs=Math.max(0,this.qaDriveMs-delta);if(this.qaDriveMs===0){this.qaDriveHorizontal=0;this.qaSprint=false;}}
   if(this.qaJumpNext){input.jumpPressed=true;this.qaJumpNext=false;}
   if(this.qaDashNext){input.dashPressed=true;this.qaDashNext=false;}
@@ -409,5 +411,5 @@ export class JourneyScene extends Phaser.Scene {
  private completeAndAdvance(next:'outside'|'crimson'|'rescue'):void {if(this.practice||!this.canPersist())return;let p=loadProgress();p=updateChapter(p,this.kind as CampaignScene,{checkpoint:SAVE_CHECKPOINTS[this.kind as CampaignScene].includes(this.state.checkpoint??0)?this.state.checkpoint??0:0,charge:this.player.ultimateCharge,opened:this.state.opened??[],secrets:this.state.secrets??[],bossDefeated:this.state.bossDefeated??false});p=unlockAfter(this.kind as CampaignScene,p);p.currentScene=next;if(next==='rescue')p.ended=false;saveProgress(p);}
  private hasPracticeAssist():boolean{return !!this.player?.infiniteHealth||debugModeOn()&&(['invincible','infiniteUltimate','infiniteJumps','infiniteDashes'] as const).some(toggle=>debugToggle(toggle));}
  private finishTrial(victory=true):void {if(this.trialDone)return;this.trialDone=true;const elapsed=this.trialClock.finish(),prior=loadProgress(),eligible=this.trialEligibility.eligible&&!this.player.infiniteHealth,priorBest=prior.trials[this.practiceBoss].bestMs,newBest=victory&&eligible&&(priorBest===undefined||elapsed<priorBest);if(victory&&eligible)persistTrial(recordTrialOutcome(prior,this.practiceBoss,{victory,elapsedMs:elapsed,hits:this.trialHits,eligible}));this.physics.world.pause();const head=victory?'TRIAL COMPLETE':'TRIAL FAILED',badges=eligible?[...(newBest?['NEW PERSONAL BEST']:[]),...(this.trialHits===0?['HITLESS CLEAR']:[])]:['RECORD INELIGIBLE'],detail=victory?`TIME ${(elapsed/1000).toFixed(1)}s · HITS ${this.trialHits} · ${badges.length?badges.join(' · '):'CLEAR RECORDED'}`:'Duckoman fell before the boss was defeated.';this.add.rectangle(320,200,390,126,0x101722,.96).setStrokeStyle(2,0xc6a368).setScrollFactor(0).setDepth(70);this.add.text(320,160,head,{fontFamily:'Georgia',fontSize:'18px',color:'#f1d18d'}).setOrigin(.5).setScrollFactor(0).setDepth(71);this.add.text(320,196,detail,{fontSize:'10px',color:'#e0d8c4',align:'center',wordWrap:{width:360}}).setOrigin(.5).setScrollFactor(0).setDepth(71);const retry=()=>this.scene.restart({practice:true}),menu=()=>this.scene.start('menu'),button=(x:number,label:string,act:()=>void)=>this.add.text(x,237,label,{fontSize:'10px',color:'#fff0cc',backgroundColor:'#352716',padding:{x:8,y:5}}).setOrigin(.5).setScrollFactor(0).setDepth(71).setInteractive({useHandCursor:true}).on('pointerdown',act);button(250,'RETRY · ENTER',retry);button(390,'MENU · ESC',menu);const resultKey=(event:KeyboardEvent)=>{if(event.repeat)return;if(event.key==='Enter')retry();else if(event.key==='Escape')menu();};this.input.keyboard?.on('keydown',resultKey);this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>this.input.keyboard?.off('keydown',resultKey));}
- private openMenu():boolean {if(this.practice)return requestPauseMenu(this,()=>{},this.sys.settings.key);return requestPauseMenu(this,()=>this.saveCampaign(),this.kind);}
+ private openMenu():boolean {if(!canOpenPauseMenu(this.adventure?.talking??false))return true;if(this.practice)return requestPauseMenu(this,()=>{},this.sys.settings.key);return requestPauseMenu(this,()=>this.saveCampaign(),this.kind);}
 }

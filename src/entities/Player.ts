@@ -12,6 +12,7 @@ import { debugToggle } from '../systems/debug/debugSettings';
 import { ownedRelics, relicAirJumps } from '../systems/relics';
 import { airJumpShockwave } from '../systems/AirJumpShockwave';
 import { CHAPTER5_DASH_ART_SIZE } from '../systems/FurnaceArt';
+import { CosmeticTrailPool, cosmeticDelta, resolvePlayerCosmeticPose } from '../systems/cosmeticPose';
 
 export type PlayerLifeState = 'ACTIVE' | 'HURT' | 'DEAD';
 
@@ -43,7 +44,10 @@ export class Player {
   private lastGhostAt = -1000;
   private wasGrounded = false;
   private landedAt = -1000;
-  private ghosts:Phaser.GameObjects.Image[]=[];
+  private readonly ghosts:CosmeticTrailPool<Phaser.GameObjects.Image>;
+  private blinkAt=0;
+  private blinkUntil=0;
+  private cosmeticTime=0;
   private lastSweatAt=0;
   private holdingDown = false;
   private airJumpsUsed = 0;
@@ -52,6 +56,9 @@ export class Player {
     this.sprite = scene.add.rectangle(x, y, TUNING.player.bodyWidth, TUNING.player.bodyHeight, 0x4fc3f7);
     this.sprite.setVisible(false);
     this.visual = scene.add.image(x, y, 'duckoman').setDisplaySize(66, 60).setDepth(10);
+    this.blinkAt=2600;
+    // A fixed reusable afterimage pool avoids adding tweens and destroying images during every dash.
+    this.ghosts=new CosmeticTrailPool(()=>scene.add.image(x,y,'duckoman').setDisplaySize(66,60).setDepth(9.7).setTint(0xffdb45).setAlpha(0).setVisible(false));
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setSize(TUNING.player.bodyWidth, TUNING.player.bodyHeight);
@@ -67,7 +74,10 @@ export class Player {
     const chapterFive=(scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss');
     this.dashEffect = chapterFive?scene.add.image(x,y,'furnace-utility','dash').setDepth(9.5).setVisible(false):scene.add.graphics().setDepth(9.5).setVisible(false);
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this));
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.syncVisual, this);
+      this.ghosts.destroy();
+    });
   }
 
   get active(): boolean { return this.lifeState !== 'DEAD'; }
@@ -256,41 +266,52 @@ export class Player {
 
   private syncVisual(): void {
     const now = this.sprite.scene.time.now;
-    if(!this.isDashing){this.ghosts.forEach(g=>{if(g.active)g.destroy();});this.ghosts=[];}
     const dashing = this.isDashing && this.canAct;
+    const inAir=!this.grounded;
+    const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
+    const pose=resolvePlayerCosmeticPose({dead:this.lifeState==='DEAD',hurt:this.lifeState==='HURT',ultimate:this.usingUltimate,dash:dashing,crouch:this.crouching,air:inAir,moving});
     this.dashHitboxZone.setPosition(this.body.center.x, this.body.center.y);
     this.dashHitboxBody.enable = dashing;
+    // Preserve the ultimate pose exactly; only the gameplay hitbox remains synchronized here.
+    if(pose==='ultimate')return;
     this.drawDashEffect(dashing, now);
+    const scene=this.sprite.scene;
+    const cosmeticClockEnabled=scene.sys.isActive()&&!scene.time.paused&&this.visual.visible;
+    this.cosmeticTime+=cosmeticDelta(scene.game.loop.delta,cosmeticClockEnabled);
     if (this.grounded && !this.wasGrounded) this.landedAt = now;
     this.wasGrounded = this.grounded;
     const height = this.crouching ? 42 : 60;
     const feet = this.sprite.y + TUNING.player.bodyHeight / 2;
-    const moving = this.canAct && this.grounded && !this.crouching && Math.abs(this.body.velocity.x) > 1;
-    if(moving && this.sprinting && now-this.lastSweatAt>160){
+    if(cosmeticClockEnabled && moving && this.sprinting && now-this.lastSweatAt>160){
       this.lastSweatAt=now;
       const chapterFive=this.sprite.scene.sys?.settings?.key==='rescue'||this.sprite.scene.sys?.settings?.key==='rescue-boss';
       const drop=chapterFive?this.sprite.scene.add.image(this.sprite.x-this.facing*15,feet-48,'furnace-utility','ember').setDepth(11).setDisplaySize(9,12).setTint(0xa9e7ef).setAlpha(.8).setRotation(-this.facing*.4):this.sprite.scene.add.ellipse(this.sprite.x-this.facing*15,feet-48,2.5,5,0xa9e7ef,.8).setDepth(11).setRotation(-this.facing*.4);
       this.sprite.scene.tweens.add({targets:drop,x:drop.x-this.facing*22,y:drop.y+20,alpha:0,duration:360,onComplete:()=>drop.destroy()});
     }
-    const phase = this.sprite.scene.time.now * (this.sprinting ? 0.022 : 0.016);
-    const bounce = moving ? Math.abs(Math.sin(phase)) * 2 : 0;
-    this.visual.setPosition(this.sprite.x, feet - (this.crouching ? 14.5 : 21.5) - bounce);
-    this.visual.setDisplaySize(66 + bounce * 0.5, height - bounce * 0.6).setFlipX(this.facing < 0);
-    this.visual.setRotation(moving ? Math.sin(phase) * 0.045 : 0);
-    if (!this.crouching && this.canAct) {
-      const squash = Math.max(0, 1 - (now - this.landedAt) / 140) * 4;
-      if (squash > 0) this.visual.setDisplaySize(66 + squash, 60 - squash).setY(this.visual.y + squash / 2);
-      else if (!this.grounded) this.visual.setRotation(Phaser.Math.Clamp(this.body.velocity.y / 5000, -0.1, 0.12) * this.facing);
-    }
-    if (this.lifeState === 'HURT') this.visual.setTint(0xffb6a0); else this.visual.clearTint();
-    if (this.lifeState === 'DEAD') this.visual.setRotation(this.facing * 1.25);
-    if (this.isDashing && this.canAct && now - this.lastGhostAt >= 35) {
+    const phase = this.cosmeticTime * (this.sprinting ? 0.022 : 0.016);
+    const stride = pose==='moving' ? Math.sin(phase) : 0;
+    const jumpPose=(pose==='air'||pose==='dash')?Phaser.Math.Clamp(-this.body.velocity.y/900,-.12,.12):0;
+    const landing=pose==='idle'||pose==='moving'?Math.max(0,1-(now-this.landedAt)/145):0;
+    const recoil=this.lifeState==='HURT'?Phaser.Math.Clamp((this.hurtUntil-now)/TUNING.player.hurtLockTime,0,1):0;
+    const dash=dashing?1:0;
+    const crouch=this.crouching?1:0;
+    const breath=pose==='idle'?Math.sin(this.cosmeticTime*.0033)*1.15:0;
+    const compress=landing*4+crouch*8;
+    const visualHeight=height-compress+Math.max(0,jumpPose)*5+breath;
+    const visualWidth=66+compress*.7+Math.abs(stride)*1.3+dash*2;
+    const tilt=(pose==='moving'?stride*.035:0)+(pose==='air'||pose==='dash'?jumpPose*this.facing:0)+(pose==='dash'?-this.facing*.08:0)+(pose==='hurt'?-this.facing*.13*recoil:0);
+    const verticalLift=pose==='moving'?Math.max(0,stride)*1.25:0;
+    this.visual.setPosition(this.sprite.x, feet-(this.crouching?14.5:21.5)-verticalLift+landing*2);
+    this.visual.setDisplaySize(visualWidth,visualHeight).setFlipX(this.facing<0).setRotation(tilt);
+    // Blink is deliberately subtle and time-based; no random state can influence movement.
+    if(pose==='idle'&&this.cosmeticTime>=this.blinkAt){this.blinkUntil=this.cosmeticTime+95;this.blinkAt=this.cosmeticTime+2800;}
+    this.visual.setDisplaySize(visualWidth, visualHeight * (this.cosmeticTime < this.blinkUntil ? 0.82 : 1));
+    if (pose === 'hurt') this.visual.setTint(0xffb6a0); else this.visual.clearTint();
+    if (pose === 'dead') this.visual.setRotation(this.facing * 1.25);
+    if (cosmeticClockEnabled && this.isDashing && this.canAct && now - this.lastGhostAt >= 42) {
       this.lastGhostAt = now;
-      const ghost = this.sprite.scene.add.image(this.visual.x, this.visual.y, 'duckoman')
-        .setDisplaySize(this.visual.displayWidth*1.3,this.visual.displayHeight*1.3).setFlipX(this.facing < 0)
-        .setRotation(this.visual.rotation).setTint(0xffdb45).setAlpha(.62).setDepth(9.7);
-      this.ghosts.push(ghost);
-      this.sprite.scene.tweens.add({targets:ghost,alpha:0,scaleX:ghost.scaleX*1.12,scaleY:ghost.scaleY*1.12,duration:220,onComplete:()=>ghost.destroy()});
+      this.ghosts.emit(now,{x:this.visual.x,y:this.visual.y,width:this.visual.displayWidth,height:this.visual.displayHeight,flipX:this.facing<0,rotation:this.visual.rotation});
     }
+    this.ghosts.update(now,dashing,scene.game.loop.delta,cosmeticClockEnabled);
   }
 }

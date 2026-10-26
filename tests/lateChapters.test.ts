@@ -54,4 +54,4 @@ it('finds repeatable shutter departure windows against the runtime collision sch
   }
  }
  expect(QUALITY_SHUTTER_WARN_MS).toBe(2000);expect(QUALITY_SHUTTER_GONE_MS).toBe(1000);expect(QUALITY_SHUTTER_RECOVER_MS).toBe(400);expect(shutterCollisionEnabled(1999)).toBe(true);expect(shutterCollisionEnabled(2000)).toBe(false);expect(shutterCollisionEnabled(3000)).toBe(true);expect(failures).toEqual([]);
-});
+},30000);

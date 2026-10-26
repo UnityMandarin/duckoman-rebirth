@@ -2,6 +2,7 @@ export const QUALITY_TRAP_WARNING_MS=650;
 export const QUALITY_TRAP_IDLE_MS=900;
 export const QUALITY_TRAP_DELTA_CAP_MS=50;
 export const QUALITY_PRESS_HALF_HEIGHT=112.5;
+export const QUALITY_SHUTTER_WARN_MS=2000,QUALITY_SHUTTER_GONE_MS=1000,QUALITY_SHUTTER_RECOVER_MS=400;
 
 export type TrapPressPhase='idle'|'warn'|'fall'|'impact'|'return';
 export type TrapCrumblePhase='idle'|'warn'|'drop'|'broken';
@@ -28,6 +29,8 @@ export function pressPhaseAfterGap(_phase:TrapPressPhase):TrapPressPhase{return 
 export function pressStartsWarning(phase:TrapPressPhase,clockMs:number,deadlineMs:number):boolean{return phase==='idle'&&clockMs>=deadlineMs;}
 export function pressCanFall(phase:TrapPressPhase,clockMs:number,deadlineMs:number):boolean{return phase==='warn'&&clockMs>=deadlineMs;}
 export function shutterCanClose(playerOverlaps:boolean):boolean{return !playerOverlaps;}
+/** Collision is solid through the warning, absent for one second, then restored during recovery. */
+export function shutterCollisionEnabled(elapsedSinceWarning:number):boolean{return elapsedSinceWarning<QUALITY_SHUTTER_WARN_MS||elapsedSinceWarning>=QUALITY_SHUTTER_WARN_MS+QUALITY_SHUTTER_GONE_MS;}
 /** Only the explicit authored phase decides which warning must be replayed after a gap. */
 export function crumblePhaseAfterGap(phase:TrapCrumblePhase):TrapCrumblePhase{return phase==='warn'?'idle':phase;}
 export function specialPhaseAfterGap(phase:TrapSpecialPhase,playerOverlaps:boolean):{phase:TrapSpecialPhase;solid:boolean}{return {phase,solid:shutterCanClose(playerOverlaps)};}

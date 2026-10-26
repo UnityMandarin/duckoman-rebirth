@@ -3,7 +3,7 @@ import {SCENIC_ZONES} from '../data/scenicZones';
 import type {EnvironmentKind} from '../data/worldEnvironment';
 import { LETTER_TEXTURE } from '../entities/CreatorLetter';
 
-export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'furnace' | 'rescue' | 'castle-secret';
+export type SceneAssetProfile = 'menu' | 'gate-1' | 'jail' | 'outside' | 'crimson' | 'furnace' | 'rescue' | 'late' | 'castle-secret';
 export interface SceneAssetEntry {
   readonly key: string;
   readonly path: string;
@@ -124,6 +124,7 @@ const profiles: Readonly<Record<SceneAssetProfile, readonly SceneAssetEntry[]>> 
     entry('quality-concept-props', 'assets/quality/concept-props.png'),
     entry('bronze-wing', 'assets/gate3/bronze-wing.png'),
   ],
+  late: withCommon(...scenicAssets('crimson'),entry('world-v3-castle-audience','assets/world-v3/castle-audience.png'),entry('identity-crimson','assets/identity/crimson.png'),entry('identity-jail','assets/identity/jail.png'),entry('furnace-utility','assets/chapter5/furnace-art/utility.webp'),entry('furnace-climax','assets/chapter5/furnace-art/climax.webp')),
   'castle-secret': [
     entry('duckoman', 'assets/gate3/duckoman.png'),
     entry('masonry', 'assets/gate3/masonry.png'),

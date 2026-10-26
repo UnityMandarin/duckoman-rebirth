@@ -74,7 +74,7 @@ describe('scene asset profiles and leases', () => {
   });
 
   it('keeps menu art separate from gameplay, with every catalogue path present', () => {
-    const menu = sceneAssetEntries('menu'), gameplayProfiles: SceneAssetProfile[] = ['gate-1', 'jail', 'outside', 'crimson', 'furnace', 'rescue', 'castle-secret'];
+    const menu = sceneAssetEntries('menu'), gameplayProfiles: SceneAssetProfile[] = ['gate-1', 'jail', 'outside', 'crimson', 'furnace', 'rescue', 'late', 'castle-secret'];
     const gameplay = gameplayProfiles.flatMap(profile => sceneAssetEntries(profile));
     const menuKeys = new Set(menu.map(entry => entry.key));
     expect(menu.some(entry => entry.key === 'menu-ruined-kingdom')).toBe(true);
@@ -82,6 +82,10 @@ describe('scene asset profiles and leases', () => {
     expect(sceneAssetEntries('crimson').some(entry=>entry.key.startsWith('furnace-'))).toBe(false);
     expect(sceneAssetEntries('furnace').filter(entry=>entry.key.startsWith('furnace-')).map(entry=>entry.key)).toEqual(['furnace-backdrop','furnace-lava-basin','furnace-lava-glow','furnace-lava-surface','furnace-lava-spit','furnace-lava-feed','furnace-utility','furnace-climax']);
     expect(sceneAssetEntries('rescue').some(entry=>entry.key==='furnace-lava-basin'||entry.key==='furnace-lava-glow')).toBe(false);
+    expect(sceneAssetEntries('late').map(entry=>entry.key)).toContain('identity-jail');
+    expect(sceneAssetEntries('late').map(entry=>entry.key)).toContain('world-v3-castle-audience');
+    expect(sceneAssetEntries('late').map(entry=>entry.key)).toContain('furnace-climax');
+    expect(sceneAssetEntries('late').map(entry=>entry.key)).toContain('furnace-utility');
     expect(menu.filter(entry => entry.key.startsWith('menu-')).length).toBe(5);
     for (const item of [...menu, ...gameplay]) expect(existsSync(join(process.cwd(), 'public', item.path))).toBe(true);
   });

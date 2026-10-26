@@ -7,7 +7,7 @@ import {showHitbox} from './DebugHitboxes';
 import type {PredictHazard,PredictSurface} from './descentPrediction';
 import {roomFor} from '../data/qualityRooms';
 import {addConveyorBeltDeck,conveyorBeltDeckOffset,identityTexture} from './ChapterVisuals';
-import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,type TrapPressPhase} from './qualityTrapClock';
+import {advanceQualityTrapClock,qualityTrapDeltaMs,trapIdleCadenceMs,pressPhaseAfterGap,pressStartsWarning,pressCanFall,trapSectionBuildCount,activeTrapEncounterIndex,trapRoomTransition,trapDustScale,pressImpactCenterY,QUALITY_PRESS_HALF_HEIGHT,QUALITY_TRAP_WARNING_MS,QUALITY_SHUTTER_WARN_MS,QUALITY_SHUTTER_GONE_MS,QUALITY_SHUTTER_RECOVER_MS,type TrapPressPhase} from './qualityTrapClock';
 
 export interface TrapEncounterSource {count:number;encounter:(room:number)=>Encounter|undefined;floor:(room:number)=>number;}
 export interface ChapterSurface {shape:Phaser.GameObjects.Rectangle;art:Phaser.GameObjects.Image|Phaser.GameObjects.TileSprite;ledge:Ledge;}
@@ -73,8 +73,8 @@ export class ChapterTraps {
     if(moving.type==='crumble')put(this.crumbles,section,{section,surface,baseX:surface.ledge.x,baseY:surface.ledge.y});
     if(moving.type==='presses'){
      const x=surface.ledge.x,ground=surface.ledge.y-(authored?surface.ledge.height/2:16);
-     const chapterFive=scene.sys?.settings?.key==='rescue'||scene.sys?.settings?.key==='rescue-boss';
-     put(this.presses,section,{section,x,ground,art:scene.add.image(x,ground-480,identityTexture(kind),'press').setDisplaySize(88,225).setDepth(9).setVisible(false),warning:chapterFive?scene.add.image(x,ground-190,'furnace-utility','warning').setDisplaySize(90,310).setDepth(8).setVisible(false):scene.add.graphics().setDepth(8),phase:'idle',at:1200+moving.step*240,hit:false,zone:{left:x-32,right:x+32,top:ground-480-QUALITY_PRESS_HALF_HEIGHT,bottom:ground-480+QUALITY_PRESS_HALF_HEIGHT}});
+     const sceneKey=scene.sys?.settings?.key,chapterFive=sceneKey==='rescue'||sceneKey==='rescue-boss',lateChapter=sceneKey==='stormworks'||sceneKey==='crown-edge';
+     put(this.presses,section,{section,x,ground,art:scene.add.image(x,ground-480,identityTexture(kind),'press').setDisplaySize(88,225).setDepth(9).setVisible(false),warning:chapterFive||lateChapter?scene.add.image(x,ground-190,'furnace-utility','warning').setDisplaySize(90,310).setDepth(8).setVisible(false):scene.add.graphics().setDepth(8),phase:'idle',at:1200+moving.step*240,hit:false,zone:{left:x-32,right:x+32,top:ground-480-QUALITY_PRESS_HALF_HEIGHT,bottom:ground-480+QUALITY_PRESS_HALF_HEIGHT}});
     }
    }
   }
@@ -95,12 +95,15 @@ export class ChapterTraps {
   this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN,this.shutdown);
  }
  private readonly markGap=():void=>{this.suspendedGap=true;};
+ suspend():void{this.suspendedGap=true;}
  private readonly visibilityChanged=():void=>{if(document.visibilityState!=='visible')this.markGap();};
  private readonly shutdown=():void=>{
   this.scene.events.off(Phaser.Scenes.Events.PAUSE,this.markGap);this.scene.events.off(Phaser.Scenes.Events.SLEEP,this.markGap);
   this.scene.game.events.off(Phaser.Core.Events.BLUR,this.markGap);document.removeEventListener('visibilitychange',this.visibilityChanged);
   this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN,this.shutdown);
  };
+ /** Read-only current phase for camera forecasts; never advances or mutates trap state. */
+ activeTrapSections():number[]{return this.roomActive.flatMap((active,index)=>active?[index]:[]);}
  /** Read-only current phase for camera forecasts; never advances or mutates trap state. */
  predictionMotion(shape:Phaser.GameObjects.Rectangle,out:TrapPredictionMotion):boolean {
   const special=this.specialByShape.get(shape);if(!special||(special.type!=='ferry'&&special.type!=='lift'))return false;
@@ -212,31 +215,31 @@ export class ChapterTraps {
   if(playerSection===section&&!room.started){room.started=true;room.index=0;const first=room.entries[0];if(first){first.phase='warn';first.at=now;}}
   if(!room.started)return;
   const entry=room.entries[room.index];if(!entry)return;
-  const {shape,art,ledge}=entry.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody,top=entry.y-16;
+  const {shape,art,ledge}=entry.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody,top=entry.y-ledge.height/2;
   if(entry.phase==='warn'){
    const elapsed=Math.max(0,now-entry.at),blink=Math.floor(elapsed/180)%2===0;
    art.setTint(0xffc36b).setAlpha(blink?.96:.58).setPosition(entry.x,top);
-   if(elapsed>=2000){entry.phase='gone';entry.at=now;body.enable=false;if(entry.kind==='crumble')this.emitDust(entry.x,top,1,section);}
+   if(elapsed>=QUALITY_SHUTTER_WARN_MS){entry.phase='gone';entry.at=now;body.enable=false;if(entry.kind==='crumble')this.emitDust(entry.x,top,1,section);}
   }
   if(entry.phase==='gone'){
    const elapsed=now-entry.at;
    if(entry.kind==='crumble'&&elapsed<300){const t=Math.min(1,elapsed/300),drop=48*t*t;shape.setPosition(entry.x,entry.y+drop);body.updateFromGameObject();art.setPosition(entry.x,top+drop).clearTint().setAlpha(1);ledge.x=entry.x;ledge.y=entry.y+drop;}
    else if(entry.kind==='crumble'){art.setAlpha(0);}
    else art.setAlpha(0);
-   if(elapsed>=1000){
+   if(elapsed>=QUALITY_SHUTTER_GONE_MS){
     if(this.disappearingOverlap(p,entry)){this.restoreDisappearingSurface(entry,false);art.setAlpha(.28);}
     else {this.restoreDisappearingSurface(entry,true);entry.phase='recover';entry.at=now;}
    }
   }
   if(entry.phase==='recover'){
-   if(now-entry.at>=400){entry.phase='solid';room.index++;if(room.index>=room.entries.length)room.index=0;const next=room.entries[room.index];next.phase='warn';next.at=now;}
+   if(now-entry.at>=QUALITY_SHUTTER_RECOVER_MS){entry.phase='solid';room.index++;if(room.index>=room.entries.length)room.index=0;const next=room.entries[room.index];next.phase='warn';next.at=now;}
   }
  }
  private disappearingOverlap(p:Phaser.Physics.Arcade.Body,entry:DisappearingEntry):boolean{return p.right>entry.x-entry.surface.ledge.width/2&&p.left<entry.x+entry.surface.ledge.width/2&&p.bottom>entry.y-16&&p.top<entry.y+16;}
  private restoreDisappearingSurface(entry:DisappearingEntry,enable:boolean):void {
   const {shape,art,ledge}=entry.surface,body=shape.body as Phaser.Physics.Arcade.StaticBody;
   shape.setPosition(entry.x,entry.y);body.updateFromGameObject();body.enable=enable;
-  art.setPosition(entry.x,entry.y-16).clearTint().setAlpha(enable?1:.28);ledge.x=entry.x;ledge.y=entry.y;
+  art.setPosition(entry.x,entry.y-entry.surface.ledge.height/2).clearTint().setAlpha(enable?1:.28);ledge.x=entry.x;ledge.y=entry.y;
  }
  private resetDisappearingRoom(room:DisappearingRoom):void {
   for(const entry of room.entries){this.restoreDisappearingSurface(entry,true);entry.phase='solid';entry.at=0;}

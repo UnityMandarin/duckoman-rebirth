@@ -16,6 +16,7 @@ vi.mock('../src/scenes/JournalScene',()=>({JournalScene:class{}}));
 vi.mock('../src/scenes/BossTrialsScene',()=>({BossTrialsScene:class{}}));
 vi.mock('../src/scenes/FurnaceScene',()=>({FurnaceScene:class{}}));
 vi.mock('../src/scenes/RescueScene',()=>({RescueScene:class{}}));
+vi.mock('../src/scenes/LateChapterScene',()=>({LateChapterScene:class{}}));
 
 import {gameConfig} from '../src/config/gameConfig';
 

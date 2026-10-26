@@ -5,30 +5,30 @@ export interface FurnaceJumpSample {ms:number;x:number;feet:number;}
 export interface FurnaceJump {durationMs:number;dashAtMs?:number;runSpeed:number;samples:FurnaceJumpSample[];}
 export function furnaceRoute(room:number):FurnacePlatform[] {const r=FURNACE_ROOMS[room];return [{x:96,top:r.entryTop,width:192},...r.steps,{x:1536,top:r.exitTop,width:192}];}
 /** Arcade semi-implicit integration, held base jump and sprint; dash zeroes VY and gravity. No relics. */
-export function furnaceJump(from:FurnacePlatform,to:FurnacePlatform,fps:number,dashAtMs?:number,sourceTop=from.top,targetTop:(ms:number)=>number=()=>to.top,launchX?:number,runSpeed:number=TUNING.player.sprintSpeed,solids?:readonly FurnacePlatform[]):FurnaceJump|undefined {
+export function furnaceJump(from:FurnacePlatform,to:FurnacePlatform,fps:number,dashAtMs?:number,sourceTop=from.top,targetTop:(ms:number)=>number=()=>to.top,launchX?:number,runSpeed:number=TUNING.player.sprintSpeed,solids?:readonly FurnacePlatform[],platformAt?:(platform:FurnacePlatform,ms:number)=>FurnacePlatform):FurnaceJump|undefined {
  const half=TUNING.player.bodyWidth/2,dir=to.x>=from.x?1:-1,dt=1/fps,launch=launchX??from.x+dir*(from.width/2-half-3);
  let x=launch,feet=sourceTop,vy:number=TUNING.player.jumpVelocity;const samples:FurnaceJumpSample[]=[{ms:0,x,feet}];let dashed=false,dashEnd=0;
  for(let frame=1;frame<fps*3;frame++){
-  const ms=frame*1000/fps,prevFeet=feet,prevX=x;
+  const ms=frame*1000/fps,prevMs=(frame-1)*1000/fps,prevFeet=feet,prevX=x;
   if(!dashed&&dashAtMs!==undefined&&ms>=dashAtMs){dashed=true;dashEnd=ms+TUNING.player.dashDuration;vy=0;}
   const dashing=dashed&&ms<dashEnd;if(!dashing)vy=Math.min(TUNING.player.maxFallVelocity,vy+TUNING.player.gravity*dt);
-  feet+=vy*dt;const reached=dir>0?x>=to.x:x<=to.x;const vx=dashing?TUNING.player.dashSpeed:reached?0:runSpeed;x+=dir*vx*dt;samples.push({ms,x,feet});
+  feet+=vy*dt;const currentTarget=platformAt?.(to,ms)??to,reached=dir>0?x>=currentTarget.x:x<=currentTarget.x;const vx=dashing?TUNING.player.dashSpeed:reached?0:runSpeed;x+=dir*vx*dt;samples.push({ms,x,feet});
   const top=targetTop(ms);
-  if(solids)for(const solid of solids){
-   const solidTop=solid===to?top:solid===from?sourceTop:solid.top,solidHeight=solid.width===192||solid.width===88?64:48;
+  if(solids)for(const authored of solids){
+   const solid=platformAt?.(authored,ms)??authored,previous=platformAt?.(authored,prevMs)??authored,solidTop=authored===to?top:authored===from?sourceTop:solid.top,previousTop=authored===to?targetTop(prevMs):authored===from?sourceTop:previous.top,solidHeight=solid.width===192||solid.width===88?64:48;
    const horizontal=x+half+8>solid.x-solid.width/2&&x-half-8<solid.x+solid.width/2;
    if(!horizontal)continue;
-   if(vy>=0&&prevFeet<=solidTop&&feet>=solidTop&&solid!==to)return;
+   if(vy>=0&&prevFeet<=previousTop&&feet>=solidTop&&authored!==to)return;
    // Model overhead separation with an eight-unit horizontal margin for input/frame variation.
-   if(vy<0&&prevFeet-TUNING.player.bodyHeight>=solidTop+solidHeight&&feet-TUNING.player.bodyHeight<=solidTop+solidHeight){feet=solidTop+solidHeight+TUNING.player.bodyHeight;vy=0;}
-   else if(feet>solidTop&&feet-TUNING.player.bodyHeight<solidTop+solidHeight&&prevFeet>solidTop){
+   if(vy<0&&prevFeet-TUNING.player.bodyHeight>=previousTop+solidHeight&&feet-TUNING.player.bodyHeight<=solidTop+solidHeight){feet=solidTop+solidHeight+TUNING.player.bodyHeight;vy=0;}
+   else if(feet>solidTop&&feet-TUNING.player.bodyHeight<solidTop+solidHeight&&prevFeet>previousTop){
     if(prevX+half<=solid.x-solid.width/2)x=solid.x-solid.width/2-half;
     else if(prevX-half>=solid.x+solid.width/2)x=solid.x+solid.width/2+half;
    }
   }
   samples[samples.length-1]={ms,x,feet};
-  if(vy>=0&&prevFeet<=top&&feet>=top&&x>=to.x-to.width/2+half+2&&x<=to.x+to.width/2-half-2)return {durationMs:ms,dashAtMs,runSpeed,samples};
-  if((dir>0?x>to.x+to.width/2+half:x<to.x-to.width/2-half)&&feet>top)return;
+  if(vy>=0&&prevFeet<=targetTop(prevMs)&&feet>=top&&x>=currentTarget.x-currentTarget.width/2+half+2&&x<=currentTarget.x+currentTarget.width/2-half-2)return {durationMs:ms,dashAtMs,runSpeed,samples};
+  if((dir>0?x>currentTarget.x+currentTarget.width/2+half:x<currentTarget.x-currentTarget.width/2-half)&&feet>top)return;
  }
 }
 export function furnaceJumpOptions(from:FurnacePlatform,to:FurnacePlatform,fps:number,solids?:readonly FurnacePlatform[]):FurnaceJump[] {
